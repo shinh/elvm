@@ -93,12 +93,12 @@ static int read_int(FILE* fp, int c) {
   return is_minus ? -r : r;
 }
 
-static Data* add_data(Data* d, int* pc, int v) {
+static Data* add_data(Data* d, int* mp, int v) {
   Data* n = malloc(sizeof(Data));
   n->next = 0;
   n->v = v;
   d->next = n;
-  ++*pc;
+  ++*mp;
   return n;
 }
 
@@ -109,7 +109,8 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
   Data* data = &data_root;
   char buf[32];
   int in_text = 1;
-  int pc[2] = { 0, 0 };
+  int pc = 0;
+  int mp = 0;
   int c;
   g_lineno = 1;
 
@@ -181,7 +182,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         c = my_getc(fp);
         if (!isdigit(c) && c != '-')
           error("number expected");
-        data = add_data(data, &pc[0], read_int(fp, c));
+        data = add_data(data, &mp, read_int(fp, c));
         continue;
       } else if (!strcmp(buf, ".string")) {
         if (in_text)
@@ -198,19 +199,19 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
               c = 10;
             else
               error("unknown escape");
-            data = add_data(data, &pc[0], c);
+            data = add_data(data, &mp, c);
           } else {
-            data = add_data(data, &pc[0], c);
+            data = add_data(data, &mp, c);
           }
           c = my_getc(fp);
         }
-        data = add_data(data, &pc[0], 0);
+        data = add_data(data, &mp, 0);
 
         continue;
       } else {
         c = my_getc(fp);
         if (c == ':') {
-          int value = in_text ? ++pc[1] : pc[0];
+          int value = in_text ? ++pc : mp;
           *symtab = TABLE_ADD(*symtab, buf, value);
           continue;
         }
@@ -239,7 +240,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
       text->next = calloc(1, sizeof(Inst));
       text = text->next;
       text->op = op;
-      text->pc = pc[1];
+      text->pc = pc;
 
       Value args[3];
       for (int i = 0; i < argc; i++) {
@@ -312,6 +313,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
           text->src = args[2];
         case JMP:
           text->jmp = args[0];
+          pc++;
           break;
         default:
           error("oops");
@@ -324,7 +326,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
     }
   }
 
-  *symtab = TABLE_ADD(*symtab, "_edata", pc[0]);
+  *symtab = TABLE_ADD(*symtab, "_edata", mp);
 
   Module* m = malloc(sizeof(Module));
   m->text = text_root.next;
