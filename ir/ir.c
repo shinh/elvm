@@ -142,6 +142,8 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         op = GETC;
       } else if (!strcmp(buf, "exit")) {
         op = EXIT;
+      } else if (!strcmp(buf, "dump")) {
+        op = DUMP;
       } else if (!strcmp(buf, "jeq")) {
         op = JEQ;
       } else if (!strcmp(buf, "jne")) {
@@ -234,6 +236,8 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         argc = 1;
       else if (op <= GE)
         argc = 2;
+      else if (op == DUMP)
+        argc = 0;
       else
         error("oops");
 
@@ -298,10 +302,13 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         case LE:
         case GE:
           text->src = args[1];
-        case PUTC:
         case GETC:
           text->dst = args[0];
+          break;
+        case PUTC:
+          text->src = args[0];
         case EXIT:
+        case DUMP:
           break;
         case JEQ:
         case JNE:
@@ -438,7 +445,7 @@ void dump_inst(Inst* inst) {
 
 int main(int argc, char* argv[]) {
   if (argc < 2)
-    error("no input files");
+    error("no input file");
   Module* m = load_eir_from_file(argv[1]);
   for (Inst* inst = m->text; inst; inst = inst->next) {
     dump_inst(inst);

@@ -16,7 +16,7 @@ typedef enum {
   MOV = 0, ADD, SUB, LOAD, STORE, PUTC, GETC, EXIT,
   JEQ = 8, JNE, JLT, JGT, JLE, JGE, JMP,
   // Optional operations follow.
-  EQ = 16, NE, LT, GT, LE, GE
+  EQ = 16, NE, LT, GT, LE, GE, DUMP
 } Op;
 
 typedef struct {
