@@ -47,9 +47,9 @@ typedef struct {
   Data* data;
 } Module;
 
-Module* parse_eir(FILE* fp);
+Module* load_eir(FILE* fp);
 
-Module* parse_eir_from_file(const char* filename);
+Module* load_eir_from_file(const char* filename);
 
 void dump_inst(Inst* inst);
 

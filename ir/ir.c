@@ -102,7 +102,7 @@ static Data* add_data(Data* d, int* pc, int v) {
   return n;
 }
 
-Module* parse_eir(FILE* fp) {
+static Module* parse_eir(FILE* fp, Table** symtab) {
   Inst text_root;
   Inst* text = &text_root;
   Data data_root;
@@ -111,7 +111,6 @@ Module* parse_eir(FILE* fp) {
   int in_text = 1;
   int pc[2] = { 0, 0 };
   int c;
-  Table* symtabs[2] = { 0, 0 };
   g_lineno = 1;
 
   for (;;) {
@@ -212,7 +211,7 @@ Module* parse_eir(FILE* fp) {
         c = my_getc(fp);
         if (c == ':') {
           int value = in_text ? ++pc[1] : pc[0];
-          symtabs[in_text] = TABLE_ADD(symtabs[in_text], buf, value);
+          *symtab = TABLE_ADD(*symtab, buf, value);
           continue;
         }
         error("unknown op");
@@ -237,14 +236,13 @@ Module* parse_eir(FILE* fp) {
       else
         error("oops");
 
-      text->next = malloc(sizeof(Inst));
+      text->next = calloc(1, sizeof(Inst));
       text = text->next;
       text->op = op;
       text->pc = pc[1];
 
-      int i;
       Value args[3];
-      for (i = 0; i < argc; i++) {
+      for (int i = 0; i < argc; i++) {
         skip_ws(fp);
         if (i) {
           c = my_getc(fp);
@@ -326,16 +324,45 @@ Module* parse_eir(FILE* fp) {
     }
   }
 
+  *symtab = TABLE_ADD(*symtab, "_edata", pc[0]);
+
   Module* m = malloc(sizeof(Module));
   m->text = text_root.next;
   m->data = data_root.next;
   return m;
 }
 
-Module* parse_eir_from_file(const char* filename) {
+static void resolve(Value* v, Table* symtab) {
+  if (v->type != TMP)
+    return;
+  const char* name = (const char*)v->tmp;
+  if (!TABLE_GET(symtab, name, &v->imm)) {
+    fprintf(stderr, "undefined sym: %s\n", name);
+    exit(1);
+  }
+  //fprintf(stderr, "resolved: %s %d\n", name, v->imm);
+  v->type = IMM;
+}
+
+static void resolve_syms(Module* mod, Table* symtab) {
+  for (Inst* inst = mod->text; inst; inst = inst->next) {
+    resolve(&inst->dst, symtab);
+    resolve(&inst->src, symtab);
+    resolve(&inst->jmp, symtab);
+  }
+}
+
+Module* load_eir(FILE* fp) {
+  Table* symtab = 0;
+  Module* mod = parse_eir(fp, &symtab);
+  resolve_syms(mod, symtab);
+  return mod;
+}
+
+Module* load_eir_from_file(const char* filename) {
   g_filename = filename;
   FILE* fp = fopen(filename, "r");
-  Module* r = parse_eir(fp);
+  Module* r = load_eir(fp);
   fclose(fp);
   return r;
 }
@@ -410,9 +437,8 @@ void dump_inst(Inst* inst) {
 int main(int argc, char* argv[]) {
   if (argc < 2)
     error("no input files");
-  Module* m = parse_eir_from_file(argv[1]);
-  Inst* inst;
-  for (inst = m->text; inst; inst = inst->next) {
+  Module* m = load_eir_from_file(argv[1]);
+  for (Inst* inst = m->text; inst; inst = inst->next) {
     dump_inst(inst);
   }
   return 0;
