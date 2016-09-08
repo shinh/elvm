@@ -103,15 +103,16 @@ static Data* add_data(Data* d, int* mp, int v) {
 }
 
 static Module* parse_eir(FILE* fp, Table** symtab) {
-  Inst text_root;
+  Inst text_root = {};
   Inst* text = &text_root;
-  Data data_root;
+  Data data_root = {};
   Data* data = &data_root;
   char buf[32];
   int in_text = 1;
   int pc = 0;
   int mp = 0;
   int c;
+  int prev_jmp = 1;
   g_lineno = 1;
 
   for (;;) {
@@ -213,7 +214,14 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
       } else {
         c = my_getc(fp);
         if (c == ':') {
-          int value = in_text ? ++pc : mp;
+          int value = 0;
+          if (in_text) {
+            if (!prev_jmp)
+                ++pc;
+            value = pc;
+          } else {
+            value = mp;
+          }
           *symtab = TABLE_ADD(*symtab, buf, value);
           continue;
         }
@@ -289,6 +297,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         args[i] = a;
       }
 
+      prev_jmp = 0;
       switch (op) {
         case MOV:
         case ADD:
@@ -321,6 +330,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         case JMP:
           text->jmp = args[0];
           pc++;
+          prev_jmp = 1;
           break;
         default:
           error("oops");
@@ -380,7 +390,7 @@ void dump_op(Op op) {
   static const char* op_strs[] = {
     "mov", "add", "sub", "load", "store", "putc", "getc", "exit",
     "jeq", "jne", "jlt", "jgt", "jle", "jge", "jmp", "xxx",
-    "eq", "ne", "lt", "gt", "le", "ge"
+    "eq", "ne", "lt", "gt", "le", "ge", "dump"
   };
   fprintf(stderr, "%s", op_strs[op]);
 }
@@ -420,6 +430,7 @@ void dump_inst(Inst* inst) {
       fprintf(stderr, " ");
       dump_val(inst->dst);
     case EXIT:
+    case DUMP:
       break;
     case JEQ:
     case JNE:
@@ -427,18 +438,18 @@ void dump_inst(Inst* inst) {
     case JGT:
     case JLE:
     case JGE:
-    case JMP:
-      fprintf(stderr, " ");
-      dump_val(inst->jmp);
       fprintf(stderr, " ");
       dump_val(inst->dst);
       fprintf(stderr, " ");
       dump_val(inst->src);
+    case JMP:
+      fprintf(stderr, " ");
+      dump_val(inst->jmp);
       break;
     default:
       error("oops");
   }
-  fprintf(stderr, "\n");
+  fprintf(stderr, " pc=%d\n", inst->pc);
 }
 
 #ifdef TEST

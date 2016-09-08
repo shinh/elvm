@@ -68,17 +68,18 @@ int main(int argc, char* argv[]) {
   for (Data* d = m->data; d; d = d->next, i++) {
     mem[i] = d->v;
   }
-  i = 0;
   for (Inst* inst = m->text; inst; i++) {
-    prog[i] = inst;
     pc = inst->pc;
+    prog[pc] = inst;
     for (; inst && pc == inst->pc; inst = inst->next) {}
   }
 
-  pc = 0;
+  pc = m->text->pc;
   for (;;) {
     Inst* inst = prog[pc];
-    for (; inst && inst->pc == pc; inst = inst->next) {
+    for (; inst; inst = inst->next) {
+      //dump_inst(inst);
+      int npc = -1;
       switch (inst->op) {
         case MOV:
           assert(inst->dst.type == REG);
@@ -136,12 +137,17 @@ int main(int argc, char* argv[]) {
         case JGE:
         case JMP:
           if (cmp(inst)) {
-            pc = value(&inst->jmp);
+            npc = value(&inst->jmp);
           }
           break;
 
         default:
           error("oops");
+      }
+
+      if (npc >= 0) {
+        pc = npc;
+        break;
       }
     }
   }
