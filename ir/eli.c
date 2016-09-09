@@ -8,11 +8,22 @@ int pc;
 Inst* prog[1 << 16];
 int mem[1 << 24];
 int regs[6];
+static const int UINT_MAX = ((1 << 24) - 1);
 
 __attribute__((noreturn))
 static void error(const char* msg) {
   fprintf(stderr, "%s (pc=%d)\n", msg, pc);
   exit(1);
+}
+
+static inline void dump_regs() {
+  static const char* REG_NAMES[] = {
+    "A", "B", "C", "D", "BP", "SP"
+  };
+  for (int i = 0; i < 6; i++) {
+    fprintf(stderr, "%s=%d", REG_NAMES[i], regs[i]);
+    fprintf(stderr, i == 5 ? "\n" : " ");
+  }
 }
 
 static int value(Value* v) {
@@ -89,22 +100,32 @@ int main(int argc, char* argv[]) {
         case ADD:
           assert(inst->dst.type == REG);
           regs[inst->dst.reg] += src(inst);
+          regs[inst->dst.reg] &= UINT_MAX;
           break;
 
         case SUB:
           assert(inst->dst.type == REG);
           regs[inst->dst.reg] -= src(inst);
+          regs[inst->dst.reg] &= UINT_MAX;
           break;
 
-        case LOAD:
+        case LOAD: {
           assert(inst->dst.type == REG);
-          regs[inst->dst.reg] = mem[src(inst)];
+          int addr = src(inst);
+          if (addr < 0)
+            error("zero page load");
+          regs[inst->dst.reg] = mem[addr];
           break;
+        }
 
-        case STORE:
+        case STORE: {
           assert(inst->dst.type == REG);
-          mem[src(inst)] = regs[inst->dst.reg];
+          int addr = src(inst);
+          if (addr < 0)
+            error("zero page store");
+          mem[addr] = regs[inst->dst.reg];
           break;
+        }
 
         case PUTC:
           putchar(src(inst));

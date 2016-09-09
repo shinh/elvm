@@ -112,8 +112,18 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
   int pc = 0;
   int mp = 0;
   int c;
-  int prev_jmp = 1;
+  bool prev_jmp = 1;
   g_lineno = 1;
+
+  text->next = calloc(1, sizeof(Inst));
+  text = text->next;
+  text->op = JMP;
+  text->pc = pc++;
+  text->lineno = -1;
+  text->jmp.type = TMP;
+  text->jmp.tmp = "main";
+  text->next = 0;
+  *symtab = TABLE_ADD(*symtab, "main", 1);
 
   for (;;) {
     skip_ws(fp);
@@ -217,7 +227,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
           int value = 0;
           if (in_text) {
             if (!prev_jmp)
-                ++pc;
+              pc++;
             value = pc;
           } else {
             value = mp;
@@ -253,6 +263,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
       text = text->next;
       text->op = op;
       text->pc = pc;
+      text->lineno = g_lineno;
 
       Value args[3];
       for (int i = 0; i < argc; i++) {
@@ -297,7 +308,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         args[i] = a;
       }
 
-      prev_jmp = 0;
+      prev_jmp = false;
       switch (op) {
         case MOV:
         case ADD:
@@ -330,7 +341,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         case JMP:
           text->jmp = args[0];
           pc++;
-          prev_jmp = 1;
+          prev_jmp = true;
           break;
         default:
           error("oops");
@@ -449,7 +460,7 @@ void dump_inst(Inst* inst) {
     default:
       error("oops");
   }
-  fprintf(stderr, " pc=%d\n", inst->pc);
+  fprintf(stderr, " pc=%d @%d\n", inst->pc, inst->lineno);
 }
 
 #ifdef TEST

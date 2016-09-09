@@ -34,6 +34,7 @@ typedef struct Inst_ {
   Value src;
   Value jmp;
   int pc;
+  int lineno;
   struct Inst_* next;
 } Inst;
 
