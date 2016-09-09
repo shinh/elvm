@@ -39,19 +39,12 @@ static void ir_ungetc(Parser* p, int c) {
   ungetc(c, p->fp);
 }
 
-static void skip_until_ret(Parser* p, int is_comment) {
+static void skip_until_ret(Parser* p) {
   int c;
   for (;;) {
     c = ir_getc(p);
     if (c == '\n' || c == EOF)
       break;
-    if (c == '#') {
-      is_comment = 1;
-      continue;
-    }
-    if (!is_comment && !isspace(c)) {
-      error(p, "unexpected char");
-    }
   }
   ir_ungetc(p, c);
 }
@@ -136,7 +129,7 @@ static Module* parse_eir(Parser* p) {
       break;
 
     if (c == '#') {
-      skip_until_ret(p, 1);
+      skip_until_ret(p);
     } else if (c == '_' || c == '.' || isalpha(c)) {
       buf[0] = c;
       read_while_ident(p, buf + 1, 30);
