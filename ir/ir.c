@@ -8,37 +8,41 @@
 
 #include "table.h"
 
-static const char* g_filename = "<stdin>";
-static int g_lineno;
-static int g_col;
+typedef struct {
+  const char* filename;
+  int lineno;
+  int col;
+  FILE* fp;
+  Table* symtab;
+} Parser;
 
-static void error(const char* msg) {
-  fprintf(stderr, "%s:%d:%d: %s\n", g_filename, g_lineno, g_col, msg);
+static void error(Parser* p, const char* msg) {
+  fprintf(stderr, "%s:%d:%d: %s\n", p->filename, p->lineno, p->col, msg);
   exit(1);
 }
 
-static int my_getc(FILE* fp) {
-  int c = fgetc(fp);
+static int ir_getc(Parser* p) {
+  int c = fgetc(p->fp);
   if (c == '\n') {
-    g_lineno++;
-    g_col = 0;
+    p->lineno++;
+    p->col = 0;
   } else {
-    g_col++;
+    p->col++;
   }
   return c;
 }
 
-static void my_ungetc(int c, FILE* fp) {
+static void ir_ungetc(Parser* p, int c) {
   if (c == '\n') {
-    g_lineno--;
+    p->lineno--;
   }
-  ungetc(c, fp);
+  ungetc(c, p->fp);
 }
 
-static void skip_until_ret(FILE* fp, int is_comment) {
+static void skip_until_ret(Parser* p, int is_comment) {
   int c;
   for (;;) {
-    c = my_getc(fp);
+    c = ir_getc(p);
     if (c == '\n' || c == EOF)
       break;
     if (c == '#') {
@@ -46,50 +50,50 @@ static void skip_until_ret(FILE* fp, int is_comment) {
       continue;
     }
     if (!is_comment && !isspace(c)) {
-      error("unexpected char");
+      error(p, "unexpected char");
     }
   }
-  my_ungetc(c, fp);
+  ir_ungetc(p, c);
 }
 
-static void skip_ws(FILE* fp) {
+static void skip_ws(Parser* p) {
   int c;
   for (;;) {
-    c = my_getc(fp);
+    c = ir_getc(p);
     if (!isspace(c))
       break;
   }
-  my_ungetc(c, fp);
+  ir_ungetc(p, c);
 }
 
-static void read_while_ident(FILE* fp, char* p, int len) {
+static void read_while_ident(Parser* p, char* buf, int len) {
   while (len--) {
-    int c = my_getc(fp);
+    int c = ir_getc(p);
     if (!isalnum(c) && c != '_') {
-      my_ungetc(c, fp);
-      *p = 0;
+      ir_ungetc(p, c);
+      *buf = 0;
       return;
     }
-    *p++ = c;
+    *buf++ = c;
   }
-  error("too long ident");
+  error(p, "too long ident");
 }
 
-static int read_int(FILE* fp, int c) {
+static int read_int(Parser* p, int c) {
   bool is_minus = false;
   int r = 0;
   if (c == '-') {
     is_minus = true;
-    c = my_getc(fp);
+    c = ir_getc(p);
     if (!isdigit(c))
-      error("digit expected");
+      error(p, "digit expected");
   }
   while ('0' <= c && c <= '9') {
     r *= 10;
     r += c - '0';
-    c = my_getc(fp);
+    c = ir_getc(p);
   }
-  my_ungetc(c, fp);
+  ir_ungetc(p, c);
   return is_minus ? -r : r;
 }
 
@@ -102,7 +106,7 @@ static Data* add_data(Data* d, int* mp, int v) {
   return n;
 }
 
-static Module* parse_eir(FILE* fp, Table** symtab) {
+static Module* parse_eir(Parser* p) {
   Inst text_root = {};
   Inst* text = &text_root;
   Data data_root = {};
@@ -113,7 +117,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
   int mp = 0;
   int c;
   bool prev_jmp = 1;
-  g_lineno = 1;
+  p->lineno = 1;
 
   text->next = calloc(1, sizeof(Inst));
   text = text->next;
@@ -123,19 +127,19 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
   text->jmp.type = TMP;
   text->jmp.tmp = "main";
   text->next = 0;
-  *symtab = TABLE_ADD(*symtab, "main", 1);
+  p->symtab = TABLE_ADD(p->symtab, "main", 1);
 
   for (;;) {
-    skip_ws(fp);
-    c = my_getc(fp);
+    skip_ws(p);
+    c = ir_getc(p);
     if (c == EOF)
       break;
 
     if (c == '#') {
-      skip_until_ret(fp, 1);
+      skip_until_ret(p, 1);
     } else if (c == '_' || c == '.' || isalpha(c)) {
       buf[0] = c;
-      read_while_ident(fp, buf + 1, 30);
+      read_while_ident(p, buf + 1, 30);
       Op op = OP_UNSET;
       if (!strcmp(buf, "mov")) {
         op = MOV;
@@ -189,40 +193,40 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
         continue;
       } else if (!strcmp(buf, ".long")) {
         if (in_text)
-          error("in text");
-        skip_ws(fp);
+          error(p, "in text");
+        skip_ws(p);
 
-        c = my_getc(fp);
+        c = ir_getc(p);
         if (!isdigit(c) && c != '-')
-          error("number expected");
-        data = add_data(data, &mp, read_int(fp, c));
+          error(p, "number expected");
+        data = add_data(data, &mp, read_int(p, c));
         continue;
       } else if (!strcmp(buf, ".string")) {
         if (in_text)
-          error("in text");
-        skip_ws(fp);
-        if (my_getc(fp) != '"')
-          error("expected open '\"'");
+          error(p, "in text");
+        skip_ws(p);
+        if (ir_getc(p) != '"')
+          error(p, "expected open '\"'");
 
-        c = my_getc(fp);
+        c = ir_getc(p);
         while (c != '"') {
           if (c == '\\') {
-            c = my_getc(fp);
+            c = ir_getc(p);
             if (c == 'n')
               c = 10;
             else
-              error("unknown escape");
+              error(p, "unknown escape");
             data = add_data(data, &mp, c);
           } else {
             data = add_data(data, &mp, c);
           }
-          c = my_getc(fp);
+          c = ir_getc(p);
         }
         data = add_data(data, &mp, 0);
 
         continue;
       } else {
-        c = my_getc(fp);
+        c = ir_getc(p);
         if (c == ':') {
           int value = 0;
           if (in_text) {
@@ -232,14 +236,14 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
           } else {
             value = mp;
           }
-          *symtab = TABLE_ADD(*symtab, buf, value);
+          p->symtab = TABLE_ADD(p->symtab, buf, value);
           continue;
         }
-        error("unknown op");
+        error(p, "unknown op");
       }
 
       if (op < 0) {
-        error("oops");
+        error(p, "oops");
       }
       int argc;
       if (op <= STORE)
@@ -257,32 +261,32 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
       else if (op == DUMP)
         argc = 0;
       else
-        error("oops");
+        error(p, "oops");
 
       text->next = calloc(1, sizeof(Inst));
       text = text->next;
       text->op = op;
       text->pc = pc;
-      text->lineno = g_lineno;
+      text->lineno = p->lineno;
 
       Value args[3];
       for (int i = 0; i < argc; i++) {
-        skip_ws(fp);
+        skip_ws(p);
         if (i) {
-          c = my_getc(fp);
+          c = ir_getc(p);
           if (c != ',')
-            error("comma expected");
-          skip_ws(fp);
+            error(p, "comma expected");
+          skip_ws(p);
         }
 
         Value a;
-        c = my_getc(fp);
+        c = ir_getc(p);
         if (isdigit(c) || c == '-') {
           a.type = IMM;
-          a.imm = read_int(fp, c);
+          a.imm = read_int(p, c);
         } else {
           buf[0] = c;
-          read_while_ident(fp, buf + 1, 30);
+          read_while_ident(p, buf + 1, 30);
           if (isupper(c)) {
             a.type = REG;
             if (!strcmp(buf, "A")) {
@@ -298,7 +302,7 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
             } else if (!strcmp(buf, "BP")) {
               a.reg = BP;
             } else {
-              error("unknown reg");
+              error(p, "unknown reg");
             }
           } else {
             a.type = TMP;
@@ -344,17 +348,17 @@ static Module* parse_eir(FILE* fp, Table** symtab) {
           prev_jmp = true;
           break;
         default:
-          error("oops");
+          error(p, "oops");
       }
 
       //dump_inst(text);
       //fprintf(stderr, "\n");
     } else {
-      error("unexpected char");
+      error(p, "unexpected char");
     }
   }
 
-  *symtab = TABLE_ADD(*symtab, "_edata", mp);
+  p->symtab = TABLE_ADD(p->symtab, "_edata", mp);
 
   Module* m = malloc(sizeof(Module));
   m->text = text_root.next;
@@ -382,17 +386,23 @@ static void resolve_syms(Module* mod, Table* symtab) {
   }
 }
 
-Module* load_eir(FILE* fp) {
-  Table* symtab = 0;
-  Module* mod = parse_eir(fp, &symtab);
-  resolve_syms(mod, symtab);
+Module* load_eir_impl(const char* filename, FILE* fp) {
+  Parser parser = {
+    .filename = filename,
+    .fp = fp
+  };
+  Module* mod = parse_eir(&parser);
+  resolve_syms(mod, parser.symtab);
   return mod;
 }
 
+Module* load_eir(FILE* fp) {
+  return load_eir_impl("<stdin>", fp);
+}
+
 Module* load_eir_from_file(const char* filename) {
-  g_filename = filename;
   FILE* fp = fopen(filename, "r");
-  Module* r = load_eir(fp);
+  Module* r = load_eir_impl(filename, fp);
   fclose(fp);
   return r;
 }
@@ -458,7 +468,8 @@ void dump_inst(Inst* inst) {
       dump_val(inst->jmp);
       break;
     default:
-      error("oops");
+      fprintf(stderr, "oops\n");
+      exit(1);
   }
   fprintf(stderr, " pc=%d @%d\n", inst->pc, inst->lineno);
 }
@@ -466,8 +477,10 @@ void dump_inst(Inst* inst) {
 #ifdef TEST
 
 int main(int argc, char* argv[]) {
-  if (argc < 2)
-    error("no input file");
+  if (argc < 2) {
+    fprintf(stderr, "no input file\n");
+    exit(1);
+  }
   Module* m = load_eir_from_file(argv[1]);
   for (Inst* inst = m->text; inst; inst = inst->next) {
     dump_inst(inst);
