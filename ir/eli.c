@@ -1,13 +1,16 @@
 #include "ir.h"
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int pc;
 Inst* prog[1 << 16];
 int mem[1 << 24];
 int regs[6];
+bool verbose;
 static const int UINT_MAX = ((1 << 24) - 1);
 
 __attribute__((noreturn))
@@ -16,10 +19,11 @@ static void error(const char* msg) {
   exit(1);
 }
 
-static inline void dump_regs() {
+static inline void dump_regs(Inst* inst) {
   static const char* REG_NAMES[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
+  fprintf(stderr, "PC=%d ", inst->lineno);
   for (int i = 0; i < 6; i++) {
     fprintf(stderr, "%s=%d", REG_NAMES[i], regs[i]);
     fprintf(stderr, i == 5 ? "\n" : " ");
@@ -68,6 +72,12 @@ static int cmp(Inst* inst) {
 }
 
 int main(int argc, char* argv[]) {
+  if (argc >= 2 && !strcmp(argv[1], "-v")) {
+    verbose = true;
+    argc--;
+    argv++;
+  }
+
   if (argc < 2) {
     fprintf(stderr, "no input file\n");
     return 1;
@@ -89,7 +99,10 @@ int main(int argc, char* argv[]) {
   for (;;) {
     Inst* inst = prog[pc];
     for (; inst; inst = inst->next) {
-      //dump_inst(inst);
+      if (verbose) {
+        dump_regs(inst);
+        dump_inst(inst);
+      }
       int npc = -1;
       switch (inst->op) {
         case MOV:

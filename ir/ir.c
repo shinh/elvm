@@ -455,8 +455,8 @@ static void resolve_syms(Parser* p) {
   for (DataPrivate* data = p->data; data; data = data->next) {
     if (data->val.type == (ValueType)REF) {
       resolve(&data->val, p->symtab);
-      data->v = data->val.imm;
     }
+    data->v = data->val.imm;
   }
 
   for (Inst* inst = p->text; inst; inst = inst->next) {
