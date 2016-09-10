@@ -6,7 +6,7 @@
 Table* table_add(Table* tbl, const char* key, const void* value) {
   Table* ntbl = malloc(sizeof(Table));
   ntbl->next = tbl;
-  ntbl->key = strdup(key);
+  ntbl->key = key;
   ntbl->value = value;
   return ntbl;
 }

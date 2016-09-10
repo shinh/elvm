@@ -8,7 +8,7 @@ typedef enum {
 } Reg;
 
 typedef enum {
-  REG, IMM, TMP
+  REG, IMM
 } ValueType;
 
 typedef enum {

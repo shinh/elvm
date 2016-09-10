@@ -8,6 +8,13 @@
 
 #include "table.h"
 
+typedef struct DataPrivate_ {
+  int v;
+  struct DataPrivate_* next;
+  Value val;
+  int lineno;
+} DataPrivate;
+
 typedef struct {
   const char* filename;
   int lineno;
@@ -17,13 +24,17 @@ typedef struct {
   int in_text;
   Inst* text;
   int pc;
-  Data* data;
-  int mp;
+  int subsection;
+  DataPrivate* data;
   bool prev_jmp;
 } Parser;
 
 enum {
   DATA = LAST_OP + 1, LONG
+};
+
+enum {
+  REF = IMM + 1, LABEL
 };
 
 static void error(Parser* p, const char* msg) {
@@ -100,13 +111,52 @@ static int read_int(Parser* p, int c) {
   return is_minus ? -r : r;
 }
 
-static Data* add_data(Data* d, int* mp, int v) {
-  Data* n = malloc(sizeof(Data));
+static DataPrivate* add_data(Parser* p) {
+  DataPrivate* n = malloc(sizeof(DataPrivate));
   n->next = 0;
-  n->v = v;
-  d->next = n;
-  ++*mp;
+  n->v = p->subsection;
+  n->lineno = p->lineno;
+  p->data->next = n;
+  p->data = n;
   return n;
+}
+
+static void add_imm_data(Parser* p, int v) {
+  DataPrivate* n = add_data(p);
+  n->val.type = IMM;
+  n->val.imm = v;
+}
+
+static void serialize_data(Parser* p, DataPrivate* data_root) {
+  bool done = false;
+  DataPrivate serialized_root = {};
+  DataPrivate* serialized = &serialized_root;
+  int mp = 0;
+  for (int subsection = 0; !done; subsection++) {
+    done = true;
+    for (DataPrivate* data = data_root; data->next;) {
+      DataPrivate* prev = data;
+      data = prev->next;
+      if (data->v != subsection) {
+        continue;
+      }
+      done = false;
+
+      prev->next = data->next;
+
+      if (data->val.type == (ValueType)LABEL) {
+        p->symtab = TABLE_ADD(p->symtab, data->val.tmp, mp);
+      } else {
+        serialized->next = data;
+        serialized = data;
+        serialized->next = 0;
+        mp++;
+      }
+      data = prev;
+    }
+  }
+  p->symtab = TABLE_ADD(p->symtab, "_edata", mp);
+  data_root->next = serialized_root.next;
 }
 
 static void parse_line(Parser* p, int c) {
@@ -180,14 +230,13 @@ static void parse_line(Parser* p, int c) {
           c = 10;
         else
           error(p, "unknown escape");
-        p->data = add_data(p->data, &p->mp, c);
+        add_imm_data(p, c);
       } else {
-        p->data = add_data(p->data, &p->mp, c);
+        add_imm_data(p, c);
       }
       c = ir_getc(p);
     }
-    p->data = add_data(p->data, &p->mp, 0);
-
+    add_imm_data(p, 0);
     return;
   } else {
     c = ir_getc(p);
@@ -197,10 +246,12 @@ static void parse_line(Parser* p, int c) {
         if (!p->prev_jmp)
           p->pc++;
         value = p->pc;
+        p->symtab = TABLE_ADD(p->symtab, strdup(buf), value);
       } else {
-        value = p->mp;
+        DataPrivate* d = add_data(p);
+        d->val.type = LABEL;
+        d->val.tmp = strdup(buf);
       }
-      p->symtab = TABLE_ADD(p->symtab, buf, value);
       return;
     }
     error(p, "unknown op");
@@ -270,7 +321,7 @@ static void parse_line(Parser* p, int c) {
           error(p, "unknown reg");
         }
       } else {
-        a.type = TMP;
+        a.type = (ValueType)REF;
         a.tmp = strdup(buf);
       }
     }
@@ -278,16 +329,21 @@ static void parse_line(Parser* p, int c) {
   }
 
   if (op == (Op)LONG) {
-    if (args[0].type != IMM)
+    if (args[0].type == IMM) {
+      add_imm_data(p, args[0].imm);
+    } else if (args[0].type == (ValueType)REF) {
+      DataPrivate* d = add_data(p);
+      d->val.type = REF;
+      d->val.tmp = args[0].tmp;
+    } else {
       error(p, "number expected");
-    p->data = add_data(p->data, &p->mp, args[0].imm);
+    }
     return;
   } else if (op == (Op)DATA) {
-    int subsection = 0;
     if (argc == 1) {
       if (args[0].type != IMM)
         error(p, "number expected");
-      subsection = args[0].imm;
+      p->subsection = args[0].imm;
     }
     p->in_text = 0;
     return;
@@ -341,9 +397,9 @@ static void parse_line(Parser* p, int c) {
   //fprintf(stderr, "\n");
 }
 
-static Module* parse_eir(Parser* p) {
+static void parse_eir(Parser* p) {
   Inst text_root = {};
-  Data data_root = {};
+  DataPrivate data_root = {};
   int c;
 
   p->in_text = 1;
@@ -351,7 +407,6 @@ static Module* parse_eir(Parser* p) {
   p->text = &text_root;
   p->data = &data_root;
   p->pc = 0;
-  p->mp = 0;
   p->prev_jmp = true;
 
   p->text->next = calloc(1, sizeof(Inst));
@@ -359,7 +414,7 @@ static Module* parse_eir(Parser* p) {
   p->text->op = JMP;
   p->text->pc = p->pc++;
   p->text->lineno = -1;
-  p->text->jmp.type = TMP;
+  p->text->jmp.type = (ValueType)REF;
   p->text->jmp.tmp = "main";
   p->text->next = 0;
   p->symtab = TABLE_ADD(p->symtab, "main", 1);
@@ -379,16 +434,13 @@ static Module* parse_eir(Parser* p) {
     }
   }
 
-  p->symtab = TABLE_ADD(p->symtab, "_edata", p->mp);
-
-  Module* m = malloc(sizeof(Module));
-  m->text = text_root.next;
-  m->data = data_root.next;
-  return m;
+  serialize_data(p, &data_root);
+  p->text = text_root.next;
+  p->data = data_root.next;
 }
 
 static void resolve(Value* v, Table* symtab) {
-  if (v->type != TMP)
+  if (v->type != (ValueType)REF)
     return;
   const char* name = (const char*)v->tmp;
   if (!TABLE_GET(symtab, name, &v->imm)) {
@@ -399,11 +451,18 @@ static void resolve(Value* v, Table* symtab) {
   v->type = IMM;
 }
 
-static void resolve_syms(Module* mod, Table* symtab) {
-  for (Inst* inst = mod->text; inst; inst = inst->next) {
-    resolve(&inst->dst, symtab);
-    resolve(&inst->src, symtab);
-    resolve(&inst->jmp, symtab);
+static void resolve_syms(Parser* p) {
+  for (DataPrivate* data = p->data; data; data = data->next) {
+    if (data->val.type == (ValueType)REF) {
+      resolve(&data->val, p->symtab);
+      data->v = data->val.imm;
+    }
+  }
+
+  for (Inst* inst = p->text; inst; inst = inst->next) {
+    resolve(&inst->dst, p->symtab);
+    resolve(&inst->src, p->symtab);
+    resolve(&inst->jmp, p->symtab);
   }
 }
 
@@ -412,9 +471,13 @@ Module* load_eir_impl(const char* filename, FILE* fp) {
     .filename = filename,
     .fp = fp
   };
-  Module* mod = parse_eir(&parser);
-  resolve_syms(mod, parser.symtab);
-  return mod;
+  parse_eir(&parser);
+  resolve_syms(&parser);
+
+  Module* m = malloc(sizeof(Module));
+  m->text = parser.text;
+  m->data = (Data*)parser.data;
+  return m;
 }
 
 Module* load_eir(FILE* fp) {
