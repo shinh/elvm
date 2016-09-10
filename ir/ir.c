@@ -246,6 +246,7 @@ static void parse_line(Parser* p, int c) {
         if (!p->prev_jmp)
           p->pc++;
         value = p->pc;
+        p->prev_jmp = true;
         p->symtab = TABLE_ADD(p->symtab, strdup(buf), value);
       } else {
         DataPrivate* d = add_data(p);
