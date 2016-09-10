@@ -22,6 +22,10 @@ typedef struct {
   bool prev_jmp;
 } Parser;
 
+enum {
+  DATA = LAST_OP + 1, LONG
+};
+
 static void error(Parser* p, const char* msg) {
   fprintf(stderr, "%s:%d:%d: %s\n", p->filename, p->lineno, p->col, msg);
   exit(1);
@@ -158,20 +162,9 @@ static void parse_line(Parser* p, int c) {
     p->in_text = 1;
     return;
   } else if (!strcmp(buf, ".data")) {
-    // TODO: Set op = DATA.
-    p->in_text = 0;
-    return;
+    op = DATA;
   } else if (!strcmp(buf, ".long")) {
-    if (p->in_text)
-      error(p, "in text");
-    skip_ws(p);
-
-    c = ir_getc(p);
-    if (!isdigit(c) && c != '-')
-      error(p, "number expected");
-    p->data = add_data(p->data, &p->mp, read_int(p, c));
-    // TODO: Set op = LONG.
-    return;
+    op = LONG;
   } else if (!strcmp(buf, ".string")) {
     if (p->in_text)
       error(p, "in text");
@@ -231,14 +224,15 @@ static void parse_line(Parser* p, int c) {
     argc = 2;
   else if (op == DUMP)
     argc = 0;
-  else
+  else if (op == (Op)LONG)
+    argc = 1;
+  else if (op == (Op)DATA) {
+    skip_ws(p);
+    c = ir_getc(p);
+    ir_ungetc(p, c);
+    argc = c == '-' || isdigit(c) ? 1 : 0;
+  } else
     error(p, "oops");
-
-  p->text->next = calloc(1, sizeof(Inst));
-  p->text = p->text->next;
-  p->text->op = op;
-  p->text->pc = p->pc;
-  p->text->lineno = p->lineno;
 
   Value args[3];
   for (int i = 0; i < argc; i++) {
@@ -283,6 +277,27 @@ static void parse_line(Parser* p, int c) {
     args[i] = a;
   }
 
+  if (op == (Op)LONG) {
+    if (args[0].type != IMM)
+      error(p, "number expected");
+    p->data = add_data(p->data, &p->mp, args[0].imm);
+    return;
+  } else if (op == (Op)DATA) {
+    int subsection = 0;
+    if (argc == 1) {
+      if (args[0].type != IMM)
+        error(p, "number expected");
+      subsection = args[0].imm;
+    }
+    p->in_text = 0;
+    return;
+  }
+
+  p->text->next = calloc(1, sizeof(Inst));
+  p->text = p->text->next;
+  p->text->op = op;
+  p->text->pc = p->pc;
+  p->text->lineno = p->lineno;
   p->prev_jmp = false;
   switch (op) {
     case MOV:
