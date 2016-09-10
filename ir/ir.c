@@ -308,23 +308,19 @@ static void parse_line(Parser* p, int c) {
     } else {
       buf[0] = c;
       read_while_ident(p, buf + 1, 30);
-      if (isupper(c)) {
-        a.type = REG;
-        if (!strcmp(buf, "A")) {
-          a.reg = A;
-        } else if (!strcmp(buf, "B")) {
-          a.reg = B;
-        } else if (!strcmp(buf, "C")) {
-          a.reg = C;
-        } else if (!strcmp(buf, "D")) {
-          a.reg = D;
-        } else if (!strcmp(buf, "SP")) {
-          a.reg = SP;
-        } else if (!strcmp(buf, "BP")) {
-          a.reg = BP;
-        } else {
-          error(p, "unknown reg");
-        }
+      a.type = REG;
+      if (!strcmp(buf, "A")) {
+        a.reg = A;
+      } else if (!strcmp(buf, "B")) {
+        a.reg = B;
+      } else if (!strcmp(buf, "C")) {
+        a.reg = C;
+      } else if (!strcmp(buf, "D")) {
+        a.reg = D;
+      } else if (!strcmp(buf, "SP")) {
+        a.reg = SP;
+      } else if (!strcmp(buf, "BP")) {
+        a.reg = BP;
       } else {
         a.type = (ValueType)REF;
         a.tmp = strdup(buf);
