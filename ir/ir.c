@@ -30,7 +30,7 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, LONG
+  DATA = LAST_OP + 1, TEXT, LONG, STRING
 };
 
 enum {
@@ -58,6 +58,12 @@ static void ir_ungetc(Parser* p, int c) {
     p->lineno--;
   }
   ungetc(c, p->fp);
+}
+
+static int peek(Parser* p) {
+  int c = fgetc(p->fp);
+  ungetc(c, p->fp);
+  return c;
 }
 
 static void skip_until_ret(Parser* p) {
@@ -159,63 +165,74 @@ static void serialize_data(Parser* p, DataPrivate* data_root) {
   data_root->next = serialized_root.next;
 }
 
+static Op get_op(Parser* p, const char* buf) {
+  if (peek(p) == ':')
+    return OP_UNSET;
+  if (!strcmp(buf, "mov")) {
+    return MOV;
+  } else if (!strcmp(buf, "add")) {
+    return ADD;
+  } else if (!strcmp(buf, "sub")) {
+    return SUB;
+  } else if (!strcmp(buf, "load")) {
+    return LOAD;
+  } else if (!strcmp(buf, "store")) {
+    return STORE;
+  } else if (!strcmp(buf, "putc")) {
+    return PUTC;
+  } else if (!strcmp(buf, "getc")) {
+    return GETC;
+  } else if (!strcmp(buf, "exit")) {
+    return EXIT;
+  } else if (!strcmp(buf, "dump")) {
+    return DUMP;
+  } else if (!strcmp(buf, "jeq")) {
+    return JEQ;
+  } else if (!strcmp(buf, "jne")) {
+    return JNE;
+  } else if (!strcmp(buf, "jlt")) {
+    return JLT;
+  } else if (!strcmp(buf, "jgt")) {
+    return JGT;
+  } else if (!strcmp(buf, "jle")) {
+    return JLE;
+  } else if (!strcmp(buf, "jge")) {
+    return JGE;
+  } else if (!strcmp(buf, "jmp")) {
+    return JMP;
+  } else if (!strcmp(buf, "eq")) {
+    return EQ;
+  } else if (!strcmp(buf, "ne")) {
+    return NE;
+  } else if (!strcmp(buf, "lt")) {
+    return LT;
+  } else if (!strcmp(buf, "gt")) {
+    return GT;
+  } else if (!strcmp(buf, "le")) {
+    return LE;
+  } else if (!strcmp(buf, "ge")) {
+    return GE;
+  } else if (!strcmp(buf, ".text")) {
+    return TEXT;
+  } else if (!strcmp(buf, ".data")) {
+    return DATA;
+  } else if (!strcmp(buf, ".long")) {
+    return LONG;
+  } else if (!strcmp(buf, ".string")) {
+    return STRING;
+  }
+  return OP_UNSET;
+}
+
 static void parse_line(Parser* p, int c) {
   char buf[32];
   buf[0] = c;
   read_while_ident(p, buf + 1, 30);
-  Op op = OP_UNSET;
-  if (!strcmp(buf, "mov")) {
-    op = MOV;
-  } else if (!strcmp(buf, "add")) {
-    op = ADD;
-  } else if (!strcmp(buf, "sub")) {
-    op = SUB;
-  } else if (!strcmp(buf, "load")) {
-    op = LOAD;
-  } else if (!strcmp(buf, "store")) {
-    op = STORE;
-  } else if (!strcmp(buf, "putc")) {
-    op = PUTC;
-  } else if (!strcmp(buf, "getc")) {
-    op = GETC;
-  } else if (!strcmp(buf, "exit")) {
-    op = EXIT;
-  } else if (!strcmp(buf, "dump")) {
-    op = DUMP;
-  } else if (!strcmp(buf, "jeq")) {
-    op = JEQ;
-  } else if (!strcmp(buf, "jne")) {
-    op = JNE;
-  } else if (!strcmp(buf, "jlt")) {
-    op = JLT;
-  } else if (!strcmp(buf, "jgt")) {
-    op = JGT;
-  } else if (!strcmp(buf, "jle")) {
-    op = JLE;
-  } else if (!strcmp(buf, "jge")) {
-    op = JGE;
-  } else if (!strcmp(buf, "jmp")) {
-    op = JMP;
-  } else if (!strcmp(buf, "eq")) {
-    op = EQ;
-  } else if (!strcmp(buf, "ne")) {
-    op = NE;
-  } else if (!strcmp(buf, "lt")) {
-    op = LT;
-  } else if (!strcmp(buf, "gt")) {
-    op = GT;
-  } else if (!strcmp(buf, "le")) {
-    op = LE;
-  } else if (!strcmp(buf, "ge")) {
-    op = GE;
-  } else if (!strcmp(buf, ".text")) {
+  Op op = get_op(p, buf);
+  if (op == (Op)TEXT) {
     p->in_text = 1;
     return;
-  } else if (!strcmp(buf, ".data")) {
-    op = DATA;
-  } else if (!strcmp(buf, ".long")) {
-    op = LONG;
-  } else if (!strcmp(buf, ".string")) {
+  } else if (op == (Op)STRING) {
     if (p->in_text)
       error(p, "in text");
     skip_ws(p);
@@ -242,7 +259,7 @@ static void parse_line(Parser* p, int c) {
     }
     add_imm_data(p, 0);
     return;
-  } else {
+  } else if (op == OP_UNSET) {
     c = ir_getc(p);
     if (c == ':') {
       int value = 0;
@@ -284,8 +301,7 @@ static void parse_line(Parser* p, int c) {
     argc = 1;
   else if (op == (Op)DATA) {
     skip_ws(p);
-    c = ir_getc(p);
-    ir_ungetc(p, c);
+    c = peek(p);
     argc = c == '-' || isdigit(c) ? 1 : 0;
   } else
     error(p, "oops");
