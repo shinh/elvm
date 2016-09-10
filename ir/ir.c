@@ -227,7 +227,11 @@ static void parse_line(Parser* p, int c) {
       if (c == '\\') {
         c = ir_getc(p);
         if (c == 'n')
-          c = 10;
+          c = '\n';
+        else if (c == '\"')
+          c = '\"';
+        else if (c == '\\')
+          c = '\\';
         else
           error(p, "unknown escape");
         add_imm_data(p, c);
