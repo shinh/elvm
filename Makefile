@@ -17,14 +17,24 @@ CTEST_SRCS := $(wildcard test/*.c)
 CTEST_STAGED := $(CTEST_SRCS:test/%.c=out/%.c)
 $(CTEST_STAGED): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
-CTESTS := $(CTEST_SRCS:test/%.c=%.c)
+OUT.c := $(CTEST_SRCS:test/%.c=%.c)
 
 # Build tests
 
+TEST_INS := $(wildcard test/*.in)
+
 include clear_vars.mk
-SRCS := $(CTESTS)
-EXT := $(CC)
+SRCS := $(OUT.c)
+EXT := exe
 CMD = $(CC) -Ilibc $2 -o $1
+include build.mk
+OUT.c.exe := $(OUT.c:%=%.$(EXT))
+
+include clear_vars.mk
+SRCS := $(OUT.c.exe)
+EXT := out
+DEPS := $(TEST_INS) runtest.sh
+CMD = ./runtest.sh $1 $2
 include build.mk
 
 test: $(TEST_RESULTS)
