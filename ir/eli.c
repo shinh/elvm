@@ -19,13 +19,19 @@ static void error(const char* msg) {
 }
 
 static inline void dump_regs(Inst* inst) {
+  bool had_negative = false;
   static const char* REG_NAMES[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
   fprintf(stderr, "PC=%d ", inst->lineno);
   for (int i = 0; i < 6; i++) {
+    if (regs[i] < 0)
+      had_negative = true;
     fprintf(stderr, "%s=%d", REG_NAMES[i], regs[i]);
     fprintf(stderr, i == 5 ? "\n" : " ");
+  }
+  if (had_negative) {
+    error("had negative!");
   }
 }
 
