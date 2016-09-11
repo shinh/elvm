@@ -10,6 +10,7 @@ static const char* REG_NAMES[] = {
 };
 
 static void init_state(Data* data) {
+  emit_line("import sys");
   emit_line("pc = 0");
   for (int i = 0; i < 6; i++) {
     emit_line("%s = 0", REG_NAMES[i]);
@@ -55,27 +56,28 @@ static const char* cmp(Inst* inst) {
     case JGE:
       op_str = ">="; break;
     case JMP:
-      return "true";
+      return "True";
     default:
       error("oops");
   }
   return format("%s %s %s", REG_NAMES[inst->dst.reg], op_str, src(inst));
 }
 
-void target_rb(Module* module) {
+void target_py(Module* module) {
   init_state(module->data);
 
-  emit_line("while true");
+  emit_line("while True:");
   inc_indent();
-  emit_line("case pc");
+  emit_line("if False:");
   inc_indent();
+  emit_line("pass");
 
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
       emit_line("");
       dec_indent();
-      emit_line("when %d", inst->pc);
+      emit_line("elif pc == %d:", inst->pc);
       inc_indent();
     }
     prev_pc = inst->pc;
@@ -106,16 +108,16 @@ void target_rb(Module* module) {
         break;
 
       case PUTC:
-        emit_line("putc %s", src(inst));
+        emit_line("sys.stdout.write(chr(%s))", src(inst));
         break;
 
       case GETC:
-        emit_line("c = STDIN.getc; %s = c ? c.ord : 0",
+        emit_line("c = sys.stdin.read(1); %s = ord(c) if c else 0",
                   REG_NAMES[inst->dst.reg]);
         break;
 
       case EXIT:
-        emit_line("exit");
+        emit_line("sys.exit(0)");
         break;
 
       case DUMP:
@@ -127,7 +129,7 @@ void target_rb(Module* module) {
       case GT:
       case LE:
       case GE:
-        emit_line("%s = %s ? 1 : 0", REG_NAMES[inst->dst.reg], cmp(inst));
+        emit_line("%s = int(%s)", REG_NAMES[inst->dst.reg], cmp(inst));
         break;
 
       case JEQ:
@@ -137,7 +139,7 @@ void target_rb(Module* module) {
       case JLE:
       case JGE:
       case JMP:
-        emit_line("%s && pc = %s - 1", cmp(inst), value(&inst->jmp));
+        emit_line("if %s: pc = %s - 1", cmp(inst), value(&inst->jmp));
         break;
 
       default:
@@ -146,8 +148,6 @@ void target_rb(Module* module) {
   }
 
   dec_indent();
-  emit_line("end");
   emit_line("pc += 1");
   dec_indent();
-  emit_line("end");
 }

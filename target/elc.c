@@ -6,6 +6,7 @@
 #include <target/util.h>
 
 void target_rb(Module* module);
+void target_py(Module* module);
 
 int main(int argc, char* argv[]) {
   void (*target_func)(Module*) = NULL;
@@ -15,6 +16,8 @@ int main(int argc, char* argv[]) {
     if (arg[0] == '-') {
       if (!strcmp(arg, "-rb")) {
         target_func = target_rb;
+      } else if (!strcmp(arg, "-py")) {
+        target_func = target_py;
       } else {
         error("unknown flag: %s", arg);
       }

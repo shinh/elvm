@@ -13,7 +13,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c rb.c util.c
+ELC_SRCS := elc.c util.c rb.c py.c
 CSRCS := $(addprefix ir/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -93,6 +93,19 @@ include clear_vars.mk
 SRCS := $(filter-out 8cc%,$(OUT.eir.rb))
 EXT := out
 CMD = ./runtest.sh $1 ruby $2
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.eir)
+EXT := py
+CMD = $(ELC) -py $2 > $1.tmp && mv $1.tmp $1
+OUT.eir.py := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.eir.py)
+EXT := out
+CMD = ./runtest.sh $1 python $2
 include build.mk
 
 test: $(TEST_RESULTS)
