@@ -18,11 +18,16 @@ $(8CC): $(wildcard 8cc/*.c 8cc/*.h)
 # Stage tests
 
 $(shell mkdir -p out)
+
 CTEST_SRCS := $(wildcard test/*.c)
 CTEST_STAGED := $(CTEST_SRCS:test/%.c=out/%.c)
 $(CTEST_STAGED): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.c := $(CTEST_SRCS:test/%.c=%.c)
+
+out/8cc.c:
+	./merge_8cc.sh > $@.tmp && mv $@.tmp $@
+OUT.c += 8cc.c
 
 # Build tests
 
