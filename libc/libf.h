@@ -1,3 +1,27 @@
+static void print_str(const char* p);
+static char* stringify_int(long v, char* p);
+static void print_int(long v);
+static char* stringify_hex(long v, char* p);
+
+#ifdef __GNUC__
+
+#include <ctype.h>
+#include <errno.h>
+#include <libgen.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#else
+
 #define NULL 0
 
 typedef unsigned long size_t;
@@ -87,77 +111,6 @@ char* strchr(char* s, int c) {
 typedef struct {
   int quot, rem;
 } div_t;
-
-// Our 8cc doesn't support returning a structure value.
-// TODO: update 8cc.
-void my_div(unsigned int a, unsigned int b, div_t* o) {
-  unsigned int d[24];
-  unsigned int r[24];
-  unsigned int i;
-  r[0] = 1;
-  for (i = 0;; i++) {
-    d[i] = b;
-    unsigned int nb = b + b;
-    if (nb > a || nb < b)
-      break;
-    r[i+1] = r[i] + r[i];
-    b = nb;
-  }
-
-  unsigned int q = 0;
-  for (;; i--) {
-    unsigned int v = d[i];
-    if (a >= v) {
-      q += r[i];
-      a -= v;
-    }
-    if (i == 0)
-      break;
-  }
-  o->quot = q;
-  o->rem = a;
-}
-
-static void print_str(const char* p) {
-  for (; *p; p++)
-    putchar(*p);
-}
-
-static char* stringify_int(long v, char* p) {
-  *p = '\0';
-  do {
-    --p;
-    *p = v % 10 + '0';
-    v /= 10;
-  } while (v);
-  return p;
-}
-
-static void print_int(long v) {
-  char buf[32];
-  print_str(stringify_int(v, buf + sizeof(buf) - 1));
-}
-
-static char* stringify_hex(long v, char* p) {
-  int is_negative = 0;
-  int c;
-  *p = '\0';
-  if (v < 0) {
-    v = -v;
-    is_negative = 1;
-  }
-  do {
-    --p;
-    c = v % 16;
-    *p = c < 10 ? c + '0' : c - 10 + 'A';
-    v /= 16;
-  } while (v);
-  if (is_negative)
-    *--p = '-';
-  return p;
-}
-
-#ifndef __GNUC__
 
 int puts(const char* p) {
   print_str(p);
@@ -561,6 +514,75 @@ unsigned long long strtoull(const char *nptr, char **endptr, int base) {
 }
 
 #endif
+
+static void print_str(const char* p) {
+  for (; *p; p++)
+    putchar(*p);
+}
+
+static char* stringify_int(long v, char* p) {
+  *p = '\0';
+  do {
+    --p;
+    *p = v % 10 + '0';
+    v /= 10;
+  } while (v);
+  return p;
+}
+
+static void print_int(long v) {
+  char buf[32];
+  print_str(stringify_int(v, buf + sizeof(buf) - 1));
+}
+
+static char* stringify_hex(long v, char* p) {
+  int is_negative = 0;
+  int c;
+  *p = '\0';
+  if (v < 0) {
+    v = -v;
+    is_negative = 1;
+  }
+  do {
+    --p;
+    c = v % 16;
+    *p = c < 10 ? c + '0' : c - 10 + 'A';
+    v /= 16;
+  } while (v);
+  if (is_negative)
+    *--p = '-';
+  return p;
+}
+
+// Our 8cc doesn't support returning a structure value.
+// TODO: update 8cc.
+void my_div(unsigned int a, unsigned int b, div_t* o) {
+  unsigned int d[24];
+  unsigned int r[24];
+  unsigned int i;
+  r[0] = 1;
+  for (i = 0;; i++) {
+    d[i] = b;
+    unsigned int nb = b + b;
+    if (nb > a || nb < b)
+      break;
+    r[i+1] = r[i] + r[i];
+    b = nb;
+  }
+
+  unsigned int q = 0;
+  for (;; i--) {
+    unsigned int v = d[i];
+    if (a >= v) {
+      q += r[i];
+      a -= v;
+    }
+    if (i == 0)
+      break;
+  }
+  o->quot = q;
+  o->rem = a;
+}
 
 static int __builtin_mul(int a, int b) {
   int i, e, v;
