@@ -1,18 +1,13 @@
-#include <ir/ir.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <ir/ir.h>
+#include <target/util.h>
+
 static const char* REG_NAMES[] = {
   "a", "b", "c", "d", "bp", "sp"
 };
-
-__attribute__((noreturn))
-static void error(const char* msg) {
-  fprintf(stderr, "%s\n", msg);
-  exit(1);
-}
 
 static void init_state(Data* data) {
   printf("pc = 0\n");
@@ -28,12 +23,10 @@ static void init_state(Data* data) {
 }
 
 static const char* value(Value* v) {
-  static char buf[32];
   if (v->type == REG) {
     return REG_NAMES[v->reg];
   } else if (v->type == IMM) {
-    sprintf(buf, "%d", v->imm);
-    return strdup(buf);
+    return format("%d", v->imm);
   } else {
     error("invalid value");
   }
@@ -66,9 +59,7 @@ static const char* cmp(Inst* inst) {
     default:
       error("oops");
   }
-  static char buf[99];
-  sprintf(buf, "%s %s %s", REG_NAMES[inst->dst.reg], op_str, src(inst));
-  return strdup(buf);
+  return format("%s %s %s", REG_NAMES[inst->dst.reg], op_str, src(inst));
 }
 
 void target_rb(Module* module) {
@@ -80,6 +71,7 @@ void target_rb(Module* module) {
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
+      printf("\n");
       printf("when %d\n", inst->pc);
     }
     prev_pc = inst->pc;
