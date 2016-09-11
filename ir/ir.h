@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 
-static const int UINT_MAX = ((1 << 24) - 1);
+#define UINT_MAX 16777215
+#define UINT_MAX_STR "16777215"
 
 typedef enum {
   A, B, C, D, BP, SP

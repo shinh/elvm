@@ -1,20 +1,31 @@
-CFLAGS := -m32 -W -Wall -MMD -O -g
+CFLAGS := -m32 -W -Wall -W -Werror -MMD -O -g
 
 ELI := out/eli
+ELC := out/elc
 8CC := out/8cc
-BINS := $(ELI) $(8CC) out/dump_ir
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
+LIB_IR := out/ir.o out/table.o
 
 all: test
 
-CSRCS := ir/ir.c ir/table.c ir/dump_ir.c eli.c
+CSRCS := ir/ir.c ir/table.c ir/dump_ir.c ir/eli.c
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-out/dump_ir: out/ir.o out/table.o out/dump_ir.o
+ELC_SRCS := elc.c rb.c
+CSRCS := $(addprefix ir/,$(ELC_SRCS))
+COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
+$(COBJS): out/%.o: target/%.c
+	$(CC) -c -I. $(CFLAGS) $< -o $@
+
+out/dump_ir: $(LIB_IR) out/dump_ir.o
 	$(CC) $(CFLAGS) -DTEST $^ -o $@
 
-out/eli: out/ir.o out/table.o out/eli.o
+$(ELI): $(LIB_IR) out/eli.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(ELC): $(LIB_IR) $(ELC_SRCS:%.c=out/%.o)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(8CC): $(wildcard 8cc/*.c 8cc/*.h)
@@ -63,6 +74,19 @@ include clear_vars.mk
 SRCS := $(OUT.c.eir)
 EXT := out
 CMD = ./runtest.sh $1 $(ELI) $2
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.c.eir)
+EXT := rb
+CMD = $(ELC) $2 > $1.tmp && mv $1.tmp $1
+OUT.c.eir.rb := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.c.eir.rb)
+EXT := out
+CMD = ./runtest.sh $1 ruby $2
 include build.mk
 
 test: $(TEST_RESULTS)
