@@ -11,12 +11,12 @@ cmd="$@"
 ins=$(/bin/ls */${name}*.in 2> /dev/null || true)
 
 if [ -z "${ins}" ]; then
-    "${cmd}" > ${tmp}
+    ${cmd} > ${tmp}
 else
     rm -f ${tmp}
     for i in ${ins}; do
         echo "=== ${i} ===" >> ${tmp}
-        "${cmd}" < ${i} >> ${tmp}
+        ${cmd} < ${i} >> ${tmp}
         echo >> ${tmp}
     done
 fi

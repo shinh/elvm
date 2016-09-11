@@ -1,14 +1,19 @@
 CFLAGS := -m32 -W -Wall -MMD -O -g
 
-BINS := ir_test eli
+ELI := out/eli
+8CC := out/8cc
+BINS := ir_test $(ELI) $(8CC)
 
 all: test
 
 ir_test: ir/table.c ir/ir.c
 	$(CC) $(CFLAGS) -DTEST $^ -o $@
 
-eli: ir/table.c ir/ir.c ir/eli.c
+out/eli: ir/table.c ir/ir.c ir/eli.c
 	$(CC) $(CFLAGS) $^ -o $@
+
+$(8CC): $(wildcard 8cc/*.c 8cc/*.h)
+	$(MAKE) -C 8cc && cp 8cc/8cc $@
 
 # Stage tests
 
@@ -27,14 +32,27 @@ include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
 CMD = $(CC) -Ilibc $2 -o $1
+OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
-OUT.c.exe := $(OUT.c:%=%.$(EXT))
 
 include clear_vars.mk
 SRCS := $(OUT.c.exe)
 EXT := out
 DEPS := $(TEST_INS) runtest.sh
 CMD = ./runtest.sh $1 $2
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.c)
+EXT := eir
+CMD = $(8CC) -S -Ilibc $2 -o $1
+OUT.c.eir := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.c.eir)
+EXT := out
+CMD = ./runtest.sh $1 $(ELI) $2
 include build.mk
 
 test: $(TEST_RESULTS)
