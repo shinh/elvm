@@ -1,0 +1,4 @@
+SRCS :=
+DSTS :=
+EXT :=
+CMD :=
