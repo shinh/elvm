@@ -503,6 +503,10 @@ Module* load_eir(FILE* fp) {
 
 Module* load_eir_from_file(const char* filename) {
   FILE* fp = fopen(filename, "r");
+  if (!fp) {
+    fprintf(stderr, "no such file: %s\n", filename);
+    exit(1);
+  }
   Module* r = load_eir_impl(filename, fp);
   fclose(fp);
   return r;
