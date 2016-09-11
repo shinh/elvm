@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char* REG_NAMES[] = {
   "a", "b", "c", "d", "bp", "sp"
@@ -32,7 +33,7 @@ static const char* value(Value* v) {
     return REG_NAMES[v->reg];
   } else if (v->type == IMM) {
     sprintf(buf, "%d", v->imm);
-    return buf;
+    return strdup(buf);
   } else {
     error("invalid value");
   }
@@ -67,7 +68,7 @@ static const char* cmp(Inst* inst) {
   }
   static char buf[99];
   sprintf(buf, "%s %s %s", REG_NAMES[inst->dst.reg], op_str, src(inst));
-  return buf;
+  return strdup(buf);
 }
 
 void target_rb(Module* module) {
@@ -111,7 +112,7 @@ void target_rb(Module* module) {
         break;
 
       case GETC:
-        printf("c = STDIN.getc.ord; %s = c ? c : " UINT_MAX_STR "\n",
+        printf("c = STDIN.getc; %s = c ? c.ord : 0\n",
                REG_NAMES[inst->dst.reg]);
         break;
 
