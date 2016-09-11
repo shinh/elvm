@@ -2,14 +2,19 @@ CFLAGS := -m32 -W -Wall -MMD -O -g
 
 ELI := out/eli
 8CC := out/8cc
-BINS := ir_test $(ELI) $(8CC)
+BINS := $(ELI) $(8CC) out/dump_ir
 
 all: test
 
-ir_test: ir/table.c ir/ir.c
+CSRCS := ir/ir.c ir/table.c ir/dump_ir.c eli.c
+COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
+$(COBJS): out/%.o: ir/%.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+out/dump_ir: out/ir.o out/table.o out/dump_ir.o
 	$(CC) $(CFLAGS) -DTEST $^ -o $@
 
-out/eli: ir/table.c ir/ir.c ir/eli.c
+out/eli: out/ir.o out/table.o out/eli.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(8CC): $(wildcard 8cc/*.c 8cc/*.h)
