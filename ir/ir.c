@@ -320,7 +320,7 @@ static void parse_line(Parser* p, int c) {
     c = ir_getc(p);
     if (isdigit(c) || c == '-') {
       a.type = IMM;
-      a.imm = read_int(p, c);
+      a.imm = read_int(p, c) & UINT_MAX;
     } else {
       buf[0] = c;
       read_while_ident(p, buf + 1, 30);
@@ -473,7 +473,7 @@ static void resolve_syms(Parser* p) {
     if (data->val.type == (ValueType)REF) {
       resolve(&data->val, p->symtab);
     }
-    data->v = data->val.imm;
+    data->v = data->val.imm & UINT_MAX;
   }
 
   for (Inst* inst = p->text; inst; inst = inst->next) {

@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+static const int UINT_MAX = ((1 << 24) - 1);
+
 typedef enum {
   A, B, C, D, BP, SP
 } Reg;

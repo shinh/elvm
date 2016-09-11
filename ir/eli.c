@@ -11,7 +11,6 @@ Inst* prog[1 << 16];
 int mem[1 << 24];
 int regs[6];
 bool verbose;
-static const int UINT_MAX = ((1 << 24) - 1);
 
 __attribute__((noreturn))
 static void error(const char* msg) {
@@ -145,7 +144,7 @@ int main(int argc, char* argv[]) {
           break;
 
         case GETC:
-          regs[inst->dst.reg] = getchar();
+          regs[inst->dst.reg] = getchar() & UINT_MAX;
           break;
 
         case EXIT:
