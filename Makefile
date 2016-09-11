@@ -35,11 +35,17 @@ $(8CC): $(wildcard 8cc/*.c 8cc/*.h)
 
 $(shell mkdir -p out)
 
-CTEST_SRCS := $(wildcard test/*.c)
-CTEST_STAGED := $(CTEST_SRCS:test/%.c=out/%.c)
-$(CTEST_STAGED): out/%.c: test/%.c
+SRCS := $(wildcard test/*.eir)
+DSTS := $(SRCS:test/%.eir=out/%.eir)
+$(DSTS): out/%.eir: test/%.eir
 	cp $< $@.tmp && mv $@.tmp $@
-OUT.c := $(CTEST_SRCS:test/%.c=%.c)
+OUT.eir := $(SRCS:test/%.eir=%.eir)
+
+SRCS := $(wildcard test/*.c)
+DSTS := $(SRCS:test/%.c=out/%.c)
+$(DSTS): out/%.c: test/%.c
+	cp $< $@.tmp && mv $@.tmp $@
+OUT.c := $(SRCS:test/%.c=%.c)
 
 out/8cc.c:
 	./merge_8cc.sh > $@.tmp && mv $@.tmp $@
@@ -67,24 +73,24 @@ include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
 CMD = $(8CC) -S -Ilibc $2 -o $1
-OUT.c.eir := $(SRCS:%=%.$(EXT))
+OUT.eir += $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(OUT.c.eir)
+SRCS := $(OUT.eir)
 EXT := out
 CMD = ./runtest.sh $1 $(ELI) $2
 include build.mk
 
 include clear_vars.mk
-SRCS := $(OUT.c.eir)
+SRCS := $(OUT.eir)
 EXT := rb
 CMD = $(ELC) $2 > $1.tmp && mv $1.tmp $1
-OUT.c.eir.rb := $(SRCS:%=%.$(EXT))
+OUT.eir.rb := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(OUT.c.eir.rb)
+SRCS := $(filter-out 8cc%,$(OUT.eir.rb))
 EXT := out
 CMD = ./runtest.sh $1 ruby $2
 include build.mk

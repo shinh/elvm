@@ -1,0 +1,9 @@
+ mov A, 33
+ jmp loop
+ mov A, 255
+loop:
+ putc A
+ add A, 1
+ jle loop, A, 58
+
+ exit

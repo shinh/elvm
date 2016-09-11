@@ -1,0 +1,7 @@
+ mov A, 300
+ jgt ok, A, 255
+ putc 120
+ exit
+ok:
+ putc 111
+ exit

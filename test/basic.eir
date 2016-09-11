@@ -1,0 +1,17 @@
+mov A, 33
+putc A  # !
+
+mov B, A
+putc B  # !
+
+add B, A
+add B, -2
+putc B  # @
+
+putc 88
+
+add A, -23
+dump
+putc A  # \n
+
+exit
