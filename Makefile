@@ -13,7 +13,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c
 CSRCS := $(addprefix ir/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -125,6 +125,21 @@ include clear_vars.mk
 SRCS := $(OUT.eir.js)
 EXT := out
 CMD = ./runtest.sh $1 nodejs $2
+include build.mk
+
+# x86 backend
+
+include clear_vars.mk
+SRCS := $(OUT.eir)
+EXT := x86
+CMD = $(ELC) -x86 $2 > $1.tmp && chmod 755 $1.tmp && mv $1.tmp $1
+OUT.eir.x86 := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.eir.x86)
+EXT := out
+CMD = ./runtest.sh $1 $2
 include build.mk
 
 test: $(TEST_RESULTS)

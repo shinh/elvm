@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,4 +96,71 @@ const char* cmp_str(Inst* inst, const char* true_str) {
       error("oops");
   }
   return format("%s %s %s", reg_names[inst->dst.reg], op_str, src_str(inst));
+}
+
+static int g_emit_cnt;
+static bool g_emit_started;
+
+int emit_cnt() {
+  return g_emit_cnt;
+}
+
+void emit_reset() {
+  g_emit_cnt = 0;
+  g_emit_started = false;
+}
+
+void emit_start() {
+  g_emit_started = true;
+}
+
+void emit_1(int a) {
+  g_emit_cnt++;
+  if (g_emit_started)
+    putchar(a);
+}
+
+void emit_2(int a, int b) {
+  emit_1(a);
+  emit_1(b);
+}
+
+void emit_3(int a, int b, int c) {
+  emit_1(a);
+  emit_1(b);
+  emit_1(c);
+}
+
+void emit_4(int a, int b, int c, int d) {
+  emit_1(a);
+  emit_1(b);
+  emit_1(c);
+  emit_1(d);
+}
+
+void emit_5(int a, int b, int c, int d, int e) {
+  emit_1(a);
+  emit_1(b);
+  emit_1(c);
+  emit_1(d);
+  emit_1(e);
+}
+
+void emit_6(int a, int b, int c, int d, int e, int f) {
+  emit_1(a);
+  emit_1(b);
+  emit_1(c);
+  emit_1(d);
+  emit_1(e);
+  emit_1(f);
+}
+
+void emit_le(int a) {
+  emit_1(a & 255);
+  a >>= 8;
+  emit_1(a & 255);
+  a >>= 8;
+  emit_1(a & 255);
+  a >>= 8;
+  emit_1(a);
 }
