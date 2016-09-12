@@ -7,6 +7,7 @@
 
 void target_rb(Module* module);
 void target_py(Module* module);
+void target_js(Module* module);
 
 int main(int argc, char* argv[]) {
   void (*target_func)(Module*) = NULL;
@@ -18,6 +19,8 @@ int main(int argc, char* argv[]) {
         target_func = target_rb;
       } else if (!strcmp(arg, "-py")) {
         target_func = target_py;
+      } else if (!strcmp(arg, "-js")) {
+        target_func = target_js;
       } else {
         error("unknown flag: %s", arg);
       }
