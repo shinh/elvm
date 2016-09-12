@@ -50,3 +50,49 @@ void emit_line(const char* fmt, ...) {
   }
   putchar('\n');
 }
+
+static const char* DEFAULT_REG_NAMES[7] = {
+  "a", "b", "c", "d", "bp", "sp", "pc"
+};
+
+const char** reg_names = DEFAULT_REG_NAMES;
+
+const char* value_str(Value* v) {
+  if (v->type == REG) {
+    return reg_names[v->reg];
+  } else if (v->type == IMM) {
+    return format("%d", v->imm);
+  } else {
+    error("invalid value");
+  }
+}
+
+const char* src_str(Inst* inst) {
+  return value_str(&inst->src);
+}
+
+const char* cmp_str(Inst* inst, const char* true_str) {
+  int op = inst->op;
+  if (op >= 16)
+    op -= 8;
+  const char* op_str;
+  switch (op) {
+    case JEQ:
+      op_str = "=="; break;
+    case JNE:
+      op_str = "!="; break;
+    case JLT:
+      op_str = "<"; break;
+    case JGT:
+      op_str = ">"; break;
+    case JLE:
+      op_str = "<="; break;
+    case JGE:
+      op_str = ">="; break;
+    case JMP:
+      return true_str;
+    default:
+      error("oops");
+  }
+  return format("%s %s %s", reg_names[inst->dst.reg], op_str, src_str(inst));
+}

@@ -5,15 +5,10 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static const char* REG_NAMES[] = {
-  "a", "b", "c", "d", "bp", "sp"
-};
-
 static void init_state(Data* data) {
   emit_line("import sys");
-  emit_line("pc = 0");
-  for (int i = 0; i < 6; i++) {
-    emit_line("%s = 0", REG_NAMES[i]);
+  for (int i = 0; i < 7; i++) {
+    emit_line("%s = 0", reg_names[i]);
   }
   emit_line("mem = [0] * (1 << 24)");
   for (int mp = 0; data; data = data->next, mp++) {
@@ -21,46 +16,6 @@ static void init_state(Data* data) {
       emit_line("mem[%d] = %d", mp, data->v);
     }
   }
-}
-
-static const char* value(Value* v) {
-  if (v->type == REG) {
-    return REG_NAMES[v->reg];
-  } else if (v->type == IMM) {
-    return format("%d", v->imm);
-  } else {
-    error("invalid value");
-  }
-}
-
-static const char* src(Inst* inst) {
-  return value(&inst->src);
-}
-
-static const char* cmp(Inst* inst) {
-  int op = inst->op;
-  if (op >= 16)
-    op -= 8;
-  const char* op_str;
-  switch (op) {
-    case JEQ:
-      op_str = "=="; break;
-    case JNE:
-      op_str = "!="; break;
-    case JLT:
-      op_str = "<"; break;
-    case JGT:
-      op_str = ">"; break;
-    case JLE:
-      op_str = "<="; break;
-    case JGE:
-      op_str = ">="; break;
-    case JMP:
-      return "True";
-    default:
-      error("oops");
-  }
-  return format("%s %s %s", REG_NAMES[inst->dst.reg], op_str, src(inst));
 }
 
 void target_py(Module* module) {
@@ -84,36 +39,36 @@ void target_py(Module* module) {
 
     switch (inst->op) {
       case MOV:
-        emit_line("%s = %s", REG_NAMES[inst->dst.reg], src(inst));
+        emit_line("%s = %s", reg_names[inst->dst.reg], src_str(inst));
         break;
 
       case ADD:
         emit_line("%s = (%s + %s) & " UINT_MAX_STR,
-                  REG_NAMES[inst->dst.reg],
-                  REG_NAMES[inst->dst.reg], src(inst));
+                  reg_names[inst->dst.reg],
+                  reg_names[inst->dst.reg], src_str(inst));
         break;
 
       case SUB:
         emit_line("%s = (%s - %s) & " UINT_MAX_STR,
-                  REG_NAMES[inst->dst.reg],
-                  REG_NAMES[inst->dst.reg], src(inst));
+                  reg_names[inst->dst.reg],
+                  reg_names[inst->dst.reg], src_str(inst));
         break;
 
       case LOAD:
-        emit_line("%s = mem[%s]", REG_NAMES[inst->dst.reg], src(inst));
+        emit_line("%s = mem[%s]", reg_names[inst->dst.reg], src_str(inst));
         break;
 
       case STORE:
-        emit_line("mem[%s] = %s", src(inst), REG_NAMES[inst->dst.reg]);
+        emit_line("mem[%s] = %s", src_str(inst), reg_names[inst->dst.reg]);
         break;
 
       case PUTC:
-        emit_line("sys.stdout.write(chr(%s))", src(inst));
+        emit_line("sys.stdout.write(chr(%s))", src_str(inst));
         break;
 
       case GETC:
         emit_line("c = sys.stdin.read(1); %s = ord(c) if c else 0",
-                  REG_NAMES[inst->dst.reg]);
+                  reg_names[inst->dst.reg]);
         break;
 
       case EXIT:
@@ -129,7 +84,8 @@ void target_py(Module* module) {
       case GT:
       case LE:
       case GE:
-        emit_line("%s = int(%s)", REG_NAMES[inst->dst.reg], cmp(inst));
+        emit_line("%s = int(%s)",
+                  reg_names[inst->dst.reg], cmp_str(inst, "True"));
         break;
 
       case JEQ:
@@ -139,7 +95,8 @@ void target_py(Module* module) {
       case JLE:
       case JGE:
       case JMP:
-        emit_line("if %s: pc = %s - 1", cmp(inst), value(&inst->jmp));
+        emit_line("if %s: pc = %s - 1",
+                  cmp_str(inst, "True"), value_str(&inst->jmp));
         break;
 
       default:
