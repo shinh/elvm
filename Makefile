@@ -90,7 +90,7 @@ OUT.eir.rb := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(filter-out 8cc%,$(OUT.eir.rb))
+SRCS := $(OUT.eir.rb)
 EXT := out
 CMD = ./runtest.sh $1 ruby $2
 include build.mk
