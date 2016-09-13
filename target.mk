@@ -17,3 +17,5 @@ include clear_vars.mk
 EXPECT := eir.out
 ACTUAL := eir.$(TARGET).out
 include diff.mk
+
+$(TARGET): $(DIFFS)
