@@ -70,10 +70,17 @@ OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(OUT.c.exe)
+SRCS := $(filter-out 8cc%,$(OUT.c.exe))
 EXT := out
 DEPS := $(TEST_INS) runtest.sh
 CMD = ./runtest.sh $1 $2
+include build.mk
+
+include clear_vars.mk
+SRCS := $(filter 8cc%,$(OUT.c.exe))
+EXT := out
+DEPS := $(TEST_INS) runtest.sh
+CMD = $2 -S -o $1 test/8cc.in.c
 include build.mk
 
 include clear_vars.mk
