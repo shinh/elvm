@@ -161,7 +161,13 @@ static void serialize_data(Parser* p, DataPrivate* data_root) {
       data = prev;
     }
   }
+
   p->symtab = TABLE_ADD(p->symtab, "_edata", mp);
+  serialized->next = malloc(sizeof(DataPrivate));
+  serialized->next->v = mp + 1;
+  serialized->next->next = 0;
+  serialized->next->val.type = IMM;
+  serialized->next->val.imm = mp + 1;
   data_root->next = serialized_root.next;
 }
 
