@@ -41,6 +41,12 @@ $(DSTS): out/%.eir: test/%.eir
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.eir := $(SRCS:test/%.eir=%.eir)
 
+SRCS := $(wildcard test/*.eir.rb)
+DSTS := $(SRCS:test/%.eir.rb=out/%.eir)
+$(DSTS): out/%.eir: test/%.eir.rb
+	ruby $< > $@.tmp && mv $@.tmp $@
+OUT.eir += $(SRCS:test/%.eir.rb=%.eir)
+
 SRCS := $(wildcard test/*.c)
 DSTS := $(SRCS:test/%.c=out/%.c)
 $(DSTS): out/%.c: test/%.c
