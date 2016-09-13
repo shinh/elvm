@@ -49,8 +49,16 @@ static void emit_int80() {
   emit_2(0xcd, 0x80);
 }
 
+static int modr(Reg dst, Reg src) {
+  return 0xc0 | REGNO[dst] | (REGNO[src] << 3);
+}
+
 static void emit_reg2(Reg dst, Reg src) {
-  emit_1(0xc0 | REGNO[dst] | (REGNO[src] << 3));
+  emit_1(modr(dst, src));
+}
+
+static void emit_zero_reg(Reg r) {
+  emit_2(0x31, modr(r, r));
 }
 
 static void emit_mov_reg(Reg dst, Reg src) {
@@ -73,12 +81,24 @@ static void emit_mov(Reg dst, Value* src) {
 
 static void emit_cmp(Inst* inst) {
   if (inst->src.type == REG) {
-    //emit_1(0x01);
-    //emit_reg2(inst->dst.reg, inst->src.reg);
-    error("oops cmp");
+    emit_2(0x39, 0xc0 | REGNO[inst->dst.reg] | (REGNO[inst->src.reg] << 3));
   } else {
     emit_2(0x81, 0xf8 | REGNO[inst->dst.reg]);
     emit_le(inst->src.imm);
+  }
+}
+
+static void emit_jcc(Inst* inst, int op, int* pc2addr) {
+  if (op) {
+    emit_cmp(inst);
+    emit_2(op, inst->jmp.type == REG ? 2 : 5);
+  }
+
+  if (inst->jmp.type == REG) {
+    emit_2(0xff, 0xe0 | REGNO[inst->jmp.reg]);
+  } else {
+    emit_1(0xe9);
+    emit_le(pc2addr[inst->jmp.imm] - emit_cnt() - 4);
   }
 }
 
@@ -131,6 +151,8 @@ static void emit_inst(Inst* inst, int* pc2addr) {
         emit_2(0x81, 0xc0 | REGNO[inst->dst.reg]);
         emit_le(inst->src.imm);
       }
+      emit_2(0x81, 0xe0 | REGNO[inst->dst.reg]);
+      emit_le(0xffffff);
       break;
 
     case SUB:
@@ -141,6 +163,8 @@ static void emit_inst(Inst* inst, int* pc2addr) {
         emit_2(0x81, 0xe8 | REGNO[inst->dst.reg]);
         emit_le(inst->src.imm);
       }
+      emit_2(0x81, 0xe0 | REGNO[inst->dst.reg]);
+      emit_le(0xffffff);
       break;
 
     case LOAD:
@@ -203,50 +227,67 @@ static void emit_inst(Inst* inst, int* pc2addr) {
       break;
 
     case EQ:
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x94, 0xc0 | REGNO[inst->dst.reg]);
+      break;
+
     case NE:
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x95, 0xc0 | REGNO[inst->dst.reg]);
+      break;
+
     case LT:
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x9c, 0xc0 | REGNO[inst->dst.reg]);
+      break;
+
     case GT:
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x9f, 0xc0 | REGNO[inst->dst.reg]);
+      break;
+
     case LE:
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x9e, 0xc0 | REGNO[inst->dst.reg]);
+      break;
+
     case GE:
-      // TODO
-      error("cmp");
+      emit_cmp(inst);
+      emit_zero_reg(inst->dst.reg);
+      emit_3(0x0f, 0x9d, 0xc0 | REGNO[inst->dst.reg]);
       break;
 
     case JEQ:
-      emit_cmp(inst);
-      if (inst->jmp.type == REG) {
-        error("oops");
-      } else {
-        emit_2(0x0f, 0x84);
-        emit_le(pc2addr[inst->jmp.imm] - emit_cnt() - 4);
-      }
+      emit_jcc(inst, 0x75, pc2addr);
       break;
 
     case JNE:
+      emit_jcc(inst, 0x74, pc2addr);
+      break;
+
     case JLT:
+      emit_jcc(inst, 0x7d, pc2addr);
+      break;
+
     case JGT:
-      error("oops jne");
+      emit_jcc(inst, 0x7e, pc2addr);
+      break;
 
     case JLE:
-      emit_cmp(inst);
-      if (inst->jmp.type == REG) {
-        error("oops");
-      } else {
-        emit_2(0x0f, 0x8e);
-        emit_le(pc2addr[inst->jmp.imm] - emit_cnt() - 4);
-      }
+      emit_jcc(inst, 0x7f, pc2addr);
       break;
 
     case JGE:
-      error("oops jge");
+      emit_jcc(inst, 0x7c, pc2addr);
+      break;
 
     case JMP:
-      if (inst->jmp.type == REG) {
-        error("oops");
-      } else {
-        emit_1(0xe9);
-        emit_le(pc2addr[inst->jmp.imm] - emit_cnt() - 4);
-      }
+      emit_jcc(inst, 0, pc2addr);
       break;
 
     default:
@@ -263,7 +304,6 @@ void target_x86(Module* module) {
     pc_cnt++;
   }
 
-  emit_reset();
   int* pc2addr = malloc(pc_cnt * sizeof(int));
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -276,11 +316,10 @@ void target_x86(Module* module) {
 
   emit_header(emit_cnt());
 
+  emit_reset();
   emit_start();
   init_state(module->data);
 
-  emit_reset();
-  emit_start();
   for (Inst* inst = module->text; inst; inst = inst->next) {
     emit_inst(inst, pc2addr);
   }
