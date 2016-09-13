@@ -1,4 +1,7 @@
 SRCS :=
 DSTS :=
+DEPS :=
 EXT :=
 CMD :=
+ACTUAL :=
+EXPECT :=

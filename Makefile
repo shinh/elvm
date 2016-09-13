@@ -3,6 +3,7 @@ CFLAGS := -m32 -W -Wall -W -Werror -MMD -O -g
 ELI := out/eli
 ELC := out/elc
 8CC := out/8cc
+8CC_SRCS := $(wildcard 8cc/*.c 8cc/*.h)
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
 LIB_IR := out/ir.o out/table.o
 
@@ -28,7 +29,7 @@ $(ELI): $(LIB_IR) out/eli.o
 $(ELC): $(LIB_IR) $(ELC_SRCS:%.c=out/%.o)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(8CC): $(wildcard 8cc/*.c 8cc/*.h)
+$(8CC): $(8CC_SRCS)
 	$(MAKE) -C 8cc && cp 8cc/8cc $@
 
 # Stage tests
@@ -54,8 +55,8 @@ $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.c := $(SRCS:test/%.c=%.c)
 
-out/8cc.c:
-	./merge_8cc.sh > $@.tmp && mv $@.tmp $@
+out/8cc.c: merge_8cc.sh libc/libf.h $(8CC_SRCS)
+	./$< > $@.tmp && mv $@.tmp $@
 OUT.c += 8cc.c
 
 # Build tests
@@ -93,53 +94,29 @@ include build.mk
 include clear_vars.mk
 SRCS := $(OUT.eir)
 EXT := out
+DEPS := $(TEST_INS) runtest.sh
 CMD = ./runtest.sh $1 $(ELI) $2
-include build.mk
-
-# Ruby backend
-
-include clear_vars.mk
-SRCS := $(OUT.eir)
-EXT := rb
-CMD = $(ELC) -rb $2 > $1.tmp && mv $1.tmp $1
-OUT.eir.rb := $(SRCS:%=%.$(EXT))
+OUT.eir.out := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(OUT.eir.rb)
-EXT := out
-CMD = ./runtest.sh $1 ruby $2
-include build.mk
+OUT.c.exe.out := $(OUT.c.exe:%=%.out)
+OUT.c.eir.out := $(OUT.c.exe.out:%.c.exe.out=%.c.eir.out)
+EXPECT := c.exe.out
+ACTUAL := c.eir.out
+include diff.mk
 
-# Python backend
+TARGET := rb
+RUNNER := ruby
+include target.mk
 
-include clear_vars.mk
-SRCS := $(OUT.eir)
-EXT := py
-CMD = $(ELC) -py $2 > $1.tmp && mv $1.tmp $1
-OUT.eir.py := $(SRCS:%=%.$(EXT))
-include build.mk
+TARGET := py
+RUNNER := python
+include target.mk
 
-include clear_vars.mk
-SRCS := $(OUT.eir.py)
-EXT := out
-CMD = ./runtest.sh $1 python $2
-include build.mk
-
-# JS backend
-
-include clear_vars.mk
-SRCS := $(OUT.eir)
-EXT := js
-CMD = $(ELC) -js $2 > $1.tmp && mv $1.tmp $1
-OUT.eir.js := $(SRCS:%=%.$(EXT))
-include build.mk
-
-include clear_vars.mk
-SRCS := $(OUT.eir.js)
-EXT := out
-CMD = ./runtest.sh $1 nodejs $2
-include build.mk
+TARGET := js
+RUNNER := nodejs
+include target.mk
 
 # x86 backend
 
@@ -153,6 +130,7 @@ include build.mk
 # include clear_vars.mk
 # SRCS := $(OUT.eir.x86)
 # EXT := out
+# DEPS := $(TEST_INS) runtest.sh
 # CMD = ./runtest.sh $1 $2
 # include build.mk
 
