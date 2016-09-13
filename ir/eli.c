@@ -149,9 +149,11 @@ int main(int argc, char* argv[]) {
           putchar(src(inst));
           break;
 
-        case GETC:
-          regs[inst->dst.reg] = getchar() & UINT_MAX;
+        case GETC: {
+          int c = getchar();
+          regs[inst->dst.reg] = c == EOF ? 0 : c & UINT_MAX;
           break;
+        }
 
         case EXIT:
           exit(0);
