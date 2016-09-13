@@ -34,6 +34,7 @@ $(8CC): $(wildcard 8cc/*.c 8cc/*.h)
 # Stage tests
 
 $(shell mkdir -p out)
+TEST_RESULTS :=
 
 SRCS := $(wildcard test/*.eir)
 DSTS := $(SRCS:test/%.eir=out/%.eir)
