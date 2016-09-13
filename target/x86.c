@@ -92,11 +92,17 @@ static void emit_mov(Reg dst, Value* src) {
 
 static void emit_cmp(Inst* inst) {
   if (inst->src.type == REG) {
-    emit_2(0x39, 0xc0 | REGNO[inst->dst.reg] | (REGNO[inst->src.reg] << 3));
+    emit_2(0x39, modr(inst->dst.reg, inst->src.reg));
   } else {
     emit_2(0x81, 0xf8 | REGNO[inst->dst.reg]);
     emit_le(inst->src.imm);
   }
+}
+
+static void emit_setcc(Inst* inst, int op) {
+  emit_cmp(inst);
+  emit_mov_imm(inst->dst.reg, 0);
+  emit_3(0x0f, op, 0xc0 | REGNO[inst->dst.reg]);
 }
 
 static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
@@ -121,31 +127,26 @@ static void init_state(Data* data) {
   emit_mov_imm(ESI, 0x22);  // MAP_PRIVATE | MAP_ANONYMOUS
   emit_mov_imm(EDI, -1);
   emit_mov_imm(BP, 0);
-  emit_mov_imm(A, 192);
+  emit_mov_imm(A, 192);  // mmap2
   emit_int80();
 
   emit_mov_reg(ESI, A);
 
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      // mov dword [EAX+mp], data->v
+      // mov dword [EAX+mp*4], data->v
       emit_2(0xc7, 0x80);
-      emit_le(mp);
+      emit_le(mp * 4);
       emit_le(data->v);
     }
   }
 
   emit_mov_imm(SP, 1 << 24);
-  // xor EAX, EAX
-  emit_2(0x31, 0xc0);
-  // xor EBX, EBX
-  emit_2(0x31, 0xdb);
-  // xor ECX, ECX
-  emit_2(0x31, 0xc9);
-  // xor EDX, EDX
-  emit_2(0x31, 0xd2);
-  // xor EBP, EBP
-  emit_2(0x31, 0xed);
+  emit_zero_reg(A);
+  emit_zero_reg(B);
+  emit_zero_reg(C);
+  emit_zero_reg(D);
+  emit_zero_reg(BP);
 }
 
 static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
@@ -190,7 +191,7 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
                0x86 | (REGNO[inst->src.reg] << 3));
       } else {
         emit_1(0x86 | (REGNO[inst->dst.reg] << 3));
-        emit_le(inst->src.imm);
+        emit_le(inst->src.imm * 4);
       }
       break;
 
@@ -214,8 +215,10 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
     case GETC:
       // push EDI
       emit_1(0x57);
-      // push EAX, ECX, EDX, EBX, EDI
-      emit_5(0x50, 0x51, 0x52, 0x53, 0x57);
+      // push EAX, ECX, EDX, EBX
+      emit_4(0x50, 0x51, 0x52, 0x53);
+      // push 0
+      emit_2(0x6a, 0x00);
       emit_mov_imm(B, 0);  // stdin
       emit_mov_reg(C, ESP);
       emit_mov_imm(D, 1);
@@ -247,39 +250,27 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
       break;
 
     case EQ:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x94, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x94);
       break;
 
     case NE:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x95, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x95);
       break;
 
     case LT:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x9c, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x9c);
       break;
 
     case GT:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x9f, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x9f);
       break;
 
     case LE:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x9e, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x9e);
       break;
 
     case GE:
-      emit_cmp(inst);
-      emit_zero_reg(inst->dst.reg);
-      emit_3(0x0f, 0x9d, 0xc0 | REGNO[inst->dst.reg]);
+      emit_setcc(inst, 0x9d);
       break;
 
     case JEQ:
