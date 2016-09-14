@@ -1,4 +1,6 @@
-#include "../libc/libf.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "../libc/_raw_print.h"
 
 int g_buf = -1;
 

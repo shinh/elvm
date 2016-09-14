@@ -1,4 +1,5 @@
-#include "../libc/libf.h"
+#include <stdlib.h>
+#include "../libc/_raw_print.h"
 
 int main() {
   char* buf = calloc(6, 1);

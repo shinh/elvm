@@ -1,4 +1,5 @@
-#include "../libc/libf.h"
+#include <stdio.h>
+#include "../libc/_raw_print.h"
 
 int main() {
   int i;
