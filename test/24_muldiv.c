@@ -3,7 +3,7 @@
 int main() {
   int v = 10777216;
   v *= 9777219;
-#ifndef __bfs__
+#ifndef __eir__
   v &= ((1 << 24) - 1);
 #endif
   printf("%d\n", v);

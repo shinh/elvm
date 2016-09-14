@@ -2,7 +2,7 @@
 
 int main() {
   unsigned int a = 10485760;
-#ifndef __bfs__
+#ifndef __eir__
   a += 2147483648;
 #endif
   unsigned int b = a + a;
