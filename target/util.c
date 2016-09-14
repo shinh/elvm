@@ -72,10 +72,20 @@ const char* src_str(Inst* inst) {
   return value_str(&inst->src);
 }
 
-const char* cmp_str(Inst* inst, const char* true_str) {
-  int op = inst->op;
+Op normalize_cond(Op op, int flip) {
   if (op >= 16)
     op -= 8;
+  if (flip) {
+    static const Op TBL[] = {
+      JNE, JEQ, JGE, JLE, JGT, JLT, JMP
+    };
+    op = TBL[op-JEQ];
+  }
+  return (Op)op;
+}
+
+const char* cmp_str(Inst* inst, const char* true_str) {
+  int op = normalize_cond(inst->op, 0);
   const char* op_str;
   switch (op) {
     case JEQ:

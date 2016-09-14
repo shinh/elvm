@@ -14,7 +14,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c ws.c
 CSRCS := $(addprefix ir/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -122,6 +122,10 @@ include target.mk
 
 TARGET := x86
 RUNNER :=
+include target.mk
+
+TARGET := ws
+RUNNER := ./wspace
 include target.mk
 
 test: $(TEST_RESULTS)

@@ -12,6 +12,7 @@ void inc_indent();
 void dec_indent();
 void emit_line(const char* fmt, ...);
 
+Op normalize_cond(Op op, int flip);
 const char** reg_names;
 const char* value_str(Value* v);
 const char* src_str(Inst* inst);

@@ -9,6 +9,7 @@ void target_rb(Module* module);
 void target_py(Module* module);
 void target_js(Module* module);
 void target_x86(Module* module);
+void target_ws(Module* module);
 
 int main(int argc, char* argv[]) {
   void (*target_func)(Module*) = NULL;
@@ -24,6 +25,8 @@ int main(int argc, char* argv[]) {
         target_func = target_js;
       } else if (!strcmp(arg, "-x86")) {
         target_func = target_x86;
+      } else if (!strcmp(arg, "-ws")) {
+        target_func = target_ws;
       } else {
         error("unknown flag: %s", arg);
       }
