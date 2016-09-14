@@ -1,4 +1,4 @@
-CFLAGS := -m32 -W -Wall -W -Werror -MMD -O -g
+CFLAGS := -std=gnu99 -m32 -W -Wall -W -Werror -MMD -O -g -Wno-missing-field-initializers
 
 ELI := out/eli
 ELC := out/elc
@@ -66,7 +66,7 @@ TEST_INS := $(wildcard test/*.in)
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
-CMD = $(CC) -Ilibc $2 -o $1
+CMD = $(CC) -std=gnu99 -Ilibc $2 -o $1
 OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
