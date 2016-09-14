@@ -1,0 +1,4 @@
+#ifndef ELVM_LIBC_LIBGEN_H_
+#define ELVM_LIBC_LIBGEN_H_
+
+#endif  // ELVM_LIBC_LIBGEN_H_

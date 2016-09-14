@@ -61,8 +61,9 @@ $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.c := $(SRCS:test/%.c=out/%.c)
 
-out/8cc.c: merge_8cc.sh libc/libf.h $(8CC_SRCS)
-	./$< > $@.tmp && mv $@.tmp $@
+out/8cc.c: $(8CC_SRCS)
+	cp $(wildcard 8cc/*.h) out
+	cat $(filter-out 8cc/utiltest.c,$(wildcard 8cc/*.c)) > $@.tmp && mv $@.tmp $@
 OUT.c += out/8cc.c
 
 # Build tests
