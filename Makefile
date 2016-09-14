@@ -9,6 +9,12 @@ LIB_IR := out/ir.o out/table.o
 
 all: test
 
+8cc/main.c Whitespace/whitespace.c:
+	git submodule update --init
+
+Whitespace/whitespace.out:
+	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
+
 CSRCS := ir/ir.c ir/table.c ir/dump_ir.c ir/eli.c
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
@@ -38,26 +44,26 @@ $(shell mkdir -p out)
 TEST_RESULTS :=
 
 SRCS := $(wildcard test/*.eir)
+OUT.eir := $(DSTS)
 DSTS := $(SRCS:test/%.eir=out/%.eir)
 $(DSTS): out/%.eir: test/%.eir
 	cp $< $@.tmp && mv $@.tmp $@
-OUT.eir := $(SRCS:test/%.eir=%.eir)
 
 SRCS := $(wildcard test/*.eir.rb)
 DSTS := $(SRCS:test/%.eir.rb=out/%.eir)
+OUT.eir += $(DSTS)
 $(DSTS): out/%.eir: test/%.eir.rb
 	ruby $< > $@.tmp && mv $@.tmp $@
-OUT.eir += $(SRCS:test/%.eir.rb=%.eir)
 
 SRCS := $(wildcard test/*.c)
 DSTS := $(SRCS:test/%.c=out/%.c)
 $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
-OUT.c := $(SRCS:test/%.c=%.c)
+OUT.c := $(SRCS:test/%.c=out/%.c)
 
 out/8cc.c: merge_8cc.sh libc/libf.h $(8CC_SRCS)
 	./$< > $@.tmp && mv $@.tmp $@
-OUT.c += 8cc.c
+OUT.c += out/8cc.c
 
 # Build tests
 
@@ -71,14 +77,14 @@ OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-SRCS := $(filter-out 8cc.c.exe,$(OUT.c.exe))
+SRCS := $(filter-out out/8cc.c.exe,$(OUT.c.exe))
 EXT := out
 DEPS := $(TEST_INS) runtest.sh
 CMD = ./runtest.sh $1 $2
 include build.mk
 
 include clear_vars.mk
-SRCS := 8cc.c.exe
+SRCS := out/8cc.c.exe
 EXT := out
 DEPS := $(TEST_INS)
 # TODO: Hacky!
@@ -125,9 +131,12 @@ RUNNER :=
 include target.mk
 
 TARGET := ws
-RUNNER := ./wspace
+RUNNER := tools/runws.sh
 include target.mk
+$(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
 test: $(TEST_RESULTS)
+
+.SUFFIXES:
 
 -include */*.d

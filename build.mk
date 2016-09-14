@@ -1,4 +1,3 @@
-SRCS := $(SRCS:%=out/%)
 DSTS := $(SRCS:%=%.$(EXT))
 
 $(eval $(DSTS): PRIV_CMD = $(value CMD))
