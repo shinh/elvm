@@ -190,6 +190,32 @@ static void emit_cmp(Inst* inst, int flip, int* label) {
   emit_op(WS_MARK, ld);
 }
 
+static void emit_jmp(Inst* inst, WsOp op, int reg_jmp) {
+  if (inst->jmp.type == REG) {
+    emit_retrieve(inst->dst.reg);
+    emit_op(op, reg_jmp);
+  } else {
+    emit_op(op, inst->jmp.imm);
+  }
+}
+
+static void emit_reg_jmp_table(int min_pc, int max_pc,
+                               int last_pc, int last_label) {
+  emit_op(WS_MARK, last_label + max_pc + min_pc * last_pc);
+  if (min_pc + 1 == max_pc) {
+    emit_op(WS_JMP, min_pc);
+    return;
+  }
+
+  int mid_pc = (min_pc + max_pc) / 2;
+  emit(WS_DUP);
+  emit_op(WS_PUSH, mid_pc);
+  emit(WS_SUB);
+  emit_op(WS_JN, last_label + mid_pc + min_pc * last_pc);
+  emit_reg_jmp_table(mid_pc, max_pc, last_pc, last_label);
+  emit_reg_jmp_table(min_pc, mid_pc, last_pc, last_label);
+}
+
 static void init_state(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_store(i, 0);
@@ -206,6 +232,7 @@ void target_ws(Module* module) {
   for (Inst* inst = module->text; inst; inst = inst->next) {
     label = inst->pc;
   }
+  int reg_jmp = ++label;
 
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -265,7 +292,7 @@ void target_ws(Module* module) {
       case GT:
       case LE:
       case GE:
-        emit_retrieve(inst->dst.reg);
+        emit_op(WS_PUSH, inst->dst.reg);
         emit_cmp(inst, 0, &label);
         emit(WS_STORE);
         break;
@@ -277,15 +304,18 @@ void target_ws(Module* module) {
       case JLE:
       case JGE:
         emit_cmp(inst, 1, &label);
-        emit_op(WS_JZ, inst->jmp.imm);
+        emit_jmp(inst, WS_JZ, reg_jmp);
         break;
 
       case JMP:
-        emit_op(WS_JMP, inst->jmp.imm);
+        emit_jmp(inst, WS_JMP, reg_jmp);
         break;
 
       default:
         error("oops");
     }
   }
+
+  emit_op(WS_MARK, reg_jmp);
+  emit_reg_jmp_table(0, reg_jmp, reg_jmp, label);
 }
