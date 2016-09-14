@@ -192,7 +192,10 @@ static void emit_cmp(Inst* inst, int flip, int* label) {
 
 static void emit_jmp(Inst* inst, WsOp op, int reg_jmp) {
   if (inst->jmp.type == REG) {
-    emit_retrieve(inst->dst.reg);
+    emit_retrieve(inst->jmp.reg);
+    if (op != WS_JMP) {
+      emit(WS_SWAP);
+    }
     emit_op(op, reg_jmp);
   } else {
     emit_op(op, inst->jmp.imm);
