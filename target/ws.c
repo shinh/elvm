@@ -141,7 +141,7 @@ static void emit_addsub(Inst* inst, WsOp op) {
   emit(WS_STORE);
 }
 
-static void emit_cmp(Inst* inst, int flip, int* label) {
+static void emit_cmp_ws(Inst* inst, int flip, int* label) {
   int lf = ++*label;
   int lt = ++*label;
   int ld = ++*label;
@@ -219,7 +219,7 @@ static void emit_reg_jmp_table(int min_pc, int max_pc,
   emit_reg_jmp_table(min_pc, mid_pc, last_pc, last_label);
 }
 
-static void init_state(Data* data) {
+static void init_state_ws(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_store(i, 0);
   }
@@ -229,7 +229,7 @@ static void init_state(Data* data) {
 }
 
 void target_ws(Module* module) {
-  init_state(module->data);
+  init_state_ws(module->data);
 
   int label = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -296,7 +296,7 @@ void target_ws(Module* module) {
       case LE:
       case GE:
         emit_op(WS_PUSH, inst->dst.reg);
-        emit_cmp(inst, 0, &label);
+        emit_cmp_ws(inst, 0, &label);
         emit(WS_STORE);
         break;
 
@@ -306,7 +306,7 @@ void target_ws(Module* module) {
       case JGT:
       case JLE:
       case JGE:
-        emit_cmp(inst, 1, &label);
+        emit_cmp_ws(inst, 1, &label);
         emit_jmp(inst, WS_JZ, reg_jmp);
         break;
 

@@ -90,7 +90,7 @@ static void emit_mov(Reg dst, Value* src) {
   }
 }
 
-static void emit_cmp(Inst* inst) {
+static void emit_cmp_x86(Inst* inst) {
   if (inst->src.type == REG) {
     emit_2(0x39, modr(inst->dst.reg, inst->src.reg));
   } else {
@@ -100,14 +100,14 @@ static void emit_cmp(Inst* inst) {
 }
 
 static void emit_setcc(Inst* inst, int op) {
-  emit_cmp(inst);
+  emit_cmp_x86(inst);
   emit_mov_imm(inst->dst.reg, 0);
   emit_3(0x0f, op, 0xc0 | REGNO[inst->dst.reg]);
 }
 
 static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
   if (op) {
-    emit_cmp(inst);
+    emit_cmp_x86(inst);
     emit_2(op, inst->jmp.type == REG ? 7 : 5);
   }
 
@@ -120,7 +120,7 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
   }
 }
 
-static void init_state(Data* data) {
+static void init_state_x86(Data* data) {
   emit_mov_imm(B, 0);
   emit_mov_imm(C, (1 << 24) * 4);
   emit_mov_imm(D, 3);  // PROT_READ | PROT_WRITE
@@ -308,7 +308,7 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
 
 void target_x86(Module* module) {
   emit_reset();
-  init_state(module->data);
+  init_state_x86(module->data);
 
   int pc_cnt = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -331,7 +331,7 @@ void target_x86(Module* module) {
 
   emit_reset();
   emit_start();
-  init_state(module->data);
+  init_state_x86(module->data);
 
   for (Inst* inst = module->text; inst; inst = inst->next) {
     emit_inst(inst, pc2addr, rodata_addr);

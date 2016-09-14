@@ -1,7 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static void init_state(Data* data) {
+static void init_state_py(Data* data) {
   emit_line("import sys");
   for (int i = 0; i < 7; i++) {
     emit_line("%s = 0", reg_names[i]);
@@ -15,7 +15,7 @@ static void init_state(Data* data) {
 }
 
 void target_py(Module* module) {
-  init_state(module->data);
+  init_state_py(module->data);
 
   emit_line("while True:");
   inc_indent();

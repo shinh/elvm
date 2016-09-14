@@ -10,26 +10,38 @@ void target_py(Module* module);
 void target_js(Module* module);
 void target_x86(Module* module);
 void target_ws(Module* module);
+typedef void (*target_func_t)(Module*);
+
+static target_func_t get_target_func(const char* ext) {
+  if (!strcmp(ext, "rb")) {
+    return target_rb;
+  } else if (!strcmp(ext, "py")) {
+    return target_py;
+  } else if (!strcmp(ext, "js")) {
+    return target_js;
+  } else if (!strcmp(ext, "x86")) {
+    return target_x86;
+  } else if (!strcmp(ext, "ws")) {
+    return target_ws;
+  } else {
+    error("unknown flag: %s", ext);
+  }
+}
 
 int main(int argc, char* argv[]) {
-  void (*target_func)(Module*) = NULL;
+#ifdef NOFILE
+  char buf[32];
+  fgets(buf, 31, stdin);
+  buf[strlen(buf) - 1] = 0;
+  target_func_t target_func = get_target_func(buf);
+  Module* module = load_eir(stdin);
+#else
+  target_func_t target_func = NULL;
   const char* filename = NULL;
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
     if (arg[0] == '-') {
-      if (!strcmp(arg, "-rb")) {
-        target_func = target_rb;
-      } else if (!strcmp(arg, "-py")) {
-        target_func = target_py;
-      } else if (!strcmp(arg, "-js")) {
-        target_func = target_js;
-      } else if (!strcmp(arg, "-x86")) {
-        target_func = target_x86;
-      } else if (!strcmp(arg, "-ws")) {
-        target_func = target_ws;
-      } else {
-        error("unknown flag: %s", arg);
-      }
+      target_func = get_target_func(arg + 1);
     } else {
       filename = arg;
     }
@@ -43,5 +55,6 @@ int main(int argc, char* argv[]) {
   }
 
   Module* module = load_eir_from_file(filename);
+#endif
   target_func(module);
 }

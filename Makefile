@@ -5,7 +5,8 @@ ELC := out/elc
 8CC := out/8cc
 8CC_SRCS := $(wildcard 8cc/*.c 8cc/*.h)
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
-LIB_IR := out/ir.o out/table.o
+LIB_IR_SRCS := ir/ir.c ir/table.c
+LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
 all: test
 
@@ -15,14 +16,14 @@ all: test
 Whitespace/whitespace.out:
 	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
 
-CSRCS := ir/ir.c ir/table.c ir/dump_ir.c ir/eli.c
+CSRCS := $(LIB_IR_SRCS) ir/dump_ir.c ir/eli.c
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c -I. $(CFLAGS) $< -o $@
 
 ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c ws.c
-CSRCS := $(addprefix ir/,$(ELC_SRCS))
-COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
+ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
+COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
@@ -32,7 +33,7 @@ out/dump_ir: $(LIB_IR) out/dump_ir.o
 $(ELI): $(LIB_IR) out/eli.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(ELC): $(LIB_IR) $(ELC_SRCS:%.c=out/%.o)
+$(ELC): $(LIB_IR) $(ELC_SRCS:target/%.c=out/%.o)
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(8CC): $(8CC_SRCS)
@@ -66,6 +67,10 @@ out/8cc.c: $(8CC_SRCS)
 	cat $(filter-out 8cc/utiltest.c,$(wildcard 8cc/*.c)) > $@.tmp && mv $@.tmp $@
 OUT.c += out/8cc.c
 
+out/elc.c: $(ELC_SRCS) $(LIB_IR_SRCS)
+	cat $^ > $@.tmp && mv $@.tmp $@
+OUT.c += out/elc.c
+
 # Build tests
 
 TEST_INS := $(wildcard test/*.in)
@@ -73,7 +78,7 @@ TEST_INS := $(wildcard test/*.in)
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
-CMD = $(CC) -std=gnu99 -include libc/_builtin.h $2 -o $1
+CMD = $(CC) -std=gnu99 -DNOFILE -include libc/_builtin.h -I. $2 -o $1
 OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
@@ -96,9 +101,12 @@ include build.mk
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
-CMD = $(8CC) -S -Ilibc $2 -o $1
+CMD = $(8CC) -S -DNOFILE -Ilibc $2 -o $1
 DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
+# TODO: Fix the test!
+OUT.c.exe := $(filter-out out/elc.c.exe,$(OUT.c.exe))
+OUT.eir := $(filter-out out/elc.c.eir,$(OUT.eir))
 include build.mk
 
 include clear_vars.mk

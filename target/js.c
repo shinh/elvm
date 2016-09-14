@@ -1,7 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static void init_state(Data* data) {
+static void init_state_js(Data* data) {
   emit_line("var sys = require('sys');");
 
   emit_line("var input = null;");
@@ -24,7 +24,7 @@ static void init_state(Data* data) {
 }
 
 void target_js(Module* module) {
-  init_state(module->data);
+  init_state_js(module->data);
 
   emit_line("var running = true;");
   emit_line("while (running) {");

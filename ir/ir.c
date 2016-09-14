@@ -1,4 +1,4 @@
-#include "ir.h"
+#include <ir/ir.h>
 
 #include <ctype.h>
 #include <stdbool.h>
@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "table.h"
+#include <ir/table.h>
 
 typedef struct DataPrivate_ {
   int v;
@@ -37,7 +37,7 @@ enum {
   REF = IMM + 1, LABEL
 };
 
-static void error(Parser* p, const char* msg) {
+static void ir_error(Parser* p, const char* msg) {
   fprintf(stderr, "%s:%d:%d: %s\n", p->filename, p->lineno, p->col, msg);
   exit(1);
 }
@@ -96,7 +96,7 @@ static void read_while_ident(Parser* p, char* buf, int len) {
     }
     *buf++ = c;
   }
-  error(p, "too long ident");
+  ir_error(p, "too long ident");
 }
 
 static int read_int(Parser* p, int c) {
@@ -106,7 +106,7 @@ static int read_int(Parser* p, int c) {
     is_minus = true;
     c = ir_getc(p);
     if (!isdigit(c))
-      error(p, "digit expected");
+      ir_error(p, "digit expected");
   }
   while ('0' <= c && c <= '9') {
     r *= 10;
@@ -240,10 +240,10 @@ static void parse_line(Parser* p, int c) {
     return;
   } else if (op == (Op)STRING) {
     if (p->in_text)
-      error(p, "in text");
+      ir_error(p, "in text");
     skip_ws(p);
     if (ir_getc(p) != '"')
-      error(p, "expected open '\"'");
+      ir_error(p, "expected open '\"'");
 
     c = ir_getc(p);
     while (c != '"') {
@@ -256,7 +256,7 @@ static void parse_line(Parser* p, int c) {
         else if (c == '\\')
           c = '\\';
         else
-          error(p, "unknown escape");
+          ir_error(p, "unknown escape");
         add_imm_data(p, c);
       } else {
         add_imm_data(p, c);
@@ -282,11 +282,11 @@ static void parse_line(Parser* p, int c) {
       }
       return;
     }
-    error(p, "unknown op");
+    ir_error(p, "unknown op");
   }
 
   if (op < 0) {
-    error(p, "oops");
+    ir_error(p, "oops");
   }
   int argc;
   if (op <= STORE)
@@ -310,7 +310,7 @@ static void parse_line(Parser* p, int c) {
     c = peek(p);
     argc = c == '-' || isdigit(c) ? 1 : 0;
   } else
-    error(p, "oops");
+    ir_error(p, "oops");
 
   Value args[3];
   for (int i = 0; i < argc; i++) {
@@ -318,7 +318,7 @@ static void parse_line(Parser* p, int c) {
     if (i) {
       c = ir_getc(p);
       if (c != ',')
-        error(p, "comma expected");
+        ir_error(p, "comma expected");
       skip_ws(p);
     }
 
@@ -359,13 +359,13 @@ static void parse_line(Parser* p, int c) {
       d->val.type = REF;
       d->val.tmp = args[0].tmp;
     } else {
-      error(p, "number expected");
+      ir_error(p, "number expected");
     }
     return;
   } else if (op == (Op)DATA) {
     if (argc == 1) {
       if (args[0].type != IMM)
-        error(p, "number expected");
+        ir_error(p, "number expected");
       p->subsection = args[0].imm;
     }
     p->in_text = 0;
@@ -413,7 +413,7 @@ static void parse_line(Parser* p, int c) {
       p->prev_jmp = true;
       break;
     default:
-      error(p, "oops");
+      ir_error(p, "oops");
   }
 
   //dump_inst(text);
@@ -453,7 +453,7 @@ static void parse_eir(Parser* p) {
     } else if (c == '_' || c == '.' || isalpha(c)) {
       parse_line(p, c);
     } else {
-      error(p, "unexpected char");
+      ir_error(p, "unexpected char");
     }
   }
 

@@ -1,4 +1,4 @@
-#include "table.h"
+#include <ir/table.h>
 
 #include <stdlib.h>
 #include <string.h>

@@ -5,7 +5,7 @@ static const char* REG_NAMES[] = {
   "@a", "@b", "@c", "@d", "@bp", "@sp", "@pc"
 };
 
-static void init_state(Data* data) {
+static void init_state_rb(Data* data) {
   reg_names = REG_NAMES;
   for (int i = 0; i < 7; i++) {
     emit_line("%s = 0", reg_names[i]);
@@ -19,7 +19,7 @@ static void init_state(Data* data) {
 }
 
 void target_rb(Module* module) {
-  init_state(module->data);
+  init_state_rb(module->data);
   emit_line("");
 
   static const int FUNC_SIZE = 1024;
