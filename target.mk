@@ -6,6 +6,7 @@ OUT.eir.$(TARGET) := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
+
 SRCS := $(OUT.eir.$(TARGET))
 EXT := out
 DEPS := $(TEST_INS) runtest.sh
@@ -19,3 +20,5 @@ ACTUAL := eir.$(TARGET).out
 include diff.mk
 
 $(TARGET): $(DIFFS)
+
+TEST_FILTER :=

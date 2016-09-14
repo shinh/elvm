@@ -72,7 +72,7 @@ TEST_INS := $(wildcard test/*.in)
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
-CMD = $(CC) -std=gnu99 $2 -o $1
+CMD = $(CC) -std=gnu99 -include libc/_builtin.h $2 -o $1
 OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
@@ -114,6 +114,10 @@ OUT.c.eir.out := $(OUT.c.exe.out:%.c.exe.out=%.c.eir.out)
 EXPECT := c.exe.out
 ACTUAL := c.eir.out
 include diff.mk
+
+build: $(TEST_RESULTS)
+
+# Targets
 
 TARGET := rb
 RUNNER := ruby

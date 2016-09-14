@@ -1,4 +1,4 @@
-#include <libf.h>
+#include "../libc/libf.h"
 
 int bss;
 int val;

@@ -1,4 +1,4 @@
-#include <libf.h>
+#include "../libc/libf.h"
 
 int main() {
   print_int(7);

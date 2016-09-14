@@ -1,4 +1,4 @@
-#include <libf.h>
+#include "../libc/libf.h"
 
 int g_buf = -1;
 

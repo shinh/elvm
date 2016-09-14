@@ -1,4 +1,4 @@
-#include <libf.h>
+#include "../libc/libf.h"
 
 int main() {
   char* buf = calloc(6, 1);

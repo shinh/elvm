@@ -16,7 +16,6 @@ static char* stringify_hex(long v, char* p);
 
 #ifdef __GNUC__
 
-#include <_raw_print.h>
 #include <errno.h>
 #include <libgen.h>
 #include <limits.h>
