@@ -72,7 +72,7 @@ TEST_INS := $(wildcard test/*.in)
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
-CMD = $(CC) -std=gnu99 -Ilibc $2 -o $1
+CMD = $(CC) -std=gnu99 $2 -o $1
 OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
@@ -96,6 +96,7 @@ include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
 CMD = $(8CC) -S -Ilibc $2 -o $1
+DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
 include build.mk
 
