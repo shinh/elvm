@@ -7,7 +7,7 @@ include build.mk
 
 include clear_vars.mk
 
-SRCS := $(OUT.eir.$(TARGET))
+SRCS := $(filter-out $(TEST_FILTER),$(OUT.eir.$(TARGET)))
 EXT := out
 DEPS := $(TEST_INS) runtest.sh
 $(eval CMD = ./runtest.sh $$1 $(RUNNER) $$2)

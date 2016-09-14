@@ -137,6 +137,9 @@ include target.mk
 
 TARGET := ws
 RUNNER := tools/runws.sh
+ifndef FULL
+TEST_FILTER := out/8cc.c.eir.ws
+endif
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
