@@ -1,6 +1,8 @@
 #ifndef ELVM_UTIL_H_
 #define ELVM_UTIL_H_
 
+#include <stdint.h>
+
 #include <ir/ir.h>
 
 char* format(const char* fmt, ...);
@@ -29,6 +31,6 @@ void emit_3(int a, int b, int c);
 void emit_4(int a, int b, int c, int d);
 void emit_5(int a, int b, int c, int d, int e);
 void emit_6(int a, int b, int c, int d, int e, int f);
-void emit_le(int a);
+void emit_le(uint32_t a);
 
 #endif  // ELVM_UTIL_H_

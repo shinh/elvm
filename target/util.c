@@ -165,7 +165,7 @@ void emit_6(int a, int b, int c, int d, int e, int f) {
   emit_1(f);
 }
 
-void emit_le(int a) {
+void emit_le(uint32_t a) {
   emit_1(a % 256);
   a /= 256;
   emit_1(a % 256);
