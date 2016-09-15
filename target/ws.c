@@ -134,9 +134,9 @@ static void emit_addsub(Inst* inst, WsOp op) {
   emit_retrieve(inst->dst.reg);
   emit_src(inst, 0);
   emit(op);
-  emit_op(WS_PUSH, 1 << 24);
+  emit_op(WS_PUSH, UINT_MOD);
   emit(WS_ADD);
-  emit_op(WS_PUSH, 1 << 24);
+  emit_op(WS_PUSH, UINT_MOD);
   emit(WS_MOD);
   emit(WS_STORE);
 }

@@ -5,7 +5,9 @@
 
 char* format(const char* fmt, ...);
 
+#ifndef __eir__
 __attribute__((noreturn))
+#endif
 void error(const char* fmt, ...);
 
 void inc_indent();

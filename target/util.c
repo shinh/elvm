@@ -166,11 +166,11 @@ void emit_6(int a, int b, int c, int d, int e, int f) {
 }
 
 void emit_le(int a) {
-  emit_1(a & 255);
-  a >>= 8;
-  emit_1(a & 255);
-  a >>= 8;
-  emit_1(a & 255);
-  a >>= 8;
+  emit_1(a % 256);
+  a /= 256;
+  emit_1(a % 256);
+  a /= 256;
+  emit_1(a % 256);
+  a /= 256;
   emit_1(a);
 }

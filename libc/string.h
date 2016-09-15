@@ -59,6 +59,12 @@ char* strchr(char* s, int c) {
   return NULL;
 }
 
+char* strdup(const char* s) {
+  char* r = malloc(strlen(s));
+  strcpy(r, s);
+  return r;
+}
+
 // From Bionic:
 char *
 strtok_r(char *s, const char *delim, char **last)

@@ -31,8 +31,14 @@ static target_func_t get_target_func(const char* ext) {
 int main(int argc, char* argv[]) {
 #ifdef NOFILE
   char buf[32];
-  fgets(buf, 31, stdin);
-  buf[strlen(buf) - 1] = 0;
+  for (int i = 0;; i++) {
+    int c = getchar();
+    if (c == '\n' || c == EOF) {
+      buf[i] = 0;
+      break;
+    }
+    buf[i] = c;
+  }
   target_func_t target_func = get_target_func(buf);
   Module* module = load_eir(stdin);
 #else

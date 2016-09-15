@@ -130,8 +130,54 @@ int fileno(FILE* fp) {
   return 0;
 }
 
+FILE* fopen(const char* filename, const char* mode) {
+  return stdin;
+}
+
 int fclose(FILE* fp) {
   return 0;
+}
+
+size_t fwrite(void* ptr, size_t s, size_t n, FILE* fp) {
+  char* s = ptr;
+  size_t l = (int)s * (int)n;
+  for (size_t i = 0; i < l; i++)
+    putchar(s[i]);
+  return l;
+}
+
+int fputs(const char* s, FILE* fp) {
+  print_str(s);
+  putchar('\n');
+}
+
+int fgets(char* s, int size, FILE* fp) {
+  for (int i = 0; i < size - 1; i++) {
+    int c = getchar();
+    s[i] = c;
+    if (c == '\n' || c == EOF) {
+      s[i + 1] = 0;
+      return i;
+    }
+  }
+  s[size - 1] = 0;
+  return size;
+}
+
+static int g_ungot = EOF;
+
+int fgetc(FILE* fp) {
+  if (g_ungot != EOF)
+    return getchar();
+  int r = g_ungot;
+  g_ungot = EOF;
+  return r;
+}
+
+int ungetc(int c, FILE* fp) {
+  if (g_ungot != EOF)
+    return g_ungot = c;
+  return EOF;
 }
 
 #endif  // ELVM_LIBC_STDIO_H_

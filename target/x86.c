@@ -61,7 +61,7 @@ static void emit_int80() {
 }
 
 static int modr(Reg dst, Reg src) {
-  return 0xc0 | REGNO[dst] | (REGNO[src] << 3);
+  return 0xc0 | REGNO[dst] | (REGNO[src] * 8);
 }
 
 static void emit_reg2(Reg dst, Reg src) {
@@ -112,7 +112,7 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
   }
 
   if (inst->jmp.type == REG) {
-    emit_3(0xff, 0x24, 0x85 | (REGNO[inst->jmp.reg] << 3));
+    emit_3(0xff, 0x24, 0x85 | (REGNO[inst->jmp.reg] * 8));
     emit_le(rodata_addr);
   } else {
     emit_1(0xe9);
@@ -122,7 +122,7 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
 
 static void init_state_x86(Data* data) {
   emit_mov_imm(B, 0);
-  emit_mov_imm(C, (1 << 24) * 4);
+  emit_mov_imm(C, UINT_MOD * 4);
   emit_mov_imm(D, 3);  // PROT_READ | PROT_WRITE
   emit_mov_imm(ESI, 0x22);  // MAP_PRIVATE | MAP_ANONYMOUS
   emit_mov_imm(EDI, -1);
@@ -141,7 +141,7 @@ static void init_state_x86(Data* data) {
     }
   }
 
-  emit_mov_imm(SP, 1 << 24);
+  emit_mov_imm(SP, UINT_MOD);
   emit_zero_reg(A);
   emit_zero_reg(B);
   emit_zero_reg(C);
@@ -187,10 +187,10 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
       emit_1(0x89);
     store_load_common:
       if (inst->src.type == REG) {
-        emit_2(4 | (REGNO[inst->dst.reg] << 3),
-               0x86 | (REGNO[inst->src.reg] << 3));
+        emit_2(4 | (REGNO[inst->dst.reg] * 8),
+               0x86 | (REGNO[inst->src.reg] * 8));
       } else {
-        emit_1(0x86 | (REGNO[inst->dst.reg] << 3));
+        emit_1(0x86 | (REGNO[inst->dst.reg] * 8));
         emit_le(inst->src.imm * 4);
       }
       break;
