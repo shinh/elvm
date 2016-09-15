@@ -6,6 +6,11 @@
 #define UINT_MOD 16777216
 #define UINT_MAX 16777215
 #define UINT_MAX_STR "16777215"
+#ifdef __eir__
+# define MOD24(v) v
+#else
+# define MOD24(v) v & UINT_MAX
+#endif
 
 typedef enum {
   A, B, C, D, BP, SP
