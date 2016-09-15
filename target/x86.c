@@ -61,7 +61,7 @@ static void emit_int80() {
 }
 
 static int modr(Reg dst, Reg src) {
-  return 0xc0 | REGNO[dst] | (REGNO[src] * 8);
+  return 0xc0 + REGNO[dst] + (REGNO[src] * 8);
 }
 
 static void emit_reg2(Reg dst, Reg src) {
@@ -78,7 +78,7 @@ static void emit_mov_reg(Reg dst, Reg src) {
 }
 
 static void emit_mov_imm(Reg dst, int src) {
-  emit_1(0xb8 | REGNO[dst]);
+  emit_1(0xb8 + REGNO[dst]);
   emit_le(src);
 }
 
@@ -94,7 +94,7 @@ static void emit_cmp_x86(Inst* inst) {
   if (inst->src.type == REG) {
     emit_2(0x39, modr(inst->dst.reg, inst->src.reg));
   } else {
-    emit_2(0x81, 0xf8 | REGNO[inst->dst.reg]);
+    emit_2(0x81, 0xf8 + REGNO[inst->dst.reg]);
     emit_le(inst->src.imm);
   }
 }
@@ -102,7 +102,7 @@ static void emit_cmp_x86(Inst* inst) {
 static void emit_setcc(Inst* inst, int op) {
   emit_cmp_x86(inst);
   emit_mov_imm(inst->dst.reg, 0);
-  emit_3(0x0f, op, 0xc0 | REGNO[inst->dst.reg]);
+  emit_3(0x0f, op, 0xc0 + REGNO[inst->dst.reg]);
 }
 
 static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
@@ -112,7 +112,7 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
   }
 
   if (inst->jmp.type == REG) {
-    emit_3(0xff, 0x24, 0x85 | (REGNO[inst->jmp.reg] * 8));
+    emit_3(0xff, 0x24, 0x85 + (REGNO[inst->jmp.reg] * 8));
     emit_le(rodata_addr);
   } else {
     emit_1(0xe9);
@@ -160,10 +160,10 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
         emit_1(0x01);
         emit_reg2(inst->dst.reg, inst->src.reg);
       } else {
-        emit_2(0x81, 0xc0 | REGNO[inst->dst.reg]);
+        emit_2(0x81, 0xc0 + REGNO[inst->dst.reg]);
         emit_le(inst->src.imm);
       }
-      emit_2(0x81, 0xe0 | REGNO[inst->dst.reg]);
+      emit_2(0x81, 0xe0 + REGNO[inst->dst.reg]);
       emit_le(0xffffff);
       break;
 
@@ -172,10 +172,10 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
         emit_1(0x29);
         emit_reg2(inst->dst.reg, inst->src.reg);
       } else {
-        emit_2(0x81, 0xe8 | REGNO[inst->dst.reg]);
+        emit_2(0x81, 0xe8 + REGNO[inst->dst.reg]);
         emit_le(inst->src.imm);
       }
-      emit_2(0x81, 0xe0 | REGNO[inst->dst.reg]);
+      emit_2(0x81, 0xe0 + REGNO[inst->dst.reg]);
       emit_le(0xffffff);
       break;
 
@@ -187,10 +187,10 @@ static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
       emit_1(0x89);
     store_load_common:
       if (inst->src.type == REG) {
-        emit_2(4 | (REGNO[inst->dst.reg] * 8),
-               0x86 | (REGNO[inst->src.reg] * 8));
+        emit_2(4 + (REGNO[inst->dst.reg] * 8),
+               0x86 + (REGNO[inst->src.reg] * 8));
       } else {
-        emit_1(0x86 | (REGNO[inst->dst.reg] * 8));
+        emit_1(0x86 + (REGNO[inst->dst.reg] * 8));
         emit_le(inst->src.imm * 4);
       }
       break;
