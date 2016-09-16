@@ -58,8 +58,8 @@ $(shell mkdir -p out)
 TEST_RESULTS :=
 
 SRCS := $(wildcard test/*.eir)
-OUT.eir := $(DSTS)
 DSTS := $(SRCS:test/%.eir=out/%.eir)
+OUT.eir := $(DSTS)
 $(DSTS): out/%.eir: test/%.eir
 	cp $< $@.tmp && mv $@.tmp $@
 
