@@ -3,17 +3,30 @@ CFLAGS := -std=gnu99 -m32 -W -Wall -W -Werror -MMD -O -g -Wno-missing-field-init
 ELI := out/eli
 ELC := out/elc
 8CC := out/8cc
-8CC_SRCS := $(wildcard 8cc/*.c 8cc/*.h) 8cc/main.c
+8CC_SRCS := \
+	8cc/main.c \
+	8cc/cpp.c \
+	8cc/error.c \
+	8cc/lex.c \
+	8cc/parse.c \
+	8cc/debug.c \
+	8cc/list.c \
+	8cc/string.c \
+	8cc/dict.c \
+	8cc/gen.c
+
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
 all: test
 
-8cc/main.c Whitespace/whitespace.c:
+git_submodule:
 	git submodule update --init
 
-Whitespace/whitespace.out:
+$(8CC_SRCS) Whitespace/whitespace.c: git_submodule
+
+Whitespace/whitespace.out: Whitespace/whitespace.c
 	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
 
 CSRCS := $(LIB_IR_SRCS) ir/dump_ir.c ir/eli.c
@@ -62,9 +75,9 @@ $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.c := $(SRCS:test/%.c=out/%.c)
 
-out/8cc.c: $(8CC_SRCS)
-	cp $(wildcard 8cc/*.h) out
-	cat $(filter-out 8cc/utiltest.c,$(wildcard 8cc/*.c)) > $@.tmp && mv $@.tmp $@
+out/8cc.c: $(8CC_SRCS) git_submodule
+	cp 8cc/*.h out
+	cat $(8CC_SRCS) > $@.tmp && mv $@.tmp $@
 OUT.c += out/8cc.c
 
 out/elc.c: $(ELC_SRCS) $(LIB_IR_SRCS)
