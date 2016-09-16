@@ -1,0 +1,13 @@
+mov A, -1
+jeq ok, A, -1
+mov A, 78
+putc A
+mov A, 79
+putc A
+exit
+ok:
+mov A, 79
+putc A
+mov A, 75
+putc A
+exit

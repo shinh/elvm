@@ -117,9 +117,6 @@ EXT := eir
 CMD = $(8CC) -S -DNOFILE -I. -Ilibc $2 -o $1.tmp && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
-# TODO: Fix the test!
-OUT.c.exe := $(filter-out out/elc.c.exe,$(OUT.c.exe))
-OUT.eir := $(filter-out out/elc.c.eir,$(OUT.eir))
 include build.mk
 
 include clear_vars.mk

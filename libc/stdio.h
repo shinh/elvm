@@ -168,9 +168,18 @@ int fgets(char* s, int size, FILE* fp) {
 static int g_ungot = EOF;
 
 int fgetc(FILE* fp) {
-  if (g_ungot == EOF)
-    return getchar();
-  int r = g_ungot;
+  int r;
+  if (g_ungot == EOF) {
+    // A hack for whitespace, in which getchar after EOF is not
+    // defined well.
+    static int eof_seen;
+    if (eof_seen)
+      return EOF;
+    r = getchar();
+    eof_seen = r == EOF;
+    return r;
+  }
+  r = g_ungot;
   g_ungot = EOF;
   return r;
 }
