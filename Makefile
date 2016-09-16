@@ -3,7 +3,7 @@ CFLAGS := -std=gnu99 -m32 -W -Wall -W -Werror -MMD -O -g -Wno-missing-field-init
 ELI := out/eli
 ELC := out/elc
 8CC := out/8cc
-8CC_SRCS := $(wildcard 8cc/*.c 8cc/*.h) 8cc/8cc.c
+8CC_SRCS := $(wildcard 8cc/*.c 8cc/*.h) 8cc/main.c
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
