@@ -60,7 +60,8 @@ char* strchr(char* s, int c) {
 }
 
 char* strdup(const char* s) {
-  char* r = malloc(strlen(s));
+  int l = strlen(s);
+  char* r = malloc(l + 1);
   strcpy(r, s);
   return r;
 }

@@ -2,7 +2,8 @@
 #define ELVM_LIBC_CTYPE_H_
 
 int isspace(int c) {
-  return (c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v');
+  return (c == '\f' || c == '\n' || c == '\r' ||
+          c == '\t' || c == '\v' || c == ' ');
 }
 
 int isdigit(int c) {

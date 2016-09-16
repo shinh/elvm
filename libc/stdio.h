@@ -72,6 +72,7 @@ int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
     }
     off += len;
   }
+  buf[off] = 0;
   return off;
 }
 
@@ -167,7 +168,7 @@ int fgets(char* s, int size, FILE* fp) {
 static int g_ungot = EOF;
 
 int fgetc(FILE* fp) {
-  if (g_ungot != EOF)
+  if (g_ungot == EOF)
     return getchar();
   int r = g_ungot;
   g_ungot = EOF;
@@ -175,7 +176,7 @@ int fgetc(FILE* fp) {
 }
 
 int ungetc(int c, FILE* fp) {
-  if (g_ungot != EOF)
+  if (g_ungot == EOF)
     return g_ungot = c;
   return EOF;
 }

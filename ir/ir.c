@@ -416,8 +416,9 @@ static void parse_line(Parser* p, int c) {
       ir_error(p, "oops");
   }
 
-  //dump_inst(text);
-  //fprintf(stderr, "\n");
+#if 0
+  dump_inst(p->text);
+#endif
 }
 
 static void parse_eir(Parser* p) {
@@ -579,7 +580,7 @@ void dump_inst(Inst* inst) {
       dump_val(inst->jmp);
       break;
     default:
-      fprintf(stderr, "oops\n");
+      fprintf(stderr, "oops op=%d\n", inst->op);
       exit(1);
   }
   fprintf(stderr, " pc=%d @%d\n", inst->pc, inst->lineno);

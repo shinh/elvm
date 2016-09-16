@@ -20,8 +20,7 @@ void* malloc(int n) {
 }
 
 int* calloc(int n, int s) {
-  // We assume s is the size of int.
-  return malloc(n);
+  return malloc(n * s);
 }
 
 void free(void* p) {
