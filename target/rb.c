@@ -30,7 +30,7 @@ void target_rb(Module* module) {
     int page = inst->pc / FUNC_SIZE;
     if (prev_pc != inst->pc) {
       if (prev_page != page) {
-        if (prev_page >= 0) {
+        if (prev_page != -1) {
           dec_indent();
           emit_line("end");
           emit_line("@pc += 1");
