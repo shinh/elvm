@@ -19,6 +19,9 @@ BINS := $(8CC) $(ELI) $(ELC) out/dump_ir
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
+#ELC_EIR := out/eli out/elc.c.eir
+ELC_EIR := out/elc.c.eir.x86
+
 all: test
 
 out/git_submodule.stamp: .git/index

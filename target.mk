@@ -21,4 +21,30 @@ include diff.mk
 
 $(TARGET): $(DIFFS)
 
+# Make sure elc.c.eir can create the same target.
+
+ifdef TODO
+
+include clear_vars.mk
+SRCS := $(OUT.eir)
+EXT := elc.$(TARGET)
+DEPS := $(ELC_EIR)
+$(eval CMD = (echo $(TARGET) && cat $$2) | $(ELC_EIR) > $$1.tmp && mv $$1.tmp $$1)
+OUT.eir.elc.$(TARGET) := $(SRCS:%=%.$(EXT))
+include build.mk
+
+#include clear_vars.mk
+#SRCS := $(OUT.eir:%=%.elc.$(TARGET))
+#EXT := out
+#DEPS := $(TEST_INS) runtest.sh
+#$(eval CMD = ./runtest.sh $$1 $(RUNNER) $$2)
+#include build.mk
+
+include clear_vars.mk
+EXPECT := eir.$(TARGET)
+ACTUAL := eir.elc.$(TARGET)
+include diff.mk
+
+endif
+
 TEST_FILTER :=
