@@ -21,10 +21,11 @@ LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
 all: test
 
-git_submodule:
+out/git_submodule.stamp: .git/index
 	git submodule update --init
+	touch $@
 
-$(8CC_SRCS) Whitespace/whitespace.c: git_submodule
+$(8CC_SRCS) Whitespace/whitespace.c: out/git_submodule.stamp
 
 Whitespace/whitespace.out: Whitespace/whitespace.c
 	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
@@ -75,7 +76,7 @@ $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
 OUT.c := $(SRCS:test/%.c=out/%.c)
 
-out/8cc.c: $(8CC_SRCS) git_submodule
+out/8cc.c: $(8CC_SRCS)
 	cp 8cc/*.h out
 	cat $(8CC_SRCS) > $@.tmp && mv $@.tmp $@
 OUT.c += out/8cc.c
