@@ -6,6 +6,6 @@ struct S {
 };
 
 int main() {
-  printf("%d\n", offsetof(struct S, y) / sizeof(int));
+  printf("%d\n", (int)(offsetof(struct S, y) / sizeof(int)));
   return 0;
 }

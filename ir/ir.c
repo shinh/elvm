@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,7 +138,7 @@ static void serialize_data(Parser* p, DataPrivate* data_root) {
   bool done = false;
   DataPrivate serialized_root = {};
   DataPrivate* serialized = &serialized_root;
-  int mp = 0;
+  intptr_t mp = 0;
   for (int subsection = 0; !done; subsection++) {
     done = true;
     for (DataPrivate* data = data_root; data->next;) {
@@ -151,7 +152,7 @@ static void serialize_data(Parser* p, DataPrivate* data_root) {
       prev->next = data->next;
 
       if (data->val.type == (ValueType)LABEL) {
-        p->symtab = TABLE_ADD(p->symtab, data->val.tmp, mp);
+        p->symtab = table_add(p->symtab, data->val.tmp, (void*)mp);
       } else {
         serialized->next = data;
         serialized = data;
@@ -162,7 +163,7 @@ static void serialize_data(Parser* p, DataPrivate* data_root) {
     }
   }
 
-  p->symtab = TABLE_ADD(p->symtab, "_edata", mp);
+  p->symtab = table_add(p->symtab, "_edata", (void*)mp);
   serialized->next = malloc(sizeof(DataPrivate));
   serialized->next->v = mp + 1;
   serialized->next->next = 0;
@@ -268,13 +269,13 @@ static void parse_line(Parser* p, int c) {
   } else if (op == OP_UNSET) {
     c = ir_getc(p);
     if (c == ':') {
-      int value = 0;
+      intptr_t value = 0;
       if (p->in_text) {
         if (!p->prev_jmp)
           p->pc++;
         value = p->pc;
         p->prev_jmp = true;
-        p->symtab = TABLE_ADD(p->symtab, strdup(buf), value);
+        p->symtab = table_add(p->symtab, strdup(buf), (void*)value);
       } else {
         DataPrivate* d = add_data(p);
         d->val.type = LABEL;
@@ -441,7 +442,7 @@ static void parse_eir(Parser* p) {
   p->text->jmp.type = (ValueType)REF;
   p->text->jmp.tmp = "main";
   p->text->next = 0;
-  p->symtab = TABLE_ADD(p->symtab, "main", 1);
+  p->symtab = table_add(p->symtab, "main", (void*)1);
 
   for (;;) {
     skip_ws(p);
@@ -467,7 +468,7 @@ static void resolve(Value* v, Table* symtab) {
   if (v->type != (ValueType)REF)
     return;
   const char* name = (const char*)v->tmp;
-  if (!TABLE_GET(symtab, name, &v->imm)) {
+  if (!table_get(symtab, name, (void*)&v->imm)) {
     fprintf(stderr, "undefined sym: %s\n", name);
     exit(1);
   }
