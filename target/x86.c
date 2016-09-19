@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 #include <ir/ir.h>
-#include <target/elf.h>
 #include <target/util.h>
 
 static int REGNO[] = {
@@ -23,37 +22,40 @@ static int REGNO[] = {
 static const int TEXT_START = 0x100000;
 static const int HEADER_SIZE = 84;
 
+#define PACK2(x) ((x) % 256), ((x) / 256)
+#define PACK4(x) ((x) % 256), ((x) / 256 % 256), ((x) / 65536), 0
+
 static void emit_header(uint32_t filesz) {
-  Elf32_Ehdr ehdr = {
-    .e_ident = {
-      0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01
-    },
-    .e_type = 2,
-    .e_machine = 3,
-    .e_version = 1,
-    .e_entry = TEXT_START + HEADER_SIZE,
-    .e_phoff = 52,
-    .e_shoff = 0,
-    .e_flags = 0,
-    .e_ehsize = 52,
-    .e_phentsize = 32,
-    .e_phnum = 1,
-    .e_shentsize = 40,
-    .e_shnum = 0,
-    .e_shstrndx = 0
+  const char ehdr[52] = {
+    // e_ident
+    0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    PACK2(2),  // e_type
+    PACK2(3),  // e_machine
+    PACK4(1),  // e_version
+    PACK4(TEXT_START + HEADER_SIZE),  // e_entry
+    PACK4(52),  // e_phoff
+    PACK4(0),  // e_shoff
+    PACK4(0),  // e_flags
+    PACK2(52),  // e_ehsize
+    PACK2(32),  // e_phentsize
+    PACK2(1),  // e_phnum
+    PACK2(40),  // e_shentsize
+    PACK2(0),  // e_shnum
+    PACK2(0),  // e_shstrndx
   };
-  Elf32_Phdr phdr = {
-    .p_type = 1,
-    .p_offset = 0,
-    .p_vaddr = TEXT_START,
-    .p_paddr = TEXT_START,
-    .p_filesz = filesz + HEADER_SIZE,
-    .p_memsz = filesz + HEADER_SIZE,
-    .p_flags = 5,
-    .p_align = 0x1000
+  const char phdr[32] = {
+    PACK4(1),  // p_type
+    PACK4(0),  // p_offset
+    PACK4(TEXT_START),  // p_vaddr
+    PACK4(TEXT_START),  // p_paddr
+    PACK4(filesz + HEADER_SIZE),  // p_filesz
+    PACK4(filesz + HEADER_SIZE),  // p_memsz
+    PACK4(5),  // p_flags
+    PACK4(0x1000),  // p_align
   };
-  fwrite(&ehdr, 52, 1, stdout);
-  fwrite(&phdr, 32, 1, stdout);
+  fwrite(ehdr, 52, 1, stdout);
+  fwrite(phdr, 32, 1, stdout);
 }
 
 static void emit_int80() {
