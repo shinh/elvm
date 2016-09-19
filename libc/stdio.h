@@ -149,7 +149,6 @@ size_t fwrite(void* ptr, size_t s, size_t n, FILE* fp) {
 
 int fputs(const char* s, FILE* fp) {
   print_str(s);
-  putchar('\n');
 }
 
 int fgets(char* s, int size, FILE* fp) {
