@@ -2,15 +2,7 @@
 #include <target/util.h>
 
 static void init_state_js(Data* data) {
-  emit_line("var sys = require('sys');");
-
-  emit_line("var input = null;");
-  emit_line("var ip = 0;");
-  emit_line("var getchar = function() {");
-  emit_line(" if (input === null)");
-  emit_line("  input = require('fs').readFileSync('/dev/stdin');");
-  emit_line(" return input[ip++] | 0;");
-  emit_line("}");
+  emit_line("var main = function(getchar, putchar) {");
 
   for (int i = 0; i < 7; i++) {
     emit_line("var %s = 0;", reg_names[i]);
@@ -70,8 +62,7 @@ void target_js(Module* module) {
         break;
 
       case PUTC:
-        emit_line("sys.print(String.fromCharCode((%s) & 255));",
-                  src_str(inst));
+        emit_line("putchar(%s);", src_str(inst));
         break;
 
       case GETC:
@@ -116,5 +107,23 @@ void target_js(Module* module) {
   emit_line("}");
   emit_line("pc += 1;");
   dec_indent();
+  emit_line("}");
+
+  emit_line("};");
+
+  // For nodejs
+  emit_line("if (typeof require != 'undefined') {");
+  emit_line(" var sys = require('sys');");
+  emit_line(" var input = null;");
+  emit_line(" var ip = 0;");
+  emit_line(" var getchar = function() {");
+  emit_line("  if (input === null)");
+  emit_line("   input = require('fs').readFileSync('/dev/stdin');");
+  emit_line("  return input[ip++] | 0;");
+  emit_line(" };");
+  emit_line(" var putchar = function(c) {");
+  emit_line("  sys.print(String.fromCharCode(c & 255));");
+  emit_line(" };");
+  emit_line(" main(getchar, putchar);");
   emit_line("}");
 }
