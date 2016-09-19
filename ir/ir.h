@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 
-#define UINT_MOD 16777216
 #define UINT_MAX 16777215
 #define UINT_MAX_STR "16777215"
 #ifdef __eir__

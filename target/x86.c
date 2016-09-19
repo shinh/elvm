@@ -122,7 +122,8 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
 
 static void init_state_x86(Data* data) {
   emit_mov_imm(B, 0);
-  emit_mov_imm(C, UINT_MOD * 4);
+  // mov ECX, 1<<26
+  emit_5(0xb8 + REGNO[C], 0, 0, 0, 4);
   emit_mov_imm(D, 3);  // PROT_READ | PROT_WRITE
   emit_mov_imm(ESI, 0x22);  // MAP_PRIVATE | MAP_ANONYMOUS
   emit_mov_imm(EDI, -1);
@@ -141,7 +142,8 @@ static void init_state_x86(Data* data) {
     }
   }
 
-  emit_mov_imm(SP, UINT_MOD);
+  // mov ESP, 1<<24
+  emit_5(0xb8 + REGNO[SP], 0, 0, 0, 1);
   emit_zero_reg(A);
   emit_zero_reg(B);
   emit_zero_reg(C);
