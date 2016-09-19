@@ -32,5 +32,6 @@ void emit_4(int a, int b, int c, int d);
 void emit_5(int a, int b, int c, int d, int e);
 void emit_6(int a, int b, int c, int d, int e, int f);
 void emit_le(uint32_t a);
+void emit_diff(uint32_t a, uint32_t b);
 
 #endif  // ELVM_UTIL_H_

@@ -174,3 +174,13 @@ void emit_le(uint32_t a) {
   a /= 256;
   emit_1(a);
 }
+
+void emit_diff(uint32_t a, uint32_t b) {
+  uint32_t v = a - b;
+  emit_1(v % 256);
+  v /= 256;
+  emit_1(v % 256);
+  v /= 256;
+  emit_1(v % 256);
+  emit_1(a >= b ? 0 : 0xff);
+}

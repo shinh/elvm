@@ -118,7 +118,7 @@ static void emit_jcc(Inst* inst, int op, int* pc2addr, int rodata_addr) {
     emit_le(rodata_addr);
   } else {
     emit_1(0xe9);
-    emit_le(pc2addr[inst->jmp.imm] - emit_cnt() - 4);
+    emit_diff(pc2addr[inst->jmp.imm], emit_cnt() + 4);
   }
 }
 
@@ -128,7 +128,8 @@ static void init_state_x86(Data* data) {
   emit_5(0xb8 + REGNO[C], 0, 0, 0, 4);
   emit_mov_imm(D, 3);  // PROT_READ | PROT_WRITE
   emit_mov_imm(ESI, 0x22);  // MAP_PRIVATE | MAP_ANONYMOUS
-  emit_mov_imm(EDI, -1);
+  // mov EDI, 0xffffffff
+  emit_5(0xb8 + REGNO[EDI], 0xff, 0xff, 0xff, 0xff);
   emit_mov_imm(BP, 0);
   emit_mov_imm(A, 192);  // mmap2
   emit_int80();
@@ -331,7 +332,7 @@ void target_x86(Module* module) {
 
   int rodata_addr = TEXT_START + emit_cnt() + HEADER_SIZE;
 
-  emit_header(emit_cnt() + pc_cnt * sizeof(int));
+  emit_header(emit_cnt() + pc_cnt * 4);
 
   emit_reset();
   emit_start();
