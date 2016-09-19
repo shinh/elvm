@@ -24,7 +24,6 @@ $(TARGET): $(DIFFS)
 # Make sure elc.c.eir can create the same target.
 
 ifneq ($(TARGET),x86)
-ifneq ($(TARGET),ws)
 
 include clear_vars.mk
 SRCS := $(OUT.eir)
@@ -46,7 +45,6 @@ EXPECT := eir.$(TARGET)
 ACTUAL := eir.elc.$(TARGET)
 include diff.mk
 
-endif
 endif
 
 TEST_FILTER :=

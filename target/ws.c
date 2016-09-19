@@ -210,9 +210,7 @@ static void emit_jmp(Inst* inst, WsOp op, int reg_jmp) {
   }
 }
 
-static void emit_reg_jmp_table(int min_pc, int max_pc,
-                               int last_pc, int last_label) {
-  emit_op(WS_MARK, last_label + max_pc + min_pc * last_pc);
+static void emit_reg_jmp_table(int min_pc, int max_pc, int last_label) {
   if (min_pc + 1 == max_pc) {
     emit_op(WS_JMP, min_pc);
     return;
@@ -222,9 +220,10 @@ static void emit_reg_jmp_table(int min_pc, int max_pc,
   emit(WS_DUP);
   emit_op(WS_PUSH, mid_pc);
   emit(WS_SUB);
-  emit_op(WS_JN, last_label + mid_pc + min_pc * last_pc);
-  emit_reg_jmp_table(mid_pc, max_pc, last_pc, last_label);
-  emit_reg_jmp_table(min_pc, mid_pc, last_pc, last_label);
+  emit_op(WS_JN, last_label + mid_pc);
+  emit_reg_jmp_table(mid_pc, max_pc, last_label);
+  emit_op(WS_MARK, last_label + mid_pc);
+  emit_reg_jmp_table(min_pc, mid_pc, last_label);
 }
 
 static void init_state_ws(Data* data) {
@@ -328,5 +327,5 @@ void target_ws(Module* module) {
   }
 
   emit_op(WS_MARK, reg_jmp);
-  emit_reg_jmp_table(0, reg_jmp, reg_jmp, label);
+  emit_reg_jmp_table(0, reg_jmp, label);
 }
