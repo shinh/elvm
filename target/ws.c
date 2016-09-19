@@ -88,6 +88,14 @@ static void emit_num(int v) {
   emit_str(&buf[i]);
 }
 
+static void emit_uint_mod() {
+  putchar(' ');
+  putchar('\t');
+  for (int i = 0; i < 24; i++)
+    putchar(' ');
+  putchar('\n');
+}
+
 static void emit(WsOp op) {
   emit_str(WS_OPS[op]);
 }
@@ -134,9 +142,9 @@ static void emit_addsub(Inst* inst, WsOp op) {
   emit_retrieve(inst->dst.reg);
   emit_src(inst, 0);
   emit(op);
-  emit_op(WS_PUSH, UINT_MOD);
+  emit(WS_PUSH); emit_uint_mod();
   emit(WS_ADD);
-  emit_op(WS_PUSH, UINT_MOD);
+  emit(WS_PUSH); emit_uint_mod();
   emit(WS_MOD);
   emit(WS_STORE);
 }
