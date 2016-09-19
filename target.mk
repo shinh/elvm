@@ -23,8 +23,6 @@ $(TARGET): $(DIFFS)
 
 # Make sure elc.c.eir can create the same target.
 
-ifneq ($(TARGET),x86)
-
 include clear_vars.mk
 SRCS := $(OUT.eir)
 EXT := elc.$(TARGET)
@@ -33,18 +31,11 @@ $(eval CMD = (echo $(TARGET) && cat $$2) | $(ELC_EIR) > $$1.tmp && mv $$1.tmp $$
 OUT.eir.elc.$(TARGET) := $(SRCS:%=%.$(EXT))
 include build.mk
 
-#include clear_vars.mk
-#SRCS := $(OUT.eir:%=%.elc.$(TARGET))
-#EXT := out
-#DEPS := $(TEST_INS) runtest.sh
-#$(eval CMD = ./runtest.sh $$1 $(RUNNER) $$2)
-#include build.mk
-
 include clear_vars.mk
 EXPECT := eir.$(TARGET)
 ACTUAL := eir.elc.$(TARGET)
 include diff.mk
 
-endif
+elc-$(TARGET): $(DIFFS)
 
 TEST_FILTER :=

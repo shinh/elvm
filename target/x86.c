@@ -320,7 +320,7 @@ void target_x86(Module* module) {
     pc_cnt++;
   }
 
-  int* pc2addr = malloc(pc_cnt * sizeof(int));
+  int* pc2addr = calloc(pc_cnt, sizeof(int));
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
