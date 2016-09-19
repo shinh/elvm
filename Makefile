@@ -1,4 +1,4 @@
-CFLAGS := -std=gnu99 -m32 -W -Wall -W -Werror -MMD -O -g -Wno-missing-field-initializers
+CFLAGS := -std=gnu99 -m32 -W -Wall -W -Werror -MMD -MP -O -g -Wno-missing-field-initializers
 
 ELI := out/eli
 ELC := out/elc
