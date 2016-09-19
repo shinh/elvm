@@ -140,10 +140,10 @@ int fclose(FILE* fp) {
 }
 
 size_t fwrite(void* ptr, size_t s, size_t n, FILE* fp) {
-  char* s = ptr;
+  char* str = ptr;
   size_t l = (int)s * (int)n;
   for (size_t i = 0; i < l; i++)
-    putchar(s[i]);
+    putchar(str[i]);
   return l;
 }
 
