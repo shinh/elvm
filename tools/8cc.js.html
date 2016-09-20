@@ -54,7 +54,7 @@ function assemble() {
     var eir = lang + "\n" + $("eir").value;
     OUTPUTS = '';
     main_elc(get_getchar(eir), get_putchar());
-    $("dst").value = OUTPUTS;
+    $("trg").value = OUTPUTS;
   } catch (e) {
     console.error(e);
     $("err").innerHTML += e + "\n";
@@ -80,6 +80,17 @@ function compile() {
     $("err").innerHTML += e + "\n";
   }
   console.log("compile time: " + (new Date() - start) * 0.001);
+}
+
+function runEIR() {
+  //$("trg").value;
+}
+
+function runJS() {
+  var src = $("src").value;
+  var main = eval($("trg").value + "; main;");
+  main(get_getchar(src), get_putchar());
+  $("out").value = OUTPUTS;
 }
 
 </script>
@@ -108,7 +119,8 @@ int main() {
 
 </textarea>
 <textarea id="eir" cols=40 rows=24></textarea>
-<textarea id="dst" cols=40 rows=24></textarea>
+<textarea id="trg" cols=40 rows=24></textarea>
+<textarea id="out" cols=40 rows=24></textarea>
 </div>
 <pre id="err"></pre>
 
@@ -121,5 +133,7 @@ int main() {
 </select>
 <input type="button" value="compile" onclick="compile()">
 <input type="button" value="assemble" onclick="assemble()">
+<!--<input type="button" value="runEIR" onclick="runEIR()">-->
+<input type="button" value="runJS" onclick="runJS()">
 
 </body>
