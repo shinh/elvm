@@ -1,10 +1,15 @@
 #include <assert.h>
+#include <stdbool.h>
 
 #include <ir/ir.h>
 #include <target/util.h>
 
 typedef struct {
   int mp;
+  int loop_ptr;
+  int ifzero_cnt;
+  int ifzero_off[4];
+  int ifzero_omp[4];
 } BFGen;
 
 static BFGen bf;
@@ -61,11 +66,22 @@ static void bf_move_ptr(int ptr) {
   bf.mp = ptr;
 }
 
-static void bf_move(int from, int to, char c) {
+#if 0
+static void bf_move_neg(int from, int to, char c) {
   bf_move_ptr(from);
   bf_emit("[-");
   bf_move_ptr(to);
-  putchar(c);
+  putchar('-');
+  bf_move_ptr(from);
+  bf_emit("]");
+}
+#endif
+
+static void bf_move(int from, int to) {
+  bf_move_ptr(from);
+  bf_emit("[-");
+  bf_move_ptr(to);
+  putchar('+');
   bf_move_ptr(from);
   bf_emit("]");
 }
@@ -82,9 +98,9 @@ static void bf_move2(int from, int to, int to2) {
 }
 
 static void bf_move_word(int from, int to) {
-  bf_move(from-1, to-1, '+');
-  bf_move(from, to, '+');
-  bf_move(from+1, to+1, '+');
+  bf_move(from-1, to-1);
+  bf_move(from, to);
+  bf_move(from+1, to+1);
 }
 
 static void bf_move_word2(int from, int to, int to2) {
@@ -96,7 +112,7 @@ static void bf_move_word2(int from, int to, int to2) {
 #if 0
 static void bf_copy(int from, int to, int wrk) {
   bf_move2(from, to, wrk);
-  bf_move(wrk, from, '+');
+  bf_move(wrk, from);
 }
 #endif
 
@@ -193,6 +209,95 @@ static void bf_init_state(Data* data) {
   }
 }
 
+static void bf_loop_begin(int ptr, char c) {
+  bf_move_ptr(ptr);
+  bf_emit("[");
+  if (c)
+    putchar(c);
+  bf.loop_ptr = ptr;
+}
+
+static void bf_loop_end() {
+  bf_move_ptr(bf.loop_ptr);
+  bf_emit("]");
+}
+
+static void bf_ifzero_begin_impl(int off, bool reset, const char* ifnz) {
+  bf.ifzero_omp[bf.ifzero_cnt] = bf.mp;
+  bf.mp = 0;
+
+  bf_add(off * 2, -1);
+  bf_move_ptr(0);
+  bf_emit("[");
+  if (reset)
+    bf_emit("[-]");
+  bf_emit(ifnz);
+  bf_move_ptr(off);
+  bf_emit("]");
+  bf_move_ptr(off * 2);
+  bf_emit("+[-");
+
+  bf.mp = bf.ifzero_omp[bf.ifzero_cnt] + off;
+  bf.ifzero_off[bf.ifzero_cnt] = off;
+  bf.ifzero_cnt++;
+}
+
+static void bf_ifzero_begin(int off) {
+  bf_ifzero_begin_impl(off, false, "");
+}
+
+static void bf_ifzero_end() {
+  bf.ifzero_cnt--;
+  int off = bf.ifzero_off[bf.ifzero_cnt];
+  int omp = bf.ifzero_omp[bf.ifzero_cnt];
+
+  bf_move_ptr(omp + off);
+
+  bf_set_ptr(0);
+  bf_move_ptr(off);
+  bf_emit("+]");
+
+  bf.mp = omp + off * 2;
+}
+
+static void bf_emit_add(Inst* inst) {
+  int dst = bf_regpos(inst->dst.reg);
+  if (inst->src.type == REG) {
+    int src = bf_regpos(inst->src.reg);
+    if (src == dst)
+      error("TODO?");
+    bf_copy_word(src, BF_WRK, BF_WRK+3);
+  } else {
+    bf_add_word(BF_WRK, inst->src.imm);
+  }
+
+  // Add BF_WRK to dst.
+  bf_loop_begin(BF_WRK+1, '-'); {
+    // Increment.
+    bf_move_ptr(dst+1);
+    bf_emit("+");
+    // Carry?
+    bf_ifzero_begin(1); {
+      bf_add(dst, 1);
+      bf_move_ptr(dst);
+      bf_ifzero_begin(2); {
+        bf_add(dst-1, 1);
+      }; bf_ifzero_end();
+    }; bf_ifzero_end();
+  }; bf_loop_end();
+
+  bf_loop_begin(BF_WRK, '-'); {
+    // Increment.
+    bf_move_ptr(dst);
+    bf_emit("+");
+    // Carry?
+    bf_ifzero_begin(2); {
+      bf_add(dst-1, 1);
+    }; bf_ifzero_end();
+  }; bf_loop_end();
+  bf_move(BF_WRK-1, dst-1);
+}
+
 static void bf_emit_op(Inst* inst) {
   switch (inst->op) {
   case MOV: {
@@ -211,6 +316,9 @@ static void bf_emit_op(Inst* inst) {
   }
 
   case ADD:
+    bf_emit_add(inst);
+    break;
+
   case SUB:
   case LOAD:
   case STORE:
