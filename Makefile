@@ -168,8 +168,10 @@ include target.mk
 
 TARGET := ws
 RUNNER := tools/runws.sh
+# GCC uses too much memory.
+TEST_FILTER := out/eli.c.eir.ws
 ifndef FULL
-TEST_FILTER := out/8cc.c.eir.ws
+TEST_FILTER += out/8cc.c.eir.ws
 endif
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
