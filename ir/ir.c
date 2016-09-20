@@ -27,7 +27,7 @@ typedef struct {
   int pc;
   int subsection;
   DataPrivate* data;
-  bool prev_jmp;
+  bool prev_boundary;
 } Parser;
 
 enum {
@@ -271,10 +271,10 @@ static void parse_line(Parser* p, int c) {
     if (c == ':') {
       intptr_t value = 0;
       if (p->in_text) {
-        if (!p->prev_jmp)
+        if (!p->prev_boundary)
           p->pc++;
         value = p->pc;
-        p->prev_jmp = true;
+        p->prev_boundary = true;
         p->symtab = table_add(p->symtab, strdup(buf), (void*)value);
       } else {
         DataPrivate* d = add_data(p);
@@ -378,13 +378,15 @@ static void parse_line(Parser* p, int c) {
   p->text->op = op;
   p->text->pc = p->pc;
   p->text->lineno = p->lineno;
-  p->prev_jmp = false;
+  p->prev_boundary = false;
   switch (op) {
+    case LOAD:
+    case STORE:
+      p->pc++;
+      p->prev_boundary = true;
     case MOV:
     case ADD:
     case SUB:
-    case LOAD:
-    case STORE:
     case EQ:
     case NE:
     case LT:
@@ -411,7 +413,7 @@ static void parse_line(Parser* p, int c) {
     case JMP:
       p->text->jmp = args[0];
       p->pc++;
-      p->prev_jmp = true;
+      p->prev_boundary = true;
       break;
     default:
       ir_error(p, "oops");
@@ -432,7 +434,7 @@ static void parse_eir(Parser* p) {
   p->text = &text_root;
   p->data = &data_root;
   p->pc = 0;
-  p->prev_jmp = true;
+  p->prev_boundary = true;
 
   p->text->next = calloc(1, sizeof(Inst));
   p->text = p->text->next;
