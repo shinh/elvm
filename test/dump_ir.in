@@ -1,0 +1,235 @@
+mov A, 106
+putc A
+mov A, 101
+putc A
+mov A, 113
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jeq t0, A, 1000
+mov A, 70
+putc A
+jmp d0
+t0:
+mov A, 84
+putc A
+d0:
+mov A, 1000
+jeq t1, A, 1000
+mov A, 70
+putc A
+jmp d1
+t1:
+mov A, 84
+putc A
+d1:
+mov A, 1001
+jeq t2, A, 1000
+mov A, 70
+putc A
+jmp d2
+t2:
+mov A, 84
+putc A
+d2:
+mov A, 10
+putc A
+mov A, 106
+putc A
+mov A, 110
+putc A
+mov A, 101
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jne t3, A, 1000
+mov A, 70
+putc A
+jmp d3
+t3:
+mov A, 84
+putc A
+d3:
+mov A, 1000
+jne t4, A, 1000
+mov A, 70
+putc A
+jmp d4
+t4:
+mov A, 84
+putc A
+d4:
+mov A, 1001
+jne t5, A, 1000
+mov A, 70
+putc A
+jmp d5
+t5:
+mov A, 84
+putc A
+d5:
+mov A, 10
+putc A
+mov A, 106
+putc A
+mov A, 108
+putc A
+mov A, 116
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jlt t6, A, 1000
+mov A, 70
+putc A
+jmp d6
+t6:
+mov A, 84
+putc A
+d6:
+mov A, 1000
+jlt t7, A, 1000
+mov A, 70
+putc A
+jmp d7
+t7:
+mov A, 84
+putc A
+d7:
+mov A, 1001
+jlt t8, A, 1000
+mov A, 70
+putc A
+jmp d8
+t8:
+mov A, 84
+putc A
+d8:
+mov A, 10
+putc A
+mov A, 106
+putc A
+mov A, 103
+putc A
+mov A, 116
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jgt t9, A, 1000
+mov A, 70
+putc A
+jmp d9
+t9:
+mov A, 84
+putc A
+d9:
+mov A, 1000
+jgt t10, A, 1000
+mov A, 70
+putc A
+jmp d10
+t10:
+mov A, 84
+putc A
+d10:
+mov A, 1001
+jgt t11, A, 1000
+mov A, 70
+putc A
+jmp d11
+t11:
+mov A, 84
+putc A
+d11:
+mov A, 10
+putc A
+mov A, 106
+putc A
+mov A, 108
+putc A
+mov A, 101
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jle t12, A, 1000
+mov A, 70
+putc A
+jmp d12
+t12:
+mov A, 84
+putc A
+d12:
+mov A, 1000
+jle t13, A, 1000
+mov A, 70
+putc A
+jmp d13
+t13:
+mov A, 84
+putc A
+d13:
+mov A, 1001
+jle t14, A, 1000
+mov A, 70
+putc A
+jmp d14
+t14:
+mov A, 84
+putc A
+d14:
+mov A, 10
+putc A
+mov A, 106
+putc A
+mov A, 103
+putc A
+mov A, 101
+putc A
+mov A, 58
+putc A
+mov A, 32
+putc A
+mov A, 999
+jge t15, A, 1000
+mov A, 70
+putc A
+jmp d15
+t15:
+mov A, 84
+putc A
+d15:
+mov A, 1000
+jge t16, A, 1000
+mov A, 70
+putc A
+jmp d16
+t16:
+mov A, 84
+putc A
+d16:
+mov A, 1001
+jge t17, A, 1000
+mov A, 70
+putc A
+jmp d17
+t17:
+mov A, 84
+putc A
+d17:
+mov A, 10
+putc A
+exit

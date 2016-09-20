@@ -88,6 +88,10 @@ out/elc.c: $(ELC_SRCS) $(LIB_IR_SRCS)
 	cat $^ > $@.tmp && mv $@.tmp $@
 OUT.c += out/elc.c
 
+out/dump_ir.c: ir/dump_ir.c $(LIB_IR_SRCS)
+	cat $^ > $@.tmp && mv $@.tmp $@
+OUT.c += out/dump_ir.c
+
 # Build tests
 
 TEST_INS := $(wildcard test/*.in)

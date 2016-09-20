@@ -529,14 +529,16 @@ void dump_op(Op op) {
   fprintf(stderr, "%s", op_strs[op]);
 }
 
-void dump_val(Value val) {
+void dump_val(Value* val) {
   static const char* reg_strs[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
-  if (val.type == REG) {
-    fprintf(stderr, "%s", reg_strs[val.reg]);
+  if (val->type == REG) {
+    fprintf(stderr, "%s", reg_strs[val->reg]);
+  } else if (val->type == IMM) {
+    fprintf(stderr, "%d", val->imm);
   } else {
-    fprintf(stderr, "%d", val.imm);
+    fprintf(stderr, "%d (type=%d)", val->imm, val->type);
   }
 }
 
@@ -555,14 +557,14 @@ void dump_inst(Inst* inst) {
     case LE:
     case GE:
       fprintf(stderr, " ");
-      dump_val(inst->dst);
+      dump_val(&inst->dst);
       fprintf(stderr, " ");
-      dump_val(inst->src);
+      dump_val(&inst->src);
       break;
     case PUTC:
     case GETC:
       fprintf(stderr, " ");
-      dump_val(inst->dst);
+      dump_val(&inst->dst);
     case EXIT:
     case DUMP:
       break;
@@ -573,16 +575,23 @@ void dump_inst(Inst* inst) {
     case JLE:
     case JGE:
       fprintf(stderr, " ");
-      dump_val(inst->dst);
+      dump_val(&inst->dst);
       fprintf(stderr, " ");
-      dump_val(inst->src);
+      dump_val(&inst->src);
     case JMP:
       fprintf(stderr, " ");
-      dump_val(inst->jmp);
+      dump_val(&inst->jmp);
       break;
     default:
       fprintf(stderr, "oops op=%d\n", inst->op);
       exit(1);
   }
-  fprintf(stderr, " pc=%d @%d\n", inst->pc, inst->lineno);
+  fprintf(stderr, " pc=%d @", inst->pc);
+  // A hack to make the test for dump_ir.c.eir pass.
+#ifdef __eir__
+  if (inst->lineno == UINT_MAX)
+    fprintf(stderr, "-1\n");
+  else
+#endif
+    fprintf(stderr, "%d\n", inst->lineno);
 }
