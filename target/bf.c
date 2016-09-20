@@ -66,8 +66,7 @@ static void bf_move_ptr(int ptr) {
   bf.mp = ptr;
 }
 
-#if 0
-static void bf_move_neg(int from, int to, char c) {
+static void bf_move_neg(int from, int to) {
   bf_move_ptr(from);
   bf_emit("[-");
   bf_move_ptr(to);
@@ -75,7 +74,6 @@ static void bf_move_neg(int from, int to, char c) {
   bf_move_ptr(from);
   bf_emit("]");
 }
-#endif
 
 static void bf_move(int from, int to) {
   bf_move_ptr(from);
@@ -333,6 +331,114 @@ static void bf_emit_sub(Inst* inst) {
   bf_move(BF_WRK-1, dst-1);
 }
 
+static void bf_emit_cmp(Inst* inst) {
+  if (inst->op == JMP) {
+    bf_add(BF_WRK, 1);
+    return;
+  }
+  int op = normalize_cond(inst->op, false);
+
+  int lhspos = BF_WRK;
+  int rhspos = BF_WRK+3;
+  if (op == JGT || op == JLE) {
+    lhspos = BF_WRK+3;
+    rhspos = BF_WRK;
+  }
+
+  bf_copy_word(bf_regpos(inst->dst.reg), lhspos, BF_WRK+6);
+  if (inst->src.type == REG) {
+    bf_copy_word(bf_regpos(inst->src.reg), rhspos, BF_WRK+6);
+  } else {
+    bf_add_word(rhspos, inst->src.imm);
+  }
+
+  if (op == JEQ || op == JNE) {
+    bf_move_neg(BF_WRK-1, BF_WRK+3-1);
+    bf_move_neg(BF_WRK, BF_WRK+3);
+    bf_move_neg(BF_WRK+1, BF_WRK+3+1);
+
+    if (op == JEQ) {
+      bf_add(BF_WRK, 1);
+      for (int i = 2; i < 5; i++) {
+        bf_loop_begin(BF_WRK+i, 0); {
+          bf_clear(BF_WRK+i);
+          bf_clear(BF_WRK);
+        }; bf_loop_end();
+      }
+    } else {
+      for (int i = 2; i < 5; i++) {
+        bf_loop_begin(BF_WRK+i, 0); {
+          bf_clear(BF_WRK+i);
+          bf_add(BF_WRK, 1);
+        }; bf_loop_end();
+      }
+    }
+    return;
+  }
+
+  bf_loop_begin(BF_WRK-1, '-'); {
+    bf_move_ptr(BF_WRK+2);
+    // If the RHS becomes zero at this moment, LHS >=
+    // RHS. Modify the next byte.
+    bf_ifzero_begin(5); {
+      bf_clear(BF_WRK-1);
+      bf_clear(BF_WRK);
+      bf_clear(BF_WRK+1);
+      bf_clear(BF_WRK+3);
+      bf_clear(BF_WRK+4);
+      bf_add(BF_WRK+2, 1);
+    }; bf_ifzero_end();
+    bf_add(BF_WRK+2, -1);
+  }; bf_loop_end();
+
+  bf_move_ptr(BF_WRK+2);
+  bf_ifzero_begin_impl(4, true, "<<[-]>>"); {
+    // Compare the higher byte first.
+    bf_loop_begin(BF_WRK, '-'); {
+      bf_move_ptr(BF_WRK+3);
+      // If the RHS becomes zero at this moment, LHS >=
+      // RHS. Modify the next byte.
+      bf_ifzero_begin(3); {
+        bf_clear(BF_WRK+4);
+        bf_add(BF_WRK+3, 1);
+        bf_clear(BF_WRK);
+      }; bf_ifzero_end();
+      bf_add(BF_WRK+3, -1);
+    }; bf_loop_end();
+
+    // LH=0. If RH is also zero compare the lower byte.
+    bf_move_ptr(BF_WRK+3);
+    bf_ifzero_begin_impl(3, true, ""); {
+      // Compare the lower byte.
+      bf_loop_begin(BF_WRK+1, '-'); {
+        bf_move_ptr(BF_WRK+4);
+        bf_ifzero_begin(1); {
+          bf_add(BF_WRK, 1);
+        }; bf_ifzero_end();
+        bf_add(BF_WRK+4, -1);
+      }; bf_loop_end();
+
+      // LL=0. Check RL again.
+      bf_move_ptr(BF_WRK+4);
+      bf_ifzero_begin_impl(1, true, ""); {
+        bf_add(BF_WRK, 1);
+      }; bf_ifzero_end();
+    }; bf_ifzero_end();
+  }; bf_ifzero_end();
+
+  bf_clear(BF_WRK+1);
+  bf_clear_word(BF_WRK+3);
+  bf_clear_word(BF_WRK+6);
+
+  // Negate the result.
+  if (op == JLT || op == JGT) {
+    bf_move_ptr(BF_WRK);
+    bf_ifzero_begin_impl(1, true, ""); {
+      bf_add(BF_WRK, 1);
+    }; bf_ifzero_end();
+  }
+}
+
 static void bf_emit_op(Inst* inst) {
   switch (inst->op) {
   case MOV: {
@@ -385,9 +491,13 @@ static void bf_emit_op(Inst* inst) {
   case LT:
   case GT:
   case LE:
-  case GE:
-    error("oops etc");
+  case GE: {
+    bf_emit_cmp(inst);
+    int dst = bf_regpos(inst->dst.reg);
+    bf_clear_word(dst);
+    bf_move_word(BF_WRK, dst+1);
     break;
+  }
 
   case PUTC:
     if (inst->src.type == REG) {
@@ -418,7 +528,7 @@ static void bf_emit_op(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
-    error("oops jcc");
+    bf_emit_cmp(inst);
     break;
 
   case JMP:

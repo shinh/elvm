@@ -72,7 +72,7 @@ const char* src_str(Inst* inst) {
   return value_str(&inst->src);
 }
 
-Op normalize_cond(Op op, int flip) {
+Op normalize_cond(Op op, bool flip) {
   if (op >= 16)
     op -= 8;
   if (flip) {
