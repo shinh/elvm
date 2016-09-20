@@ -62,5 +62,6 @@ Module* load_eir(FILE* fp);
 Module* load_eir_from_file(const char* filename);
 
 void dump_inst(Inst* inst);
+void dump_inst_fp(Inst* inst, FILE* fp);
 
 #endif  // ELVM_IR_H_

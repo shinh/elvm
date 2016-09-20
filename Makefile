@@ -38,7 +38,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c ws.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c ws.c bf.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -175,6 +175,10 @@ TEST_FILTER += out/8cc.c.eir.ws
 endif
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
+
+#TARGET := bf
+#RUNNER := beef
+#include target.mk
 
 test: $(TEST_RESULTS)
 

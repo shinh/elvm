@@ -10,6 +10,7 @@ void target_py(Module* module);
 void target_js(Module* module);
 void target_x86(Module* module);
 void target_ws(Module* module);
+void target_bf(Module* module);
 typedef void (*target_func_t)(Module*);
 
 static target_func_t get_target_func(const char* ext) {
@@ -23,6 +24,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_x86;
   } else if (!strcmp(ext, "ws")) {
     return target_ws;
+  } else if (!strcmp(ext, "bf")) {
+    return target_bf;
   } else {
     error("unknown flag: %s", ext);
   }

@@ -520,30 +520,30 @@ Module* load_eir_from_file(const char* filename) {
   return r;
 }
 
-void dump_op(Op op) {
+void dump_op(Op op, FILE* fp) {
   static const char* op_strs[] = {
     "mov", "add", "sub", "load", "store", "putc", "getc", "exit",
     "jeq", "jne", "jlt", "jgt", "jle", "jge", "jmp", "xxx",
     "eq", "ne", "lt", "gt", "le", "ge", "dump"
   };
-  fprintf(stderr, "%s", op_strs[op]);
+  fprintf(fp, "%s", op_strs[op]);
 }
 
-void dump_val(Value* val) {
+void dump_val(Value* val, FILE* fp) {
   static const char* reg_strs[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
   if (val->type == REG) {
-    fprintf(stderr, "%s", reg_strs[val->reg]);
+    fprintf(fp, "%s", reg_strs[val->reg]);
   } else if (val->type == IMM) {
-    fprintf(stderr, "%d", val->imm);
+    fprintf(fp, "%d", val->imm);
   } else {
-    fprintf(stderr, "%d (type=%d)", val->imm, val->type);
+    fprintf(fp, "%d (type=%d)", val->imm, val->type);
   }
 }
 
-void dump_inst(Inst* inst) {
-  dump_op(inst->op);
+void dump_inst_fp(Inst* inst, FILE* fp) {
+  dump_op(inst->op, fp);
   switch (inst->op) {
     case MOV:
     case ADD:
@@ -556,15 +556,15 @@ void dump_inst(Inst* inst) {
     case GT:
     case LE:
     case GE:
-      fprintf(stderr, " ");
-      dump_val(&inst->dst);
-      fprintf(stderr, " ");
-      dump_val(&inst->src);
+      fprintf(fp, " ");
+      dump_val(&inst->dst, fp);
+      fprintf(fp, " ");
+      dump_val(&inst->src, fp);
       break;
     case PUTC:
     case GETC:
-      fprintf(stderr, " ");
-      dump_val(&inst->dst);
+      fprintf(fp, " ");
+      dump_val(&inst->dst, fp);
     case EXIT:
     case DUMP:
       break;
@@ -574,24 +574,27 @@ void dump_inst(Inst* inst) {
     case JGT:
     case JLE:
     case JGE:
-      fprintf(stderr, " ");
-      dump_val(&inst->dst);
-      fprintf(stderr, " ");
-      dump_val(&inst->src);
+      fprintf(fp, " ");
+      dump_val(&inst->dst, fp);
+      fprintf(fp, " ");
+      dump_val(&inst->src, fp);
     case JMP:
-      fprintf(stderr, " ");
-      dump_val(&inst->jmp);
+      fprintf(fp, " ");
+      dump_val(&inst->jmp, fp);
       break;
     default:
-      fprintf(stderr, "oops op=%d\n", inst->op);
+      fprintf(fp, "oops op=%d\n", inst->op);
       exit(1);
   }
-  fprintf(stderr, " pc=%d @", inst->pc);
+  fprintf(fp, " pc=%d @", inst->pc);
+  int lineno = inst->lineno;
   // A hack to make the test for dump_ir.c.eir pass.
-#ifdef __eir__
-  if (inst->lineno == UINT_MAX)
-    fprintf(stderr, "-1\n");
-  else
+#ifndef __eir__
+  lineno &= UINT_MAX;
 #endif
-    fprintf(stderr, "%d\n", inst->lineno);
+  fprintf(fp, "%d\n", lineno);
+}
+
+void dump_inst(Inst* inst) {
+  dump_inst_fp(inst, stderr);
 }
