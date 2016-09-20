@@ -174,7 +174,7 @@ static void bf_dbg(const char* s) {
   bf_clear(BF_DBG);
 }
 
-static void bf_interpreter_check() {
+static void bf_interpreter_check(void) {
   bf_comment("interpreter check");
 
   // Test for cell wrap != 256
@@ -217,7 +217,7 @@ static void bf_loop_begin(int ptr, char c) {
   bf.loop_ptr = ptr;
 }
 
-static void bf_loop_end() {
+static void bf_loop_end(void) {
   bf_move_ptr(bf.loop_ptr);
   bf_emit("]");
 }
@@ -246,7 +246,7 @@ static void bf_ifzero_begin(int off) {
   bf_ifzero_begin_impl(off, false, "");
 }
 
-static void bf_ifzero_end() {
+static void bf_ifzero_end(void) {
   bf.ifzero_cnt--;
   int off = bf.ifzero_off[bf.ifzero_cnt];
   int omp = bf.ifzero_omp[bf.ifzero_cnt];
@@ -359,7 +359,27 @@ static void bf_emit_op(Inst* inst) {
     break;
 
   case LOAD:
+    bf_add(BF_LOAD_REQ, 1);
+    if (inst->dst.reg != A)
+      error("only \"load a, X\" is supported");
+
+    if (inst->src.type == REG) {
+      bf_copy_word(bf_regpos(inst->src.reg), BF_MEM + BF_MEM_A, BF_WRK);
+    } else {
+      bf_add_word(BF_MEM + BF_MEM_A, inst->src.imm);
+    }
+    break;
+
   case STORE:
+    bf_add(BF_STORE_REQ, 1);
+    bf_copy_word(bf_regpos(inst->dst.reg), BF_MEM + BF_MEM_V, BF_WRK);
+    if (inst->src.type == REG) {
+      bf_copy_word(bf_regpos(inst->src.reg), BF_MEM + BF_MEM_A, BF_WRK);
+    } else {
+      bf_add_word(BF_MEM + BF_MEM_A, inst->src.imm);
+    }
+    break;
+
   case EQ:
   case NE:
   case LT:
@@ -384,12 +404,14 @@ static void bf_emit_op(Inst* inst) {
   case GETC:
     error("oops IO");
     break;
+
   case EXIT:
     bf_clear(BF_RUNNING);
     break;
 
   case DUMP:
     break;
+
   case JEQ:
   case JNE:
   case JLT:
@@ -467,6 +489,114 @@ void bf_emit_code(Inst* inst) {
   bf_clear_word(BF_OP);
 }
 
+static void bf_emit_mem_load(void) {
+  bf_comment("memory (load)");
+
+  bf_move_ptr(BF_LOAD_REQ);
+  bf_emit("[-");
+
+  bf_move_ptr(BF_MEM);
+  bf_set_ptr(0);
+
+  bf_loop_begin(BF_MEM_A-1, '-'); {
+    bf_move_word(BF_MEM_A, BF_MEM_A + BF_MEM_BLK_LEN*256);
+    bf_move_ptr(BF_MEM_A + BF_MEM_BLK_LEN*256);
+    bf_set_ptr(BF_MEM_A);
+    bf_add(BF_MEM_USE+1, 1);
+  }; bf_loop_end();
+
+  bf_loop_begin(BF_MEM_A, '-'); {
+    bf_move_word(BF_MEM_A, BF_MEM_A + BF_MEM_BLK_LEN);
+    bf_move_ptr(BF_MEM_A + BF_MEM_BLK_LEN);
+    bf_set_ptr(BF_MEM_A);
+    bf_add(BF_MEM_USE, 1);
+  }; bf_loop_end();
+
+  for (int al = 0; al < 256; al++) {
+    bf_move_ptr(BF_MEM_A + 1);
+    bf_ifzero_begin(1); {
+      bf_copy_word(BF_MEM_CTL_LEN + al * 3, BF_MEM_V, BF_MEM_WRK + 2);
+    }; bf_ifzero_end();
+    bf_add(BF_MEM_A + 1, -1);
+  }
+  bf_clear(BF_MEM_A + 1);
+
+  bf_loop_begin(BF_MEM_USE, '-'); {
+    bf_move_word(BF_MEM_V, BF_MEM_V - BF_MEM_BLK_LEN);
+    bf_move_ptr(BF_MEM_V - BF_MEM_BLK_LEN);
+    bf_set_ptr(BF_MEM_V);
+  }; bf_loop_end();
+
+  bf_loop_begin(BF_MEM_USE+1, '-'); {
+    bf_move_word(BF_MEM_V, BF_MEM_V - BF_MEM_BLK_LEN*256);
+    bf_move_ptr(BF_MEM_V - BF_MEM_BLK_LEN*256);
+    bf_set_ptr(BF_MEM_V);
+  }; bf_loop_end();
+
+  bf_move_ptr(0);
+  bf_set_ptr(BF_MEM);
+  bf_clear_word(BF_A);
+  bf_move_word(BF_MEM + BF_MEM_V, BF_A);
+
+  bf_move_ptr(BF_LOAD_REQ);
+  bf_emit("]");
+}
+
+static void bf_emit_mem_store(void) {
+  bf_comment("memory (store)");
+
+  bf_move_ptr(BF_STORE_REQ);
+  bf_emit("[-");
+
+  bf_move_ptr(BF_MEM);
+  bf_set_ptr(0);
+
+  bf_loop_begin(BF_MEM_A-1, '-'); {
+    bf_move_word(BF_MEM_V, BF_MEM_V + BF_MEM_BLK_LEN*256);
+    bf_move_word(BF_MEM_A, BF_MEM_A + BF_MEM_BLK_LEN*256);
+    bf_move_ptr(BF_MEM_A + BF_MEM_BLK_LEN*256);
+    bf_set_ptr(BF_MEM_A);
+    bf_add(BF_MEM_USE+1, 1);
+  }; bf_loop_end();
+
+  bf_loop_begin(BF_MEM_A, '-'); {
+    bf_move_word(BF_MEM_V, BF_MEM_V + BF_MEM_BLK_LEN);
+    bf_move_word(BF_MEM_A, BF_MEM_A + BF_MEM_BLK_LEN);
+    bf_move_ptr(BF_MEM_A + BF_MEM_BLK_LEN);
+    bf_set_ptr(BF_MEM_A);
+    bf_add(BF_MEM_USE, 1);
+  }; bf_loop_end();
+
+  // VH VL 0 AL 1
+  for (int al = 0; al < 256; al++) {
+    bf_move_ptr(BF_MEM_A + 1);
+    bf_ifzero_begin(1); {
+      bf_clear_word(BF_MEM_CTL_LEN + al * 3);
+      bf_move_word(BF_MEM_V, BF_MEM_CTL_LEN + al * 3);
+    }; bf_ifzero_end();
+    bf_add(BF_MEM_A + 1, -1);
+  }
+  bf_clear(BF_MEM_A + 1);
+
+  bf_move_ptr(BF_MEM_USE);
+  bf_emit("[-");
+  for (int i = 0; i < BF_MEM_BLK_LEN; i++)
+    putchar('<');
+  bf_emit("]");
+
+  bf_move_ptr(BF_MEM_USE+1);
+  bf_emit("[-");
+  for (int i = 0; i < BF_MEM_BLK_LEN*256; i++)
+    putchar('<');
+  bf_emit("]");
+
+  bf_move_ptr(0);
+  bf_set_ptr(BF_MEM);
+
+  bf_move_ptr(BF_STORE_REQ);
+  bf_emit("]");
+}
+
 void target_bf(Module* module) {
   bf_init_state(module->data);
 
@@ -475,7 +605,8 @@ void target_bf(Module* module) {
   emit_line("[");
 
   bf_emit_code(module->text);
-
+  bf_emit_mem_load();
+  bf_emit_mem_store();
   bf_move_word(BF_NPC, BF_PC);
 
   bf_comment("epilogue");
