@@ -1,0 +1,91 @@
+<html> <head>
+<title>8cc.js</title>
+
+<script src="headers.js"></script>
+<script src="8cc.c.eir.js"></script>
+<script>var main_8cc = main;</script>
+<script src="elc.c.eir.js"></script>
+<script>var main_elc = main;</script>
+
+<script>
+
+var $ = function(id) {
+   return document.getElementById(id);
+};
+
+var get_getchar = function(input) {
+  var ip = 0;
+  return function() {
+    return input.charCodeAt(ip++) | 0;
+  };
+};
+
+var OUTPUTS = '';
+function get_putchar() {
+  return function(c) {
+    OUTPUTS += String.fromCharCode(c & 255);
+  };
+}
+
+function processInclude(src, used) {
+  return src.replace(/#\s*include\s*[<"](.*?)[>"]/g, function(_, hn) {
+      if (used[hn])
+        return '';
+      used[hn] = true;
+      var h = processInclude(HEADERS[hn], used);
+      if (!h) {
+        throw hn + ": No such file or directory";
+      }
+      return h;
+    });
+}
+
+function filterCompilerOutput(out) {
+  return out.replace(/\x1b\[1;31m(\[.*?\])\x1b\[0m(.*)/g, function(_, t, m) {
+          $("err").innerHTML += t + m + "\n";
+          return '';
+        });
+}
+
+function compile() {
+  try {
+    var src = $("src").value;
+    src = processInclude(src, {});
+    console.log(src);
+
+    OUTPUTS = '';
+    main_8cc(get_getchar(src), get_putchar());
+    var eir = filterCompilerOutput(OUTPUTS);
+    $("eir").value = eir;
+
+    eir = "js\n" + eir;
+    OUTPUTS = '';
+    main_elc(get_getchar(eir), get_putchar());
+    $("dst").value = OUTPUTS;
+  } catch (e) {
+    console.error(e);
+    $("err").innerHTML += e + "\n";
+  }
+}
+
+</script>
+</head>
+
+<body>
+<h1>8cc.js</h1>
+<div>
+<textarea id="src" cols=40 rows=24>
+#include <stdio.h>
+int main() {
+  for (int i = 1; i <= 100; i++) {
+     putchar(i);
+  }
+}
+</textarea>
+<textarea id="eir" cols=40 rows=24></textarea>
+<textarea id="dst" cols=40 rows=24></textarea>
+</div>
+<pre id="err"></pre>
+<input type="button" value="compile" onclick="compile()">
+
+</body>
