@@ -7,7 +7,7 @@ static void init_state_js(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_line("var %s = 0;", reg_names[i]);
   }
-  emit_line("var mem = Int32Array(1 << 24);");
+  emit_line("var mem = new Int32Array(1 << 24);");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
       emit_line("mem[%d] = %d", mp, data->v);
