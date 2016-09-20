@@ -47,7 +47,23 @@ function filterCompilerOutput(out) {
         });
 }
 
+function assemble() {
+  var start = new Date();
+  try {
+    var lang = $("lang").value;
+    var eir = lang + "\n" + $("eir").value;
+    OUTPUTS = '';
+    main_elc(get_getchar(eir), get_putchar());
+    $("dst").value = OUTPUTS;
+  } catch (e) {
+    console.error(e);
+    $("err").innerHTML += e + "\n";
+  }
+  console.log("assemble time: " + (new Date() - start) * 0.001);
+}
+
 function compile() {
+  var start = new Date();
   try {
     var src = $("src").value;
     src = processInclude(src, {});
@@ -58,14 +74,12 @@ function compile() {
     var eir = filterCompilerOutput(OUTPUTS);
     $("eir").value = eir;
 
-    eir = "js\n" + eir;
-    OUTPUTS = '';
-    main_elc(get_getchar(eir), get_putchar());
-    $("dst").value = OUTPUTS;
+    setTimeout(assemble, 0);
   } catch (e) {
     console.error(e);
     $("err").innerHTML += e + "\n";
   }
+  console.log("compile time: " + (new Date() - start) * 0.001);
 }
 
 </script>
@@ -76,16 +90,36 @@ function compile() {
 <div>
 <textarea id="src" cols=40 rows=24>
 #include <stdio.h>
+
 int main() {
   for (int i = 1; i <= 100; i++) {
-     putchar(i);
+    if (i % 5) {
+      if (i % 3) {
+        printf("%d\n", i);
+      } else {
+        printf("Fizz\n");
+      }
+    } else {
+      printf("FizzBuzz\n" + i * i % 3 * 4);
+    }
   }
+  return 0;
 }
+
 </textarea>
 <textarea id="eir" cols=40 rows=24></textarea>
 <textarea id="dst" cols=40 rows=24></textarea>
 </div>
 <pre id="err"></pre>
+
+<select id="lang">
+<option value="js">JavaScript
+<option value="rb">Ruby
+<option value="py">Python
+<option value="x86">x86
+<option value="ws">Whitespace
+</select>
 <input type="button" value="compile" onclick="compile()">
+<input type="button" value="assemble" onclick="assemble()">
 
 </body>
