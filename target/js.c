@@ -19,15 +19,34 @@ void target_js(Module* module) {
   init_state_js(module->data);
 
   emit_line("var running = true;");
-  emit_line("while (running) {");
-  inc_indent();
-  emit_line("switch (pc) {");
-  emit_line("case -1:  // dummy");
-  inc_indent();
 
+  static const int FUNC_SIZE = 1024;
   int prev_pc = -1;
+  int prev_page = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
+    int page = inst->pc / FUNC_SIZE;
     if (prev_pc != inst->pc) {
+      if (prev_page != page) {
+        if (prev_page != -1) {
+          dec_indent();
+          emit_line("}");
+          emit_line("pc++;");
+          dec_indent();
+          emit_line("}");
+          dec_indent();
+          emit_line("};");
+        }
+        emit_line("");
+        emit_line("var page%d = function() {", page);
+        inc_indent();
+        emit_line("while (%d <= pc && pc < %d && running) {",
+                  page * FUNC_SIZE, (page + 1) * FUNC_SIZE);
+        inc_indent();
+        emit_line("switch (pc) {");
+        emit_line("case -1:  // dummy");
+        inc_indent();
+      }
+
       emit_line("break;");
       emit_line("");
       dec_indent();
@@ -35,6 +54,7 @@ void target_js(Module* module) {
       inc_indent();
     }
     prev_pc = inst->pc;
+    prev_page = page;
 
     switch (inst->op) {
       case MOV:
@@ -105,7 +125,22 @@ void target_js(Module* module) {
 
   dec_indent();
   emit_line("}");
-  emit_line("pc += 1;");
+  emit_line("pc++;");
+  dec_indent();
+  emit_line("}");
+  dec_indent();
+  emit_line("};");
+
+  emit_line("");
+  emit_line("while (running) {");
+  inc_indent();
+  emit_line("switch (pc / %d | 0) {", FUNC_SIZE);
+  for (int i = 0; i <= prev_page; i++) {
+    emit_line("case %d:", i);
+    emit_line(" page%d();", i);
+    emit_line(" break;");
+  }
+  emit_line("}");
   dec_indent();
   emit_line("}");
 
