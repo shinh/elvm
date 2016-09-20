@@ -176,8 +176,8 @@ endif
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
-#TARGET := bf
-#RUNNER := beef
+TARGET := bf
+RUNNER := beef
 #include target.mk
 
 test: $(TEST_RESULTS)

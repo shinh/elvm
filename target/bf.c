@@ -98,12 +98,12 @@ static void bf_copy(int from, int to, int wrk) {
   bf_move2(from, to, wrk);
   bf_move(wrk, from, '+');
 }
+#endif
 
 static void bf_copy_word(int from, int to, int wrk) {
   bf_move_word2(from, to, wrk);
   bf_move_word(wrk, from);
 }
-#endif
 
 static void bf_add(int ptr, int v) {
   bf_move_ptr(ptr);
@@ -134,6 +134,19 @@ static void bf_clear_word(int ptr) {
   bf_clear(ptr-1);
   bf_clear(ptr);
   bf_clear(ptr+1);
+}
+
+static int bf_regpos(int r) {
+  switch (r) {
+  case A: return BF_A;
+  case B: return BF_B;
+  case C: return BF_C;
+  case D: return BF_D;
+  case BP: return BF_BP;
+  case SP: return BF_SP;
+  default:
+    error("unknown reg: %d", r);
+  }
 }
 
 static void bf_dbg(const char* s) {
@@ -182,7 +195,21 @@ static void bf_init_state(Data* data) {
 
 static void bf_emit_op(Inst* inst) {
   switch (inst->op) {
-  case MOV:
+  case MOV: {
+    int dst = bf_regpos(inst->dst.reg);
+    if (inst->src.type == REG) {
+      int src = bf_regpos(inst->src.reg);
+      if (src != dst) {
+        bf_clear_word(dst);
+        bf_copy_word(src, dst, BF_WRK);
+      }
+    } else {
+      bf_clear_word(dst);
+      bf_add_word(dst, inst->src.imm);
+    }
+    break;
+  }
+
   case ADD:
   case SUB:
   case LOAD:
@@ -195,7 +222,19 @@ static void bf_emit_op(Inst* inst) {
   case GE:
     error("oops etc");
     break;
+
   case PUTC:
+    if (inst->src.type == REG) {
+      int src = bf_regpos(inst->src.reg);
+      bf_move_ptr(src + 1);
+      bf_emit(".");
+    } else {
+      bf_add(BF_WRK, inst->src.imm % 256);
+      bf_emit(".");
+      bf_clear(BF_WRK);
+    }
+    break;
+
   case GETC:
     error("oops IO");
     break;

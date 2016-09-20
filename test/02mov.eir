@@ -1,0 +1,3 @@
+mov A, 43
+putc A
+exit
