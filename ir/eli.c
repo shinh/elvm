@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
           error("oops");
       }
 
-      if (npc >= 0) {
+      if (npc != -1) {
         pc = npc;
         break;
       }
