@@ -6,6 +6,8 @@
 <script>var main_8cc = main;</script>
 <script src="elc.c.eir.js"></script>
 <script>var main_elc = main;</script>
+<script src="eli.c.eir.js"></script>
+<script>var main_eli = main;</script>
 
 <script>
 
@@ -22,6 +24,7 @@ var get_getchar = function(input) {
 
 var OUTPUTS = '';
 function get_putchar() {
+  OUTPUTS = '';
   return function(c) {
     OUTPUTS += String.fromCharCode(c & 255);
   };
@@ -52,7 +55,6 @@ function assemble() {
   try {
     var lang = $("lang").value;
     var eir = lang + "\n" + $("eir").value;
-    OUTPUTS = '';
     main_elc(get_getchar(eir), get_putchar());
     $("trg").value = OUTPUTS;
   } catch (e) {
@@ -69,7 +71,6 @@ function compile() {
     src = processInclude(src, {});
     console.log(src);
 
-    OUTPUTS = '';
     main_8cc(get_getchar(src), get_putchar());
     var eir = filterCompilerOutput(OUTPUTS);
     $("eir").value = eir;
@@ -83,14 +84,30 @@ function compile() {
 }
 
 function runEIR() {
-  //$("trg").value;
+  var start = new Date();
+  try {
+    var eir = $("eir").value;
+    main_eli(get_getchar(eir), get_putchar());
+    $("out").value = OUTPUTS;
+  } catch (e) {
+    console.error(e);
+    $("err").innerHTML += e + "\n";
+  }
+  console.log("run EIR time: " + (new Date() - start) * 0.001);
 }
 
 function runJS() {
-  var src = $("src").value;
-  var main = eval($("trg").value + "; main;");
-  main(get_getchar(src), get_putchar());
-  $("out").value = OUTPUTS;
+  var start = new Date();
+  try {
+    var src = $("src").value;
+    var main = eval($("trg").value + "; main;");
+    main(get_getchar(src), get_putchar());
+    $("out").value = OUTPUTS;
+  } catch (e) {
+    console.error(e);
+    $("err").innerHTML += e + "\n";
+  }
+  console.log("run JS time: " + (new Date() - start) * 0.001);
 }
 
 </script>
@@ -133,7 +150,7 @@ int main() {
 </select>
 <input type="button" value="compile" onclick="compile()">
 <input type="button" value="assemble" onclick="assemble()">
-<!--<input type="button" value="runEIR" onclick="runEIR()">-->
+<input type="button" value="runEIR" onclick="runEIR()">
 <input type="button" value="runJS" onclick="runJS()">
 
 </body>
