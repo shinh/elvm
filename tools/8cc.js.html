@@ -62,7 +62,28 @@ function assemble() {
     var lang = $("lang").value;
     var eir = lang + "\n" + $("eir").value;
     main_elc(get_getchar(eir), get_putchar());
-    $("trg").value = OUTPUTS;
+    var trg = OUTPUTS;
+    if (lang == 'x86') {
+      var escaped = '"';
+      for (var i = 0; i < trg.length; i++) {
+        var c = trg.charCodeAt(i);
+        if (c == 34 || c == 92) {
+          escaped += '\\';
+          escaped += trg[i];
+        } else if (c >= 0x20 && c <= 0x7e) {
+          escaped += trg[i];
+        } else {
+          escaped += "\\x";
+          escaped += (c >> 4).toString(16);
+          escaped += (c & 15).toString(16);
+        }
+        if (i % 40 == 39) {
+          escaped += "\" +\n\"";
+        }
+      }
+      trg = escaped + '"';
+    }
+    $("trg").value = trg;
   } catch (e) {
     console.error(e);
     $("err").innerHTML += e + "\n";
