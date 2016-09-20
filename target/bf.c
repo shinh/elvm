@@ -260,7 +260,7 @@ static void bf_ifzero_end() {
   bf.mp = omp + off * 2;
 }
 
-static void bf_emit_add(Inst* inst) {
+static int bf_emit_addsub_prep(Inst* inst) {
   int dst = bf_regpos(inst->dst.reg);
   if (inst->src.type == REG) {
     int src = bf_regpos(inst->src.reg);
@@ -270,6 +270,11 @@ static void bf_emit_add(Inst* inst) {
   } else {
     bf_add_word(BF_WRK, inst->src.imm);
   }
+  return dst;
+}
+
+static void bf_emit_add(Inst* inst) {
+  int dst = bf_emit_addsub_prep(inst);
 
   // Add BF_WRK to dst.
   bf_loop_begin(BF_WRK+1, '-'); {
@@ -298,6 +303,36 @@ static void bf_emit_add(Inst* inst) {
   bf_move(BF_WRK-1, dst-1);
 }
 
+static void bf_emit_sub(Inst* inst) {
+  int dst = bf_emit_addsub_prep(inst);
+
+  // Add BF_WRK to dst.
+  bf_loop_begin(BF_WRK+1, '-'); {
+    bf_move_ptr(dst+1);
+    // Carry?
+    bf_ifzero_begin(1); {
+      bf_move_ptr(dst);
+      bf_ifzero_begin(2); {
+        bf_add(dst-1, -1);
+      }; bf_ifzero_end();
+      bf_add(dst, -1);
+    }; bf_ifzero_end();
+    // Decrement.
+    bf_add(dst+1, -1);
+  }; bf_loop_end();
+
+  bf_loop_begin(BF_WRK, '-'); {
+    bf_move_ptr(dst);
+    // Carry?
+    bf_ifzero_begin(2); {
+      bf_add(dst-1, -1);
+    }; bf_ifzero_end();
+    // Decrement.
+    bf_add(dst, -1);
+  }; bf_loop_end();
+  bf_move(BF_WRK-1, dst-1);
+}
+
 static void bf_emit_op(Inst* inst) {
   switch (inst->op) {
   case MOV: {
@@ -320,6 +355,9 @@ static void bf_emit_op(Inst* inst) {
     break;
 
   case SUB:
+    bf_emit_sub(inst);
+    break;
+
   case LOAD:
   case STORE:
   case EQ:
