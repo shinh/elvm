@@ -1,6 +1,12 @@
 <html> <head>
 <title>8cc.js</title>
 
+<style>
+textarea {
+  border-width: 3px;
+}
+</style>
+
 <script src="headers.js"></script>
 <script src="8cc.c.eir.js"></script>
 <script>var main_8cc = main;</script>
@@ -108,6 +114,30 @@ function runJS() {
   console.log("run JS time: " + (new Date() - start) * 0.001);
 }
 
+function hover(b) {
+  var src = null;
+  var dst = null;
+  if (b.value == 'compile') {
+    src = 'src';
+    dst = 'eir';
+  } else if (b.value == 'assemble') {
+    src = 'eir';
+    dst = 'trg';
+  } else if (b.value == 'runEIR') {
+    src = 'eir';
+    dst = 'out';
+  } else if (b.value == 'runJS') {
+    src = 'trg';
+    dst = 'out';
+  }
+  $('src').style.borderColor = null;
+  $('eir').style.borderColor = null;
+  $('trg').style.borderColor = null;
+  $('out').style.borderColor = null;
+  $(src).style.borderColor = 'blue';
+  $(dst).style.borderColor = 'red';
+}
+
 </script>
 </head>
 
@@ -146,9 +176,10 @@ int main() {
 <option value="x86">x86
 <option value="ws">Whitespace
 </select>
-<input type="button" value="compile" onclick="compile()">
-<input type="button" value="assemble" onclick="assemble()">
-<input type="button" value="runEIR" onclick="runEIR()">
-<input type="button" value="runJS" onclick="runJS()">
+
+<input type="button" value="compile" onclick="compile()" onmouseover="hover(this)">
+<input type="button" value="assemble" onclick="assemble()" onmouseover="hover(this)">
+<input type="button" value="runEIR" onclick="runEIR()" onmouseover="hover(this)">
+<input type="button" value="runJS" onclick="runJS()" onmouseover="hover(this)">
 
 </body>
