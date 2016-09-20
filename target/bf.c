@@ -528,12 +528,20 @@ static void bf_emit_op(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
+  case JMP: {
     bf_emit_cmp(inst);
+    bf_move_ptr(BF_WRK);
+    bf_emit("[[-]");
+    bf_clear_word(BF_NPC);
+    if (inst->jmp.type == REG) {
+      bf_copy_word(bf_regpos(inst->jmp.reg), BF_NPC, BF_WRK);
+    } else {
+      bf_add_word(BF_NPC, inst->jmp.imm);
+    }
+    bf_move_ptr(BF_WRK);
+    bf_emit("]");
     break;
-
-  case JMP:
-    bf_add_word(BF_NPC, inst->jmp.imm - 1);
-    break;
+  }
 
   default:
     error("oops");
