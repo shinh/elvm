@@ -74,8 +74,6 @@ function compile() {
     main_8cc(get_getchar(src), get_putchar());
     var eir = filterCompilerOutput(OUTPUTS);
     $("eir").value = eir;
-
-    setTimeout(assemble, 0);
   } catch (e) {
     console.error(e);
     $("err").innerHTML += e + "\n";
