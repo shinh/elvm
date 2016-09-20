@@ -511,9 +511,18 @@ static void bf_emit_op(Inst* inst) {
     }
     break;
 
-  case GETC:
-    error("oops IO");
+  case GETC: {
+    int src = bf_regpos(inst->dst.reg);
+    bf_clear_word(src);
+    bf_move_ptr(src+1);
+    bf_emit(",");
+    bf_emit("+");
+    bf_ifzero_begin(1); {
+      bf_add(src + 1, 1);
+    }; bf_ifzero_end();
+    bf_add(src + 1, -1);
     break;
+  }
 
   case EXIT:
     bf_clear(BF_RUNNING);
