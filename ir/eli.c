@@ -1,18 +1,26 @@
-#include "ir.h"
-
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <ir/ir.h>
+
+#ifdef __eir__
+#define MEMSZ 0x100000
+#else
+#define MEMSZ 0x1000000
+#endif
+
 int pc;
-Inst* prog[1 << 16];
-int mem[1 << 24];
+Inst* prog[65536];
+int mem[MEMSZ];
 int regs[6];
 bool verbose;
 
+#ifndef __eir__
 __attribute__((noreturn))
+#endif
 static void error(const char* msg) {
   fprintf(stderr, "%s (pc=%d)\n", msg, pc);
   exit(1);
@@ -77,6 +85,9 @@ static int cmp(Inst* inst) {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef NOFILE
+  Module* m = load_eir(stdin);
+#else
   if (argc >= 2 && !strcmp(argv[1], "-v")) {
     verbose = true;
     argc--;
@@ -89,6 +100,8 @@ int main(int argc, char* argv[]) {
   }
 
   Module* m = load_eir_from_file(argv[1]);
+#endif
+
   int i;
   i = 0;
   for (Data* d = m->data; d; d = d->next, i++) {
@@ -118,13 +131,15 @@ int main(int argc, char* argv[]) {
         case ADD:
           assert(inst->dst.type == REG);
           regs[inst->dst.reg] += src(inst);
-          regs[inst->dst.reg] &= UINT_MAX;
+          regs[inst->dst.reg] += MEMSZ;
+          regs[inst->dst.reg] %= MEMSZ;
           break;
 
         case SUB:
           assert(inst->dst.type == REG);
           regs[inst->dst.reg] -= src(inst);
-          regs[inst->dst.reg] &= UINT_MAX;
+          regs[inst->dst.reg] += MEMSZ;
+          regs[inst->dst.reg] %= MEMSZ;
           break;
 
         case LOAD: {
@@ -151,7 +166,9 @@ int main(int argc, char* argv[]) {
 
         case GETC: {
           int c = getchar();
-          regs[inst->dst.reg] = c == EOF ? 0 : c & UINT_MAX;
+          regs[inst->dst.reg] = c == EOF ? 0 : c;
+          regs[inst->dst.reg] += MEMSZ;
+          regs[inst->dst.reg] %= MEMSZ;
           break;
         }
 

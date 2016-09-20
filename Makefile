@@ -92,6 +92,10 @@ out/dump_ir.c: ir/dump_ir.c $(LIB_IR_SRCS)
 	cat $^ > $@.tmp && mv $@.tmp $@
 OUT.c += out/dump_ir.c
 
+out/eli.c: ir/eli.c $(LIB_IR_SRCS)
+	cat $^ > $@.tmp && mv $@.tmp $@
+OUT.c += out/eli.c
+
 # Build tests
 
 TEST_INS := $(wildcard test/*.in)
