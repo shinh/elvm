@@ -184,12 +184,13 @@ include target.mk
 
 TARGET := ws
 RUNNER := tools/runws.sh
+TEST_FILTER := out/eli.c.eir.ws
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
 TARGET := bf
 RUNNER := tools/runbf.sh
-ifdef FULL
+ifndef FULL
 TEST_FILTER := out/eli.c.eir.bf out/dump_ir.c.eir.bf
 endif
 include target.mk
