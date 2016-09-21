@@ -37,7 +37,7 @@ static const int BF_MEM_V = 1;
 static const int BF_MEM_A = 4;
 static const int BF_MEM_WRK = 7;
 static const int BF_MEM_USE = 13;
-#define BF_MEM_CTL_LEN 15
+#define BF_MEM_CTL_LEN 16
 static const int BF_MEM_BLK_LEN = (256*3) + BF_MEM_CTL_LEN;
 
 static void bf_emit(const char* s) {
