@@ -1,43 +1,39 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static void init_state_js(Data* data) {
-  emit_line("var main = function(getchar, putchar) {");
+static void c_init_state(void) {
+  emit_line("#include <stdio.h>");
+  emit_line("#include <stdlib.h>");
 
   for (int i = 0; i < 7; i++) {
-    emit_line("var %s = 0;", reg_names[i]);
+    emit_line("unsigned int %s;", reg_names[i]);
   }
-  emit_line("var mem = new Int32Array(1 << 24);");
-  for (int mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      emit_line("memf[%d] = %d;", mp, data->v);
-    }
-  }
+  emit_line("unsigned int mem[1<<24];");
 }
 
-static void js_emit_func_prologue(int func_id) {
+static void c_emit_func_prologue(int func_id) {
   emit_line("");
-  emit_line("var func%d = function() {", func_id);
+  emit_line("void func%d() {", func_id);
   inc_indent();
-  emit_line("while (%d <= pc && pc < %d && running) {",
+  emit_line("while (%d <= pc && pc < %d) {",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
   emit_line("switch (pc) {");
-  emit_line("case -1:  // dummy");
+  emit_line("case -1:  /* dummy */");
   inc_indent();
 }
 
-static void js_emit_func_epilogue(void) {
+static void c_emit_func_epilogue(void) {
   dec_indent();
   emit_line("}");
   emit_line("pc++;");
   dec_indent();
   emit_line("}");
   dec_indent();
-  emit_line("};");
+  emit_line("}");
 }
 
-static void js_emit_pc_change(int pc) {
+static void c_emit_pc_change(int pc) {
   emit_line("break;");
   emit_line("");
   dec_indent();
@@ -45,7 +41,7 @@ static void js_emit_pc_change(int pc) {
   inc_indent();
 }
 
-static void js_emit_inst(Inst* inst) {
+static void c_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
     emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
@@ -76,12 +72,12 @@ static void js_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("%s = getchar();",
+    emit_line("{ int _ = getchar(); %s = _ != EOF ? _ : 0; }",
               reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
-    emit_line("running = false; break;");
+    emit_line("exit(0);");
     break;
 
   case DUMP:
@@ -93,8 +89,8 @@ static void js_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("%s = (%s) | 0;",
-              reg_names[inst->dst.reg], cmp_str(inst, "true"));
+    emit_line("%s = %s;",
+              reg_names[inst->dst.reg], cmp_str(inst, "1"));
     break;
 
   case JEQ:
@@ -105,7 +101,7 @@ static void js_emit_inst(Inst* inst) {
   case JGE:
   case JMP:
     emit_line("if (%s) pc = %s - 1;",
-              cmp_str(inst, "true"), value_str(&inst->jmp));
+              cmp_str(inst, "1"), value_str(&inst->jmp));
     break;
 
   default:
@@ -113,19 +109,27 @@ static void js_emit_inst(Inst* inst) {
   }
 }
 
-void target_js(Module* module) {
-  init_state_js(module->data);
-
-  emit_line("var running = true;");
+void target_c(Module* module) {
+  c_init_state();
 
   int num_funcs = emit_chunked_main_loop(module->text,
-                                         js_emit_func_prologue,
-                                         js_emit_func_epilogue,
-                                         js_emit_pc_change,
-                                         js_emit_inst);
+                                         c_emit_func_prologue,
+                                         c_emit_func_epilogue,
+                                         c_emit_pc_change,
+                                         c_emit_inst);
+
+  emit_line("int main() {");
+  inc_indent();
+
+  Data* data = module->data;
+  for (int mp = 0; data; data = data->next, mp++) {
+    if (data->v) {
+      emit_line("mem[%d] = %d;", mp, data->v);
+    }
+  }
 
   emit_line("");
-  emit_line("while (running) {");
+  emit_line("while (1) {");
   inc_indent();
   emit_line("switch (pc / %d | 0) {", CHUNKED_FUNC_SIZE);
   for (int i = 0; i < num_funcs; i++) {
@@ -137,21 +141,7 @@ void target_js(Module* module) {
   dec_indent();
   emit_line("}");
 
-  emit_line("};");
-
-  // For nodejs
-  emit_line("if (typeof require != 'undefined') {");
-  emit_line(" var sys = require('sys');");
-  emit_line(" var input = null;");
-  emit_line(" var ip = 0;");
-  emit_line(" var getchar = function() {");
-  emit_line("  if (input === null)");
-  emit_line("   input = require('fs').readFileSync('/dev/stdin');");
-  emit_line("  return input[ip++] | 0;");
-  emit_line(" };");
-  emit_line(" var putchar = function(c) {");
-  emit_line("  sys.print(String.fromCharCode(c & 255));");
-  emit_line(" };");
-  emit_line(" main(getchar, putchar);");
+  emit_line("return 1;");
+  dec_indent();
   emit_line("}");
 }

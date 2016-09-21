@@ -49,7 +49,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c x86.c ws.c bf.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c c.c x86.c ws.c bf.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -172,6 +172,11 @@ include target.mk
 TARGET := js
 RUNNER := nodejs
 include target.mk
+
+TARGET := c
+RUNNER := tools/runc.sh
+include target.mk
+$(OUT.eir.c.out): tools/runc.sh
 
 TARGET := x86
 RUNNER :=
