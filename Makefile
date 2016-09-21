@@ -189,7 +189,9 @@ $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
 TARGET := bf
 RUNNER := tools/runbf.sh
-#include target.mk
+# TODO: Reduce the size of this blacklist.
+TEST_FILTER := out/eli.c.eir.bf out/dump_ir.c.eir.bf out/24_muldiv.c.eir.bf out/eof.c.eir.bf
+include target.mk
 
 test: $(TEST_RESULTS)
 
