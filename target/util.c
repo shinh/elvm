@@ -184,3 +184,31 @@ void emit_diff(uint32_t a, uint32_t b) {
   emit_1(v % 256);
   emit_1(a >= b ? 0 : 0xff);
 }
+
+int emit_chunked_main_loop(Inst* inst,
+                           void (*emit_func_prologue)(int func_id),
+                           void (*emit_func_epilogue)(void),
+                           void (*emit_pc_change)(int pc),
+                           void (*emit_inst)(Inst* inst)) {
+  int prev_pc = -1;
+  int prev_func_id = -1;
+  for (; inst; inst = inst->next) {
+    int func_id = inst->pc / CHUNKED_FUNC_SIZE;
+    if (prev_pc != inst->pc) {
+      if (prev_func_id != func_id) {
+        if (prev_func_id != -1) {
+          emit_func_epilogue();
+        }
+        emit_func_prologue(func_id);
+      }
+
+      emit_pc_change(inst->pc);
+    }
+    prev_pc = inst->pc;
+    prev_func_id = func_id;
+
+    emit_inst(inst);
+  }
+  emit_func_epilogue();
+  return prev_func_id + 1;
+}

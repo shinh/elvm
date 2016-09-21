@@ -154,7 +154,7 @@ static void init_state_x86(Data* data) {
   emit_zero_reg(BP);
 }
 
-static void emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
+static void x86_emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
   switch (inst->op) {
     case MOV:
       emit_mov(inst->dst.reg, &inst->src);
@@ -327,7 +327,7 @@ void target_x86(Module* module) {
       pc2addr[inst->pc] = emit_cnt();
     }
     prev_pc = inst->pc;
-    emit_inst(inst, pc2addr, 0);
+    x86_emit_inst(inst, pc2addr, 0);
   }
 
   int rodata_addr = TEXT_START + emit_cnt() + HEADER_SIZE;
@@ -339,7 +339,7 @@ void target_x86(Module* module) {
   init_state_x86(module->data);
 
   for (Inst* inst = module->text; inst; inst = inst->next) {
-    emit_inst(inst, pc2addr, rodata_addr);
+    x86_emit_inst(inst, pc2addr, rodata_addr);
   }
 
   for (int i = 0; i < pc_cnt; i++) {
