@@ -137,7 +137,7 @@ include build.mk
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
-CMD = $(8CC) -S -DNOFILE -I. -Ilibc $2 -o $1.tmp && mv $1.tmp $1
+CMD = $(8CC) -S -I. -Ilibc $2 -o $1.tmp && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
 include build.mk

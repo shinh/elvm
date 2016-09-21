@@ -35,7 +35,7 @@ static target_func_t get_target_func(const char* ext) {
 }
 
 int main(int argc, char* argv[]) {
-#ifdef NOFILE
+#if defined(NOFILE) || defined(__eir__)
   char buf[32];
   for (int i = 0;; i++) {
     int c = getchar();
