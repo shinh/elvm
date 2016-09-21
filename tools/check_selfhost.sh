@@ -10,7 +10,7 @@ set -e
 TARGET=$1
 dir=out/${TARGET}
 
-make out/8cc.c.eir.${TARGET}.out
+make out/8cc.c.eir.${TARGET}.out out/elc.c.eir.${TARGET}.out
 
 rm -fr ${dir}
 mkdir -p ${dir}/stage1 ${dir}/stage2 ${dir}/stage3
@@ -24,19 +24,26 @@ for prog in 8cc elc; do
 done
 
 if [ ${TARGET} = x86 ]; then
-    run() {
-        local exe=${dir}/stage$1/$2.c.eir.x86
-        chmod 755 ${exe}
-        /usr/bin/time ${exe}
+    run_trg() {
+        chmod 755 $1
+        /usr/bin/time $1
     }
 elif [ ${TARGET} = rb ]; then
-    run() {
-        /usr/bin/time ruby ${dir}/stage$1/$2.c.eir.rb
+    run_trg() {
+        /usr/bin/time ruby $1
+    }
+elif [ ${TARGET} = bf ]; then
+    run_trg() {
+        /usr/bin/time ./tools/runbf.sh $1
     }
 else
     echo "Unknown target: ${TARGET}"
     exit 1
 fi
+
+run() {
+    run_trg ${dir}/stage$1/$2.c.eir.${TARGET}
+}
 
 for stage in 1 2; do
     nstage=$((${stage} + 1))
@@ -50,3 +57,4 @@ for stage in 1 2; do
 done
 
 diff -ur out/x86/stage2 out/x86/stage3
+echo "OK (${TARGET})"
