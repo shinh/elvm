@@ -33,10 +33,10 @@ static const int BF_LOAD_REQ = 67;
 static const int BF_STORE_REQ = 68;
 
 static const int BF_MEM = 70;
-static const int BF_MEM_V = 0;
-static const int BF_MEM_A = 3;
-static const int BF_MEM_WRK = 6;
-static const int BF_MEM_USE = 12;
+static const int BF_MEM_V = 1;
+static const int BF_MEM_A = 4;
+static const int BF_MEM_WRK = 7;
+static const int BF_MEM_USE = 13;
 #define BF_MEM_CTL_LEN 15
 static const int BF_MEM_BLK_LEN = (256*3) + BF_MEM_CTL_LEN;
 
@@ -646,15 +646,15 @@ static void bf_emit_mem_load(void) {
   bf_clear(BF_MEM_A + 1);
 
   bf_loop_begin(BF_MEM_USE, '-'); {
-    bf_move_word(BF_MEM_V, BF_MEM_V - BF_MEM_BLK_LEN);
-    bf_move_ptr(BF_MEM_V - BF_MEM_BLK_LEN);
-    bf_set_ptr(BF_MEM_V);
+    bf_move_ptr(BF_MEM_V);
+    bf_set_ptr(BF_MEM_V + BF_MEM_BLK_LEN);
+    bf_move_word(BF_MEM_V + BF_MEM_BLK_LEN, BF_MEM_V);
   }; bf_loop_end();
 
   bf_loop_begin(BF_MEM_USE+1, '-'); {
-    bf_move_word(BF_MEM_V, BF_MEM_V - BF_MEM_BLK_LEN*256);
-    bf_move_ptr(BF_MEM_V - BF_MEM_BLK_LEN*256);
-    bf_set_ptr(BF_MEM_V);
+    bf_move_ptr(BF_MEM_V);
+    bf_set_ptr(BF_MEM_V + BF_MEM_BLK_LEN * 256);
+    bf_move_word(BF_MEM_V + BF_MEM_BLK_LEN * 256, BF_MEM_V);
   }; bf_loop_end();
 
   bf_move_ptr(0);
