@@ -10,7 +10,7 @@ static void init_state_js(Data* data) {
   emit_line("var mem = new Int32Array(1 << 24);");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      emit_line("memf[%d] = %d;", mp, data->v);
+      emit_line("mem[%d] = %d;", mp, data->v);
     }
   }
 }
