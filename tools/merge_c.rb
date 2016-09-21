@@ -12,7 +12,9 @@ def merge(c, used)
     if used[fn]
       ''
     else
-      used[fn] = true
+      if name != 'keyword.h'
+        used[fn] = true
+      end
       nc = File.read(fn)
       merge(nc, used)
     end
