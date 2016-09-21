@@ -197,7 +197,6 @@ static void bf_init_state(Data* data) {
 
   bf_comment("init data");
   for (int mp = 0; data; data = data->next, mp++) {
-    assert(mp < 65536);
     if (data->v) {
       int hi = mp / 256;
       int lo = mp % 256;
@@ -326,7 +325,7 @@ static void bf_emit_sub(Inst* inst) {
     // Decrement.
     bf_add(dst, -1);
   }; bf_loop_end();
-  bf_move(BF_WRK-1, dst-1);
+  bf_move_neg(BF_WRK-1, dst-1);
 }
 
 static void bf_emit_cmp(Inst* inst) {

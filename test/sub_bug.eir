@@ -1,0 +1,6 @@
+mov A, 81920
+sub A, 81920
+eq A, 0
+add A, 48
+putc A
+exit
