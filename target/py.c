@@ -77,7 +77,7 @@ static void py_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("c = sys.stdin.read(1); %s = ord(c) if c else 0",
+    emit_line("_ = sys.stdin.read(1); %s = ord(_) if _ else 0",
               reg_names[inst->dst.reg]);
     break;
 
