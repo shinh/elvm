@@ -15,114 +15,19 @@ static void init_state_js(Data* data) {
   }
 }
 
-void target_js(Module* module) {
-  init_state_js(module->data);
+static void js_emit_func_prologue(int func_id) {
+  emit_line("");
+  emit_line("var page%d = function() {", func_id);
+  inc_indent();
+  emit_line("while (%d <= pc && pc < %d && running) {",
+            func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
+  inc_indent();
+  emit_line("switch (pc) {");
+  emit_line("case -1:  // dummy");
+  inc_indent();
+}
 
-  emit_line("var running = true;");
-
-  static const int FUNC_SIZE = 1024;
-  int prev_pc = -1;
-  int prev_page = -1;
-  for (Inst* inst = module->text; inst; inst = inst->next) {
-    int page = inst->pc / FUNC_SIZE;
-    if (prev_pc != inst->pc) {
-      if (prev_page != page) {
-        if (prev_page != -1) {
-          dec_indent();
-          emit_line("}");
-          emit_line("pc++;");
-          dec_indent();
-          emit_line("}");
-          dec_indent();
-          emit_line("};");
-        }
-        emit_line("");
-        emit_line("var page%d = function() {", page);
-        inc_indent();
-        emit_line("while (%d <= pc && pc < %d && running) {",
-                  page * FUNC_SIZE, (page + 1) * FUNC_SIZE);
-        inc_indent();
-        emit_line("switch (pc) {");
-        emit_line("case -1:  // dummy");
-        inc_indent();
-      }
-
-      emit_line("break;");
-      emit_line("");
-      dec_indent();
-      emit_line("case %d:", inst->pc);
-      inc_indent();
-    }
-    prev_pc = inst->pc;
-    prev_page = page;
-
-    switch (inst->op) {
-      case MOV:
-        emit_line("%s = %s", reg_names[inst->dst.reg], src_str(inst));
-        break;
-
-      case ADD:
-        emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
-                  reg_names[inst->dst.reg],
-                  reg_names[inst->dst.reg], src_str(inst));
-        break;
-
-      case SUB:
-        emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
-                  reg_names[inst->dst.reg],
-                  reg_names[inst->dst.reg], src_str(inst));
-        break;
-
-      case LOAD:
-        emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
-        break;
-
-      case STORE:
-        emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
-        break;
-
-      case PUTC:
-        emit_line("putchar(%s);", src_str(inst));
-        break;
-
-      case GETC:
-        emit_line("%s = getchar();",
-                  reg_names[inst->dst.reg]);
-        break;
-
-      case EXIT:
-        emit_line("running = false; break;");
-        break;
-
-      case DUMP:
-        break;
-
-      case EQ:
-      case NE:
-      case LT:
-      case GT:
-      case LE:
-      case GE:
-        emit_line("%s = (%s) | 0;",
-                  reg_names[inst->dst.reg], cmp_str(inst, "true"));
-        break;
-
-      case JEQ:
-      case JNE:
-      case JLT:
-      case JGT:
-      case JLE:
-      case JGE:
-      case JMP:
-        emit_line("if (%s) pc = %s - 1;",
-                  cmp_str(inst, "true"), value_str(&inst->jmp));
-        break;
-
-      default:
-        error("oops");
-    }
-  }
-
+static void js_emit_func_epilogue(void) {
   dec_indent();
   emit_line("}");
   emit_line("pc++;");
@@ -130,12 +35,100 @@ void target_js(Module* module) {
   emit_line("}");
   dec_indent();
   emit_line("};");
+}
+
+static void js_emit_pc_change(int pc) {
+  emit_line("break;");
+  emit_line("");
+  dec_indent();
+  emit_line("case %d:", pc);
+  inc_indent();
+}
+
+static void js_emit_inst(Inst* inst) {
+  switch (inst->op) {
+  case MOV:
+    emit_line("%s = %s", reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case ADD:
+    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
+              reg_names[inst->dst.reg],
+              reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case SUB:
+    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
+              reg_names[inst->dst.reg],
+              reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case LOAD:
+    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case STORE:
+    emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+    break;
+
+  case PUTC:
+    emit_line("putchar(%s);", src_str(inst));
+    break;
+
+  case GETC:
+    emit_line("%s = getchar();",
+              reg_names[inst->dst.reg]);
+    break;
+
+  case EXIT:
+    emit_line("running = false; break;");
+    break;
+
+  case DUMP:
+    break;
+
+  case EQ:
+  case NE:
+  case LT:
+  case GT:
+  case LE:
+  case GE:
+    emit_line("%s = (%s) | 0;",
+              reg_names[inst->dst.reg], cmp_str(inst, "true"));
+    break;
+
+  case JEQ:
+  case JNE:
+  case JLT:
+  case JGT:
+  case JLE:
+  case JGE:
+  case JMP:
+    emit_line("if (%s) pc = %s - 1;",
+              cmp_str(inst, "true"), value_str(&inst->jmp));
+    break;
+
+  default:
+    error("oops");
+  }
+}
+
+void target_js(Module* module) {
+  init_state_js(module->data);
+
+  emit_line("var running = true;");
+
+  int num_funcs = emit_chunked_main_loop(module->text,
+                                         js_emit_func_prologue,
+                                         js_emit_func_epilogue,
+                                         js_emit_pc_change,
+                                         js_emit_inst);
 
   emit_line("");
   emit_line("while (running) {");
   inc_indent();
-  emit_line("switch (pc / %d | 0) {", FUNC_SIZE);
-  for (int i = 0; i <= prev_page; i++) {
+  emit_line("switch (pc / %d | 0) {", CHUNKED_FUNC_SIZE);
+  for (int i = 0; i < num_funcs; i++) {
     emit_line("case %d:", i);
     emit_line(" page%d();", i);
     emit_line(" break;");
