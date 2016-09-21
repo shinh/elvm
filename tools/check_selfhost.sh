@@ -44,7 +44,7 @@ for stage in 1 2; do
         echo "Building stage${nstage} ${prog}.eir"
         cat ${dir}/${prog}.c | run ${stage} 8cc > ${dir}/stage${nstage}/${prog}.c.eir
         echo "Building stage${nstage} ${prog}.${TARGET}"
-        (echo ${TARGET} && cat ${dir}p/stage${nstage}/${prog}.c.eir) | \
+        (echo ${TARGET} && cat ${dir}/stage${nstage}/${prog}.c.eir) | \
             run ${stage} elc > ${dir}/stage${nstage}/${prog}.c.eir.${TARGET}
     done
 done
