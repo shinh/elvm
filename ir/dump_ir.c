@@ -3,7 +3,7 @@
 #include <ir/ir.h>
 
 int main(int argc, char* argv[]) {
-#ifdef NOFILE
+#if defined(NOFILE) || defined(__eir__)
   Module* m = load_eir(stdin);
   // Host dump_ir.c.exe should dump to stdout for testing.
   stderr = stdout;

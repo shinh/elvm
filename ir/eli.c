@@ -85,7 +85,7 @@ static int cmp(Inst* inst) {
 }
 
 int main(int argc, char* argv[]) {
-#ifdef NOFILE
+#if defined(NOFILE) || defined(__eir__)
   Module* m = load_eir(stdin);
 #else
   if (argc >= 2 && !strcmp(argv[1], "-v")) {
