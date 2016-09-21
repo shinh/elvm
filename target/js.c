@@ -17,7 +17,7 @@ static void init_state_js(Data* data) {
 
 static void js_emit_func_prologue(int func_id) {
   emit_line("");
-  emit_line("var page%d = function() {", func_id);
+  emit_line("var func%d = function() {", func_id);
   inc_indent();
   emit_line("while (%d <= pc && pc < %d && running) {",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
@@ -130,7 +130,7 @@ void target_js(Module* module) {
   emit_line("switch (pc / %d | 0) {", CHUNKED_FUNC_SIZE);
   for (int i = 0; i < num_funcs; i++) {
     emit_line("case %d:", i);
-    emit_line(" page%d();", i);
+    emit_line(" func%d();", i);
     emit_line(" break;");
   }
   emit_line("}");
