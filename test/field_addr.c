@@ -1,4 +1,5 @@
-#include "../libc/libf.h"
+#include <stdio.h>
+#include <stddef.h>
 
 struct S {
   int x;

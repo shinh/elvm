@@ -1,4 +1,4 @@
-#include "../libc/libf.h"
+#include <stdio.h>
 
 int main() {
   putchar(__builtin_mul(22, 5));

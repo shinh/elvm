@@ -1,4 +1,4 @@
-#include "../libc/libf.h"
+#include <stdio.h>
 
 int global = 35;
 

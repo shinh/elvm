@@ -1,4 +1,4 @@
-#include "../libc/libf.h"
+#include <stdio.h>
 
 int main() {
   unsigned int a = 1048575;

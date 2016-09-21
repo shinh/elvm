@@ -1,4 +1,4 @@
-#include "../libc/libf.h"
+#include <stdio.h>
 
 int getchar(void);
 int putchar(int c);

@@ -1,4 +1,4 @@
-#include "../libc/libf.h"
+#include <stdio.h>
 
 int main() {
   const char* p = "Hello, world!\n";
