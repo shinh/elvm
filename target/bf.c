@@ -262,8 +262,6 @@ static int bf_emit_addsub_prep(Inst* inst) {
   int dst = bf_regpos(inst->dst.reg);
   if (inst->src.type == REG) {
     int src = bf_regpos(inst->src.reg);
-    if (src == dst)
-      error("TODO?");
     bf_copy_word(src, BF_WRK, BF_WRK+3);
   } else {
     bf_add_word(BF_WRK, inst->src.imm);

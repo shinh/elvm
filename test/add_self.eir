@@ -1,0 +1,4 @@
+mov A, 33
+add A, A
+putc A
+exit
