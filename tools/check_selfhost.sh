@@ -32,6 +32,10 @@ elif [ ${TARGET} = rb ]; then
     run_trg() {
         /usr/bin/time ruby $1
     }
+elif [ ${TARGET} = ws ]; then
+    run_trg() {
+        (cat /dev/stdin && echo -ne "\0") | /usr/bin/time ./tools/runws.sh $1
+    }
 elif [ ${TARGET} = bf ]; then
     run_trg() {
         /usr/bin/time ./tools/runbf.sh $1

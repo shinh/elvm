@@ -6,6 +6,8 @@
 
 #include <ir/ir.h>
 
+typedef uint32_t uint;
+
 char* format(const char* fmt, ...);
 
 #ifndef __eir__
