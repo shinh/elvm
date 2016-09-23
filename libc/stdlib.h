@@ -5,6 +5,8 @@
 #include "_raw_print.h"
 #include <ctype.h>
 
+#define EXIT_FAILURE 1
+
 typedef struct {
   int quot, rem;
 } div_t;
@@ -12,6 +14,10 @@ typedef struct {
 extern int* _edata;
 
 void exit(int s);
+
+void abort(void) {
+  exit(1);
+}
 
 void* malloc(int n) {
   int* r = _edata;

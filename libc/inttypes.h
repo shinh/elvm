@@ -1,0 +1,4 @@
+#ifndef ELVM_LIBC_INTTYPES_H_
+#define ELVM_LIBC_INTTYPES_H_
+
+#endif  // ELVM_LIBC_INTTYPES_H_

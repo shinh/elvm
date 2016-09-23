@@ -1,4 +1,10 @@
 #ifndef ELVM_LIBC_LIMITS_H_
 #define ELVM_LIBC_LIMITS_H_
 
+#define SIZE_MAX 16777215
+#define INT32_MAX 16777215
+#define INT32_MIN 0
+#define UINT16_MAX 16777215
+#define CHAR_BIT 24
+
 #endif  // ELVM_LIBC_LIMITS_H_
