@@ -111,6 +111,16 @@ static void bef_emit_src(Inst* inst) {
   bef_emit_value(&inst->src);
 }
 
+static void bef_emit_dst(Inst* inst) {
+  bef_emit_value(&inst->dst);
+}
+
+static void bef_emit_store_reg(uint r) {
+  bef_emit('0' + r);
+  bef_emit('0');
+  bef_emit('p');
+}
+
 static void bef_init_state(Data* data) {
   bef_block_init();
   for (uint mp = 0; data; data = data->next, mp++) {
@@ -121,9 +131,7 @@ static void bef_init_state(Data* data) {
 
   for (uint i = 0; i < 6; i++) {
     bef_emit('0');
-    bef_emit('0' + i);
-    bef_emit('0');
-    bef_emit('p');
+    bef_emit_store_reg(i);
   }
   // PC
   bef_emit('0');
@@ -136,80 +144,77 @@ static void bef_init_state(Data* data) {
 }
 
 static void bef_emit_inst(Inst* inst) {
-    switch (inst->op) {
-      case MOV:
-        //ws_emit_op(WS_PUSH, inst->dst.reg);
-        //ws_emit_src(inst, 0);
-        //ws_emit(WS_STORE);
-        break;
+  switch (inst->op) {
+    case MOV:
+      bef_emit_src(inst);
+      bef_emit_store_reg(inst->dst.reg);
+      break;
 
-      case ADD:
-        //ws_emit_addsub(inst, WS_ADD);
-        break;
+    case ADD:
+      bef_emit_dst(inst);
+      bef_emit_src(inst);
+      bef_emit('+');
+      bef_emit_store_reg(inst->dst.reg);
+      break;
 
-      case SUB:
-        //ws_emit_addsub(inst, WS_SUB);
-        break;
+    case SUB:
+      bef_emit_dst(inst);
+      bef_emit_src(inst);
+      bef_emit('-');
+      bef_emit_store_reg(inst->dst.reg);
+      break;
 
-      case LOAD:
-        //ws_emit_op(WS_PUSH, inst->dst.reg);
-        //ws_emit_src(inst, 8);
-        //ws_emit(WS_RETRIEVE);
-        //ws_emit(WS_STORE);
-        break;
+    case LOAD:
+      error("load");
+      break;
 
-      case STORE:
-        //ws_emit_src(inst, 8);
-        //ws_emit_retrieve(inst->dst.reg);
-        //ws_emit(WS_STORE);
-        break;
+    case STORE:
+      error("store");
+      break;
 
-      case PUTC:
-        bef_emit_src(inst);
-        bef_emit(',');
-        break;
+    case PUTC:
+      bef_emit_src(inst);
+      bef_emit(',');
+      break;
 
-      case GETC:
-        //ws_emit_op(WS_PUSH, inst->dst.reg);
-        //ws_emit(WS_GETC);
-        break;
+    case GETC:
+      bef_emit('~');
+      bef_emit_store_reg(inst->dst.reg);
+      break;
 
-      case EXIT:
-        bef_emit('@');
-        break;
+    case EXIT:
+      bef_emit('@');
+      break;
 
-      case DUMP:
-        break;
+    case DUMP:
+      break;
 
-      case EQ:
-      case NE:
-      case LT:
-      case GT:
-      case LE:
-      case GE:
-        //ws_emit_op(WS_PUSH, inst->dst.reg);
-        //ws_emit_cmp_ws(inst, 0, &label);
-        //ws_emit(WS_STORE);
-        break;
+    case EQ:
+    case NE:
+    case LT:
+    case GT:
+    case LE:
+    case GE:
+      error("cond");
+      break;
 
-      case JEQ:
-      case JNE:
-      case JLT:
-      case JGT:
-      case JLE:
-      case JGE:
-        //ws_emit_cmp_ws(inst, 1, &label);
-        //ws_emit_jmp(inst, WS_JZ, reg_jmp);
-        break;
+    case JEQ:
+    case JNE:
+    case JLT:
+    case JGT:
+    case JLE:
+    case JGE:
+      error("jcc");
+      break;
 
-      case JMP:
-        bef_emit_value(&inst->jmp);
-        g_bef.was_jmp = true;
-        break;
+    case JMP:
+      bef_emit_value(&inst->jmp);
+      g_bef.was_jmp = true;
+      break;
 
-      default:
-        error("oops");
-    }
+    default:
+      error("oops");
+  }
 }
 
 static void bef_flush_code_block() {

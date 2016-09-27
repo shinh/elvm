@@ -1,0 +1,8 @@
+getc A
+putc A
+getc B
+putc B
+getc C
+putc C
+exit
+
