@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -17,8 +18,10 @@ typedef struct {
 Befunge g_bef;
 
 static void bef_emit(uint c);
+static void bef_flush_code_block();
 
 static void bef_clear_block_line(int y) {
+  assert(y < 97);
   for (uint i = 0; i < 78; i++)
     g_bef.block[y][i] = ' ';
   g_bef.block[y][79] = '\0';
@@ -123,6 +126,60 @@ static void bef_make_room() {
   }
 }
 
+static void bef_emit_cmp(Inst* inst) {
+  uint op = normalize_cond(inst->op, false);
+  if (op == JLT || op == JGE) {
+    bef_emit_src(inst);
+    bef_emit_dst(inst);
+    op = op == JLT ? JGT : JLE;
+  } else {
+    bef_emit_dst(inst);
+    bef_emit_src(inst);
+  }
+  switch (op) {
+    case JEQ:
+      bef_emit_s("-!");
+      break;
+    case JNE:
+      bef_emit_s("-!!");
+      break;
+    case JGT:
+      bef_emit_s("`");
+      break;
+    case JLE:
+      bef_emit_s("`!");
+      break;
+  }
+}
+
+static void bef_emit_jmp(Inst* inst) {
+  bef_emit_cmp(inst);
+  bef_make_room();
+  bef_emit_s("#v_v");
+
+  int x = g_bef.x;
+  int y = g_bef.y;
+  bef_clear_block_line(y + 1);
+  bef_clear_block_line(y + 2);
+
+  if (g_bef.vx == 1) {
+    x -= 1;
+  } else {
+    x += 3;
+  }
+
+  g_bef.block[y + 2][x] = '<';
+  g_bef.block[y + 2][x - 1] = '$';
+
+  x -= 2;
+  g_bef.block[y + 1][x] = '<';
+  g_bef.block[y + 1][6] = '^';
+
+  g_bef.x = x - 1;
+  g_bef.y = y + 2;
+  g_bef.vx = -1;
+}
+
 static void bef_init_state(Data* data) {
   bef_block_init();
   for (uint mp = 0; data; data = data->next, mp++) {
@@ -130,7 +187,13 @@ static void bef_init_state(Data* data) {
       bef_emit_num(data->v);
       bef_emit('0');
       bef_emit_num(mp);
+      bef_emit_num(BEF_MEM);
+      bef_emit('+');
       bef_emit('p');
+
+      if (g_bef.y >= 90) {
+        bef_flush_code_block();
+      }
     }
   }
 
@@ -159,6 +222,8 @@ static void bef_emit_inst(Inst* inst) {
       bef_emit_dst(inst);
       bef_emit_src(inst);
       bef_emit('+');
+      bef_emit_num(1 << 24);
+      bef_emit('%');
       bef_emit_store_reg(inst->dst.reg);
       break;
 
@@ -166,6 +231,8 @@ static void bef_emit_inst(Inst* inst) {
       bef_emit_dst(inst);
       bef_emit_src(inst);
       bef_emit('-');
+      bef_emit_num(1 << 24);
+      bef_emit('%');
       bef_emit_store_reg(inst->dst.reg);
       break;
 
@@ -220,7 +287,8 @@ static void bef_emit_inst(Inst* inst) {
     case GT:
     case LE:
     case GE:
-      error("cond");
+      bef_emit_cmp(inst);
+      bef_emit_store_reg(inst->dst.reg);
       break;
 
     case JEQ:
@@ -229,7 +297,8 @@ static void bef_emit_inst(Inst* inst) {
     case JGT:
     case JLE:
     case JGE:
-      error("jcc");
+      bef_emit_value(&inst->jmp);
+      bef_emit_jmp(inst);
       break;
 
     case JMP:
