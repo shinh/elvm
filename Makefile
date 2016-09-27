@@ -1,6 +1,6 @@
 COMMONFLAGS := -W -Wall -W -Werror -MMD -MP -O -g -Wno-missing-field-initializers
 CFLAGS := -std=gnu99 -m32 $(COMMONFLAGS) -Wno-missing-field-initializers
-CXXFLAGS := $(COMMONFLAGS)
+CXXFLAGS := -std=c++11 $(COMMONFLAGS)
 
 ELI := out/eli
 ELC := out/elc
@@ -17,7 +17,7 @@ ELC := out/elc
 	8cc/dict.c \
 	8cc/gen.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/bfopt tinycc/tcc
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -34,6 +34,9 @@ $(8CC_SRCS) Whitespace/whitespace.c tinycc/configure: out/git_submodule.stamp
 
 Whitespace/whitespace.out: Whitespace/whitespace.c
 	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
+
+out/befunge: tools/befunge.cc
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 out/bfopt: tools/bfopt.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -188,10 +191,9 @@ TEST_FILTER := out/eli.c.eir.ws
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
 
-#TARGET := bef
-#RUNNER := tools/runbf.sh
-#include target.mk
-#$(OUT.eir.bf.out): tools/runbf.sh
+TARGET := bef
+RUNNER := out/befunge
+include target.mk
 
 TARGET := bf
 RUNNER := tools/runbf.sh
