@@ -121,6 +121,15 @@ static void bef_emit_store_reg(uint r) {
   bef_emit('p');
 }
 
+static void bef_make_room() {
+  uint r = g_bef.vx == 1 ? 79 - g_bef.x : g_bef.x - 10;
+  if (r < 10) {
+    uint y = g_bef.y;
+    while (y == g_bef.y)
+      bef_emit(' ');
+  }
+}
+
 static void bef_init_state(Data* data) {
   bef_block_init();
   for (uint mp = 0; data; data = data->next, mp++) {
@@ -177,10 +186,20 @@ static void bef_emit_inst(Inst* inst) {
       bef_emit(',');
       break;
 
-    case GETC:
-      bef_emit('~');
+    case GETC: {
+      bef_make_room();
+      bef_emit_s("#v~v");
+      g_bef.y++;
+      bef_clear_block_line(g_bef.y);
+      g_bef.x += g_bef.vx == 1 ? -3 : 3;
+      bef_emit(g_bef.vx == 1 ? '>' : '<');
+      bef_emit('0');
+      bef_emit(g_bef.vx == 1 ? '>' : '<');
+      // To support implementations which return -1 on EOF.
+      bef_emit_s(":1+!+");
       bef_emit_store_reg(inst->dst.reg);
       break;
+    }
 
     case EXIT:
       bef_emit('@');
@@ -223,11 +242,11 @@ static void bef_flush_code_block() {
     g_bef.y++;
     bef_clear_block_line(g_bef.y);
     g_bef.block[g_bef.y][g_bef.x] = '<';
-    if (g_bef.was_jmp) {
-      g_bef.block[g_bef.y][6] = '^';
-    } else {
-      g_bef.block[g_bef.y][10] = 'v';
-    }
+  }
+  if (g_bef.was_jmp) {
+    g_bef.block[g_bef.y][6] = '^';
+  } else {
+    g_bef.block[g_bef.y][10] = 'v';
   }
 
   memcpy(g_bef.block[0], ">:#v_$", 6);

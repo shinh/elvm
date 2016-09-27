@@ -21,7 +21,7 @@ volatile bool signaled;
 
 bool debug = false;
 bool verbose = false;
-bool bounce_on_fail_input = false;
+bool bounce_on_fail_input = true;
 
 inline void step() {
   if (vx) {
