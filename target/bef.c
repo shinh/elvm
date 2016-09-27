@@ -90,13 +90,6 @@ static void bef_emit_num(uint v) {
   }
 }
 
-static void bef_store(uint addr, uint val) {
-  bef_emit_num(val);
-  bef_emit('0');
-  bef_emit_num(addr);
-  bef_emit('p');
-}
-
 static void bef_emit_value(Value* v) {
   if (v->type == REG) {
     bef_emit('0' + v->reg);
@@ -134,7 +127,10 @@ static void bef_init_state(Data* data) {
   bef_block_init();
   for (uint mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      bef_store(mp, data->v);
+      bef_emit_num(data->v);
+      bef_emit('0');
+      bef_emit_num(mp);
+      bef_emit('p');
     }
   }
 
@@ -174,11 +170,21 @@ static void bef_emit_inst(Inst* inst) {
       break;
 
     case LOAD:
-      error("load");
+      bef_emit('0');
+      bef_emit_src(inst);
+      bef_emit_num(BEF_MEM);
+      bef_emit('+');
+      bef_emit('g');
+      bef_emit_store_reg(inst->dst.reg);
       break;
 
     case STORE:
-      error("store");
+      bef_emit_dst(inst);
+      bef_emit('0');
+      bef_emit_src(inst);
+      bef_emit_num(BEF_MEM);
+      bef_emit('+');
+      bef_emit('p');
       break;
 
     case PUTC:
