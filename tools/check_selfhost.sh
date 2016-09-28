@@ -40,6 +40,10 @@ elif [ ${TARGET} = bf ]; then
     run_trg() {
         /usr/bin/time ./tools/runbf.sh $1
     }
+elif [ ${TARGET} = bef ]; then
+    run_trg() {
+        /usr/bin/time ./out/befunge $1
+    }
 else
     echo "Unknown target: ${TARGET}"
     exit 1
