@@ -18,7 +18,6 @@ typedef struct {
 Befunge g_bef;
 
 static void bef_emit(uint c);
-static void bef_flush_code_block();
 
 static void bef_clear_block_line(int y) {
   assert(y < 97);
@@ -91,6 +90,13 @@ static void bef_emit_num(uint v) {
         bef_emit(op);
     }
   }
+}
+
+static void bef_emit_uint_mod() {
+  for (int i = 0; i < 8; i++)
+    bef_emit('8');
+  for (int i = 0; i < 7; i++)
+    bef_emit('*');
 }
 
 static void bef_emit_value(Value* v) {
@@ -180,37 +186,6 @@ static void bef_emit_jmp(Inst* inst) {
   g_bef.vx = -1;
 }
 
-static void bef_init_state(Data* data) {
-  bef_block_init();
-  for (uint mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      bef_emit_num(data->v);
-      bef_emit('0');
-      bef_emit_num(mp);
-      bef_emit_num(BEF_MEM);
-      bef_emit('+');
-      bef_emit('p');
-
-      if (g_bef.y >= 90) {
-        bef_flush_code_block();
-      }
-    }
-  }
-
-  for (uint i = 0; i < 6; i++) {
-    bef_emit('0');
-    bef_emit_store_reg(i);
-  }
-  // PC
-  bef_emit('0');
-
-  while (g_bef.y == 0) {
-    bef_emit(' ');
-  }
-  g_bef.block[g_bef.y][0] = 'v';
-  g_bef.block[g_bef.y][6] = '<';
-}
-
 static void bef_emit_inst(Inst* inst) {
   switch (inst->op) {
     case MOV:
@@ -222,7 +197,7 @@ static void bef_emit_inst(Inst* inst) {
       bef_emit_dst(inst);
       bef_emit_src(inst);
       bef_emit('+');
-      bef_emit_num(1 << 24);
+      bef_emit_uint_mod();
       bef_emit('%');
       bef_emit_store_reg(inst->dst.reg);
       break;
@@ -231,7 +206,9 @@ static void bef_emit_inst(Inst* inst) {
       bef_emit_dst(inst);
       bef_emit_src(inst);
       bef_emit('-');
-      bef_emit_num(1 << 24);
+      bef_emit_uint_mod();
+      bef_emit('+');
+      bef_emit_uint_mod();
       bef_emit('%');
       bef_emit_store_reg(inst->dst.reg);
       break;
@@ -327,6 +304,37 @@ static void bef_flush_code_block() {
   memcpy(g_bef.block[0], ">:#v_$", 6);
   memcpy(g_bef.block[1], "v-1<> ", 6);
   bef_block_init();
+}
+
+static void bef_init_state(Data* data) {
+  bef_block_init();
+  for (uint mp = 0; data; data = data->next, mp++) {
+    if (data->v) {
+      bef_emit_num(data->v);
+      bef_emit('0');
+      bef_emit_num(mp);
+      bef_emit_num(BEF_MEM);
+      bef_emit('+');
+      bef_emit('p');
+
+      if (g_bef.y > 90) {
+        bef_flush_code_block();
+      }
+    }
+  }
+
+  for (uint i = 0; i < 6; i++) {
+    bef_emit('0');
+    bef_emit_store_reg(i);
+  }
+  // PC
+  bef_emit('0');
+
+  while (g_bef.y == 0) {
+    bef_emit(' ');
+  }
+  g_bef.block[g_bef.y][0] = 'v';
+  g_bef.block[g_bef.y][6] = '<';
 }
 
 void target_bef(Module* module) {
