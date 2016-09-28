@@ -19,9 +19,19 @@ int vx, vy;
 vector<int> st;
 volatile bool signaled;
 
+struct State {
+  State()
+      : x(-1), y(-1), vx(-1), vy(-1) {
+  }
+  bool valid() const { return x != -1; }
+  int x, y, vx, vy;
+};
+vector<vector<State> > route;
+
 bool debug = false;
 bool verbose = false;
 bool bounce_on_fail_input = true;
+bool static_routing = false;
 
 inline int size(const vector<int>* l) {
   return l ? l->size() : 0;
@@ -116,6 +126,56 @@ void handleUnsupportedOp(char op) {
   exit(1);
 }
 
+void skip() {
+  if (!static_routing || iy == 0 || iy >= (int)route.size())
+    return;
+  int ox = ix;
+  int oy = iy;
+  if ((int)route[iy].size() <= ix) {
+    route[iy].resize(ix + 1);
+  }
+  State st = route[iy][ix];
+  if (!st.valid()) {
+    bool done = false;
+    while (!done) {
+      step();
+      int op = (*code[iy])[ix];
+      switch (op) {
+        case '<':
+          vx = -1;
+          vy = 0;
+          break;
+        case '>':
+          vx = 1;
+          vy = 0;
+          break;
+        case '^':
+          vx = 0;
+          vy = -1;
+          break;
+        case 'v':
+          vx = 0;
+          vy = 1;
+          break;
+        case ' ':
+          break;
+        default:
+          done = true;
+          break;
+      }
+    }
+    st.x = ix - vx;
+    st.y = iy - vy;
+    st.vx = vx;
+    st.vy = vy;
+    route[oy][ox] = st;
+  }
+  ix = st.x;
+  iy = st.y;
+  vx = st.vx;
+  vy = st.vy;
+}
+
 int main(int argc, char* argv[]) {
   srand(time(NULL));
 
@@ -126,6 +186,8 @@ int main(int argc, char* argv[]) {
       debug = true;
     } else if (!strcmp(argv[1], "-v")) {
       verbose = true;
+    } else if (!strcmp(argv[1], "-f")) {
+      static_routing = true;
     } else {
       fprintf(stderr, "unknown switch %s\n", argv[1]);
       return 1;
@@ -158,6 +220,10 @@ int main(int argc, char* argv[]) {
   }
   fclose(fp);
 
+  if (static_routing) {
+    route.resize(code.size());
+  }
+
 #if 0
   signal(SIGINT, &handleSignal);
   signal(SIGSEGV, &handleSignal);
@@ -173,18 +239,22 @@ int main(int argc, char* argv[]) {
     case '<':
       vx = -1;
       vy = 0;
+      skip();
       break;
     case '>':
       vx = 1;
       vy = 0;
+      skip();
       break;
     case '^':
       vx = 0;
       vy = -1;
+      skip();
       break;
     case 'v':
       vx = 0;
       vy = 1;
+      skip();
       break;
 
     case '_':
@@ -372,6 +442,10 @@ int main(int argc, char* argv[]) {
         if (!code[y])
           code[y] = new vector<int>();
         code[y]->resize(x + 1);
+      }
+      if (static_routing && y != 0 && y < (int)route.size()) {
+        fprintf(stderr, "writing to x=%d y=%d is invalid with -f\n", x, y);
+        exit(1);
       }
       (*code[y])[x] = v;
       break;

@@ -42,7 +42,7 @@ elif [ ${TARGET} = bf ]; then
     }
 elif [ ${TARGET} = bef ]; then
     run_trg() {
-        /usr/bin/time ./out/befunge $1
+        /usr/bin/time ./out/befunge -f $1
     }
 else
     echo "Unknown target: ${TARGET}"
