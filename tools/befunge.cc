@@ -13,7 +13,7 @@
 
 using namespace std;
 
-vector<vector<int> > code;
+vector<vector<int>*> code;
 int ix, iy;
 int vx, vy;
 vector<int> st;
@@ -23,12 +23,16 @@ bool debug = false;
 bool verbose = false;
 bool bounce_on_fail_input = true;
 
+inline int size(const vector<int>* l) {
+  return l ? l->size() : 0;
+}
+
 inline void step() {
   if (vx) {
     ix += vx;
     if (ix < 0)
-      ix = (int)code[iy].size() - 1;
-    else if (ix >= (int)code[iy].size())
+      ix = size(code[iy]) - 1;
+    else if (ix >= size(code[iy]))
       ix = 0;
     return;
   }
@@ -40,15 +44,15 @@ restep:
   }
   else if (iy >= (int)code.size()) {
     iy = 0;
-  } else if (ix >= (int)code[iy].size()) {
+  } else if (ix >= size(code[iy])) {
     goto restep;
   }
 }
 
 inline int get() {
   assert(iy < (int)code.size());
-  if (ix < (int)code[iy].size())
-    return code[iy][ix];
+  if (ix < size(code[iy]))
+    return (*code[iy])[ix];
   else
     return 0;
 }
@@ -75,8 +79,8 @@ static void dump() {
   //fprintf(stderr, "%sc", "\x1b");
   fprintf(stderr, "=== MEMORY ===\n");
   for (int y = 0; y < (int)code.size(); y++) {
-    for (int x = 0; x < (int)code[y].size(); x++) {
-      char c = code[y][x];
+    for (int x = 0; x < size(code[y]); x++) {
+      char c = (*code[y])[x];
       bool color = true;
       if (x == ix && y == iy) {
         fprintf(stderr, "\x1b[41m");
@@ -147,9 +151,9 @@ int main(int argc, char* argv[]) {
     if (buf[len-1] == '\n') {
       buf[len-1] = '\0';
     }
-    code.push_back(vector<int>());
+    code.push_back(new vector<int>());
     for (char* p = buf; *p; p++) {
-      code.back().push_back(*p);
+      code.back()->push_back(*p);
     }
   }
   fclose(fp);
@@ -163,7 +167,7 @@ int main(int argc, char* argv[]) {
   vx = 1;
   vy = 0;
   for (;;) {
-    int op = code[iy][ix];
+    int op = (*code[iy])[ix];
     //fprintf(stderr, "op=%c\n", op);
     switch (op) {
     case '<':
@@ -226,9 +230,9 @@ int main(int argc, char* argv[]) {
 
     case '#':
       step();
-      if (debug && code[iy][ix] == 'S') {
+      if (debug && (*code[iy])[ix] == 'S') {
         dump();
-      } else if (verbose && code[iy][ix] == 'V') {
+      } else if (verbose && (*code[iy])[ix] == 'V') {
         dump();
       }
       break;
@@ -344,8 +348,8 @@ int main(int argc, char* argv[]) {
       int y = pop();
       int x = pop();
       int v = 0;
-      if (y >= 0 && x >= 0 && y < (int)code.size() && x < (int)code[y].size())
-        v = code[y][x];
+      if (y >= 0 && x >= 0 && y < (int)code.size() && x < size(code[y]))
+        v = (*code[y])[x];
       //fprintf(stderr, "g x=%d y=%d v=%d\n", x, y, v);
       push(v);
       break;
@@ -364,10 +368,12 @@ int main(int argc, char* argv[]) {
       if (y >= (int)code.size()) {
         code.resize(y + 1);
       }
-      if (x >= (int)code[y].size()) {
-        code[y].resize(x + 1);
+      if (x >= size(code[y])) {
+        if (!code[y])
+          code[y] = new vector<int>();
+        code[y]->resize(x + 1);
       }
-      code[y][x] = v;
+      (*code[y])[x] = v;
       break;
     }
 
