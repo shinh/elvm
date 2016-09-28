@@ -240,7 +240,7 @@ static void x86_emit_inst(Inst* inst, int* pc2addr, int rodata_addr) {
 
       // pop EBX, EDX, ECX, EAX
       emit_4(0x5b, 0x5a, 0x59, 0x58);
-      emit_mov_reg(inst->src.reg, EDI);
+      emit_mov_reg(inst->dst.reg, EDI);
       // pop EDI
       emit_1(0x5f);
       break;
