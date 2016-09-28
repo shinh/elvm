@@ -9,6 +9,8 @@
 
 #include <ir/table.h>
 
+static bool g_split_basic_block_by_mem = false;
+
 typedef struct DataPrivate_ {
   int v;
   struct DataPrivate_* next;
@@ -382,8 +384,10 @@ static void parse_line(Parser* p, int c) {
   switch (op) {
     case LOAD:
     case STORE:
-      p->pc++;
-      p->prev_boundary = true;
+      if (g_split_basic_block_by_mem) {
+        p->pc++;
+        p->prev_boundary = true;
+      }
     case MOV:
     case ADD:
     case SUB:
@@ -520,6 +524,10 @@ Module* load_eir_from_file(const char* filename) {
   Module* r = load_eir_impl(filename, fp);
   fclose(fp);
   return r;
+}
+
+void split_basic_block_by_mem() {
+  g_split_basic_block_by_mem = true;
 }
 
 void dump_op(Op op, FILE* fp) {

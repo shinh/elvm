@@ -61,6 +61,8 @@ Module* load_eir(FILE* fp);
 
 Module* load_eir_from_file(const char* filename);
 
+void split_basic_block_by_mem();
+
 void dump_inst(Inst* inst);
 void dump_inst_fp(Inst* inst, FILE* fp);
 

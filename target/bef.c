@@ -8,7 +8,7 @@
 static const uint BEF_MEM = 4782969;  // 9**7
 
 typedef struct {
-  char block[99][80];
+  char block[299][80];
   uint x;
   uint y;
   uint vx;
@@ -20,7 +20,7 @@ Befunge g_bef;
 static void bef_emit(uint c);
 
 static void bef_clear_block_line(int y) {
-  assert(y < 97);
+  assert(y < 297);
   for (uint i = 0; i < 78; i++)
     g_bef.block[y][i] = ' ';
   g_bef.block[y][79] = '\0';

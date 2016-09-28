@@ -34,6 +34,7 @@ static target_func_t get_target_func(const char* ext) {
   } else if (!strcmp(ext, "bef")) {
     return target_bef;
   } else if (!strcmp(ext, "bf")) {
+    split_basic_block_by_mem();
     return target_bf;
   } else {
     error("unknown flag: %s", ext);
