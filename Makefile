@@ -178,7 +178,7 @@ include target.mk
 
 TARGET := el
 RUNNER := emacs --no-site-file --script
-#include target.mk
+include target.mk
 
 TARGET := c
 RUNNER := tools/runc.sh

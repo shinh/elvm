@@ -12,7 +12,7 @@ ext=$(echo ${cmd} | sed 's/.*\.//')
 ins=$(/bin/ls */${name}*.in 2> /dev/null || true)
 
 if [ -z "${ins}" ]; then
-    ${cmd} > ${tmp}
+    ${cmd} < /dev/null > ${tmp}
 else
     rm -f ${tmp}
     for i in ${ins}; do
