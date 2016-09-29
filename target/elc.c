@@ -8,6 +8,7 @@
 void target_rb(Module* module);
 void target_py(Module* module);
 void target_js(Module* module);
+void target_el(Module* module);
 void target_c(Module* module);
 void target_x86(Module* module);
 void target_ws(Module* module);
@@ -23,6 +24,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_py;
   } else if (!strcmp(ext, "js")) {
     return target_js;
+  } else if (!strcmp(ext, "el")) {
+    return target_el;
   } else if (!strcmp(ext, "c")) {
     return target_c;
   } else if (!strcmp(ext, "x86")) {
