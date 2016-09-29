@@ -2,6 +2,7 @@
 #include <target/util.h>
 
 static void init_state_el(Data* data) {
+  emit_line("(setq elvm-main (lambda ()");
   emit_line("(load \"cl\" nil t)");
   for (int i = 0; i < 7; i++) {
     emit_line("(setq %s 0)", reg_names[i]);
@@ -134,18 +135,7 @@ static void el_emit_inst(Inst* inst) {
 
 void target_el(Module* module) {
   init_state_el(module->data);
-
-  emit_line("(defun getchar ()");
-  emit_line(" (if (eq (length elvm-input) 0) 0");
-  emit_line("  (setq r (string-to-char elvm-input))");
-  emit_line("  (setq elvm-input (substring elvm-input 1))");
-  emit_line("  r))");
-  emit_line("(defun putchar (c) (princ (char-to-string c)))");
   emit_line("(setq elvm-running t)");
-  emit_line("(setq elvm-input");
-  emit_line(" (with-temp-buffer");
-  emit_line("  (insert-file-contents \"/dev/stdin\")");
-  emit_line("  (buffer-string)))");
 
   int num_funcs = emit_chunked_main_loop(module->text,
                                          el_emit_func_prologue,
@@ -163,4 +153,19 @@ void target_el(Module* module) {
   emit_line(")");
   dec_indent();
   emit_line(")");
+
+  emit_line("))");
+
+  emit_line("(defun getchar ()");
+  emit_line(" (if (eq (length elvm-input) 0) 0");
+  emit_line("  (setq r (string-to-char elvm-input))");
+  emit_line("  (setq elvm-input (substring elvm-input 1))");
+  emit_line("  r))");
+  emit_line("(if noninteractive (progn");
+  emit_line(" (setq elvm-input");
+  emit_line("  (with-temp-buffer");
+  emit_line("   (insert-file-contents \"/dev/stdin\")");
+  emit_line("   (buffer-string)))");
+  emit_line(" (defun putchar (c) (princ (char-to-string c)))");
+  emit_line(" (funcall elvm-main)))");
 }
