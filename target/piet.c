@@ -159,7 +159,6 @@ static void piet_reg_jmp_table(int min_pc, int max_pc, int last_label) {
   piet_dup();
   piet_push(mid_pc-1);
   emit_line("gt");
-  emit_line("not");
   piet_bz(last_label + mid_pc);
   piet_reg_jmp_table(mid_pc, max_pc, last_label);
   piet_label(last_label + mid_pc);
@@ -314,5 +313,6 @@ void target_piet(Module* module) {
     piet_emit_inst(inst, reg_jmp);
   }
 
+  piet_label(reg_jmp);
   piet_reg_jmp_table(0, reg_jmp, piet_gen_label());
 }

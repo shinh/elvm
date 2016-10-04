@@ -1,0 +1,8 @@
+mov A, l
+jmp A
+putc 78
+exit
+l:
+putc 89
+exit
+
