@@ -66,8 +66,8 @@ static void piet_store(uint pos, uint val) {
 }
 
 static void piet_init_state(Data* data) {
-  //emit_line("16777216");
-  emit_line("65536");
+  //emit_line("16777223");
+  emit_line("65543");  // 65536 + 7
   uint loop_id = piet_gen_label();
   uint done_id = piet_gen_label();
   piet_label(loop_id);
@@ -82,7 +82,7 @@ static void piet_init_state(Data* data) {
 
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      piet_store(PIET_MEM + mp, data->v);
+      piet_store(PIET_MEM + mp, data->v & 65535);
     }
   }
 }
@@ -91,7 +91,7 @@ static void piet_push_value(Value* v, uint stk) {
   if (v->type == REG) {
     piet_load(PIET_A + v->reg + stk);
   } else if (v->type == IMM) {
-    piet_push(v->imm);
+    piet_push(v->imm & 65535);
   } else {
     error("invalid value");
   }
