@@ -195,7 +195,7 @@ static void piet_push_value(PietInst** pi, Value* v, uint stk) {
   if (v->type == REG) {
     piet_load(pi, PIET_A + v->reg + stk);
   } else if (v->type == IMM) {
-    piet_push(pi, v->imm & 65535);
+    piet_push(pi, v->imm % 65536);
   } else {
     error("invalid value");
   }

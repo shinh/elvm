@@ -82,7 +82,7 @@ static void pietasm_init_state(Data* data) {
 
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      pietasm_store(PIETASM_MEM + mp, data->v & 65535);
+      pietasm_store(PIETASM_MEM + mp, data->v % 65536);
     }
   }
 }
@@ -91,7 +91,7 @@ static void pietasm_push_value(Value* v, uint stk) {
   if (v->type == REG) {
     pietasm_load(PIETASM_A + v->reg + stk);
   } else if (v->type == IMM) {
-    pietasm_push(v->imm & 65535);
+    pietasm_push(v->imm % 65536);
   } else {
     error("invalid value");
   }
