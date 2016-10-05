@@ -154,19 +154,6 @@ enum {
   PIET_MEM
 };
 
-static uint g_piet_label_id;
-static uint piet_gen_label() {
-  return ++g_piet_label_id;
-}
-
-static void piet_label(uint id) {
-  emit_line("_track_%u:", id);
-}
-
-static void piet_br(uint id) {
-  emit_line("br._track_%u", id);
-}
-
 static void piet_bz(uint id) {
   emit_line("bz._track_%u", id);
 }
@@ -366,11 +353,15 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     break;
 
   case GETC: {
+    // TODO: Handle EOF
+#if 0
     piet_push(pi, 256);
-    emit_line("in");
+#endif
+    piet_emit(pi, PIET_IN);
+#if 0
     piet_emit(pi, PIET_DUP);
     piet_push(pi, 256);
-    emit_line("sub");
+    piet_emit(pi, PIET_SUB);
 
     uint zero_id = piet_gen_label();
     uint done_id = piet_gen_label();
@@ -385,6 +376,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push(pi, 0);
 
     piet_label(done_id);
+#endif
     piet_store_top(pi, PIET_A + inst->dst.reg);
 
     break;
