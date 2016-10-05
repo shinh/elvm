@@ -72,10 +72,8 @@ typedef struct PietBlock {
   struct PietBlock* next;
 } PietBlock;
 
+#if PIET_DUMP_INST
 static void dump_piet_inst(PietInst* pi) {
-#if !PIET_DUMP_INST
-  return;
-#endif
   static const char* PIET_INST_NAMES[] = {
     "push",
     "pop",
@@ -104,6 +102,7 @@ static void dump_piet_inst(PietInst* pi) {
   }
   fprintf(stderr, "\n");
 }
+#endif
 
 static void piet_emit_a(PietInst** pi, uint op, uint arg) {
   (*pi)->next = calloc(1, sizeof(PietInst));
@@ -482,6 +481,7 @@ void target_piet(Module* module) {
       longest_block = block_len;
   }
 
+#if PIET_DUMP_INST
   pc = 0;
   for (pb = pb_head.next; pb; pb = pb->next) {
     fprintf(stderr, "\npc=%d:\n", pc++);
@@ -490,6 +490,7 @@ void target_piet(Module* module) {
       dump_piet_inst(pi);
     }
   }
+#endif
 
   PietInst init_state = {};
   uint init_state_size = piet_init_state(module->data, &init_state);
