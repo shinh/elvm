@@ -1,10 +1,10 @@
 .text
- mov A, val
- load B, A
- putc B
- add A, 1
- load B, A
- putc B
+ mov B, val
+ load A, B
+ putc A
+ add B, 1
+ load A, B
+ putc A
  exit
 
 .data
