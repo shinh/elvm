@@ -1,10 +1,15 @@
 mov B, 77
 store B, 300
-load A, 300
+mov C, 300
+load A, C
+load A, C
 putc A
 mov B, 69
-store B, 30
-load A, 30
+mov C, 30
+store B, C
+store B, C
+load A, C
+load A, C
 putc A
 add A, 8
 putc A

@@ -1,0 +1,16 @@
+mov B, 77
+store B, 300
+load A, 300
+load A, 300
+putc A
+mov B, 69
+store B, 30
+store B, 30
+load A, 30
+putc A
+add A, 8
+putc A
+load A, 556
+add A, 10
+putc A
+exit

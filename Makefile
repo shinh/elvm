@@ -75,7 +75,7 @@ $(8CC): $(8CC_SRCS)
 $(shell mkdir -p out)
 TEST_RESULTS :=
 
-SRCS := $(wildcard test/*.eir)
+SRCS := $(sort $(wildcard test/*.eir))
 DSTS := $(SRCS:test/%.eir=out/%.eir)
 OUT.eir := $(DSTS)
 $(DSTS): out/%.eir: test/%.eir
