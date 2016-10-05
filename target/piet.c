@@ -154,10 +154,6 @@ enum {
   PIET_MEM
 };
 
-static void piet_bz(uint id) {
-  emit_line("bz._track_%u", id);
-}
-
 static void piet_roll(PietInst** pi, uint depth, uint count) {
   piet_push(pi, depth);
   piet_push(pi, count);
@@ -236,38 +232,36 @@ static void piet_uint_mod() {
   emit_line("65536 mod");
 }
 
-static void piet_cmp(PietInst** pi, Inst* inst, bool is_jmp) {
-  Op op = normalize_cond(inst->op, is_jmp);
+static void piet_cmp(PietInst** pi, Inst* inst, int stk) {
+  Op op = normalize_cond(inst->op, false);
   if (op == JLT) {
     op = JGT;
-    piet_push_src(pi, inst, 0);
-    piet_push_dst(pi, inst, 1);
+    piet_push_src(pi, inst, stk);
+    piet_push_dst(pi, inst, stk + 1);
   } else if (op == JGE) {
     op = JLE;
-    piet_push_src(pi, inst, 0);
-    piet_push_dst(pi, inst, 1);
+    piet_push_src(pi, inst, stk);
+    piet_push_dst(pi, inst, stk + 1);
   } else {
-    piet_push_dst(pi, inst, 0);
-    piet_push_src(pi, inst, 1);
+    piet_push_dst(pi, inst, stk);
+    piet_push_src(pi, inst, stk + 1);
   }
   switch (op) {
   case JEQ:
-    emit_line("sub");
-    emit_line("not");
+    piet_emit(pi, PIET_SUB);
+    piet_emit(pi, PIET_NOT);
     break;
   case JNE:
-    emit_line("sub");
-    if (!is_jmp) {
-      emit_line("not");
-      emit_line("not");
-    }
+    piet_emit(pi, PIET_SUB);
+    piet_emit(pi, PIET_NOT);
+    piet_emit(pi, PIET_NOT);
     break;
   case JGT:
-    emit_line("gt");
+    piet_emit(pi, PIET_GT);
     break;
   case JLE:
-    emit_line("gt");
-    emit_line("not");
+    piet_emit(pi, PIET_GT);
+    piet_emit(pi, PIET_NOT);
     break;
   default:
     error("cmp");
@@ -395,7 +389,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   case GT:
   case LE:
   case GE:
-    piet_cmp(pi, inst, false);
+    piet_cmp(pi, inst, 0);
     piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
@@ -405,12 +399,13 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
-    piet_cmp(pi, inst, true);
-    if (inst->jmp.type == REG) {
-      error("jcc reg");
-    } else {
-      piet_bz(inst->jmp.imm);
-    }
+    piet_push(pi, inst->pc + 1);
+    piet_push_value(pi, &inst->jmp, 1);
+    piet_push(pi, 2);
+    piet_cmp(pi, inst, 3);
+    piet_emit(pi, PIET_ROLL);
+    piet_emit(pi, PIET_POP);
+    piet_emit(pi, PIET_JMP);
     break;
 
   case JMP:
