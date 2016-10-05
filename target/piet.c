@@ -521,6 +521,10 @@ void target_piet(Module* module) {
     }
 
     if ((x == 1 || i == INIT_STACK_SIZE - 1) && dx == -1) {
+      while (x >= w - 2) {
+        pixels[(y+0)*w+x+0] = 1;
+        x--;
+      }
       pixels[(y+0)*w+x+0] = 1;
       pixels[(y+0)*w+x-1] = 1;
       pixels[(y-1)*w+x-1] = 1;
