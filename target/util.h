@@ -7,6 +7,7 @@
 #include <ir/ir.h>
 
 typedef uint32_t uint;
+typedef uint8_t byte;
 
 char* format(const char* fmt, ...);
 

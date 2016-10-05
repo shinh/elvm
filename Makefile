@@ -52,7 +52,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c c.c x86.c ws.c pietasm.c bef.c bf.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c el.c c.c x86.c ws.c piet.c pietasm.c bef.c bf.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -213,6 +213,11 @@ RUNNER := tools/runpietasm.sh
 include target.mk
 $(OUT.eir.piet.out): tools/runpietasm.sh
 endif
+
+TARGET := piet
+RUNNER := tools/runpiet.sh
+include target.mk
+$(OUT.eir.piet.out): tools/runpiet.sh
 
 test: $(TEST_RESULTS)
 
