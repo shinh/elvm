@@ -144,6 +144,12 @@ static void piet_push(PietInst** pi, uint v) {
   }
 }
 
+static void piet_push_minus1(PietInst** pi) {
+  piet_push(pi, 0);
+  piet_push(pi, 1);
+  piet_emit(pi, PIET_SUB);
+}
+
 enum {
   PIET_A = 1,
   PIET_B,
@@ -227,9 +233,10 @@ static void piet_push_src(PietInst** pi, Inst* inst, uint stk) {
   piet_push_value(pi, &inst->src, stk);
 }
 
-static void piet_uint_mod() {
+static void piet_uint_mod(PietInst** pi) {
   //emit_line("16777216 mod");
-  emit_line("65536 mod");
+  piet_push(pi, 65536);
+  piet_emit(pi, PIET_MOD);
 }
 
 static void piet_cmp(PietInst** pi, Inst* inst, int stk) {
@@ -297,16 +304,16 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   case ADD:
     piet_push_dst(pi, inst, 0);
     piet_push_src(pi, inst, 1);
-    emit_line("add");
-    piet_uint_mod();
+    piet_emit(pi, PIET_ADD);
+    piet_uint_mod(pi);
     piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case SUB:
     piet_push_dst(pi, inst, 0);
     piet_push_src(pi, inst, 1);
-    emit_line("sub");
-    piet_uint_mod();
+    piet_emit(pi, PIET_SUB);
+    piet_uint_mod(pi);
     piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
@@ -314,14 +321,16 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push_src(pi, inst, 0);
 
     piet_push(pi, PIET_MEM + 1);
-    emit_line("add");
-    emit_line("-1 roll");
+    piet_emit(pi, PIET_ADD);
+    piet_push_minus1(pi);
+    piet_emit(pi, PIET_ROLL);
     piet_emit(pi, PIET_DUP);
 
     piet_push_src(pi, inst, 0);
     piet_push(pi, PIET_MEM + 2);
-    emit_line("add");
-    emit_line("1 roll");
+    piet_emit(pi, PIET_ADD);
+    piet_push_minus1(pi);
+    piet_emit(pi, PIET_ROLL);
 
     piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
@@ -332,13 +341,15 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_emit(pi, PIET_DUP);
 
     piet_push(pi, PIET_MEM + 3);
-    emit_line("add");
-    emit_line("-1 roll");
+    piet_emit(pi, PIET_ADD);
+    piet_push_minus1(pi);
+    piet_emit(pi, PIET_ROLL);
     piet_emit(pi, PIET_POP);
 
     piet_push(pi, PIET_MEM + 1);
-    emit_line("add");
-    emit_line("1 roll");
+    piet_emit(pi, PIET_ADD);
+    piet_push(pi, 1);
+    piet_emit(pi, PIET_ROLL);
     break;
 
   case PUTC:
@@ -434,7 +445,7 @@ void target_piet(Module* module) {
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
       if (pi && pi->op != PIET_JMP) {
-        piet_push(&pi, inst->pc + 1);
+        piet_push(&pi, inst->pc);
       }
 
       pb->next = calloc(1, sizeof(PietBlock));
@@ -444,6 +455,15 @@ void target_piet(Module* module) {
       pb->inst = pi;
 
       piet_emit(&pi, PIET_POP);
+
+      // Dump PC.
+#if 0
+      piet_push(&pi, 80); piet_emit(&pi, PIET_OUT);
+      piet_push(&pi, 67); piet_emit(&pi, PIET_OUT);
+      piet_push(&pi, 61); piet_emit(&pi, PIET_OUT);
+      piet_push(&pi, inst->pc); piet_emit(&pi, PIET_OUTN);
+      piet_push(&pi, 10); piet_emit(&pi, PIET_OUT);
+#endif
     }
     prev_pc = inst->pc;
     piet_emit_inst(&pi, inst);
@@ -473,7 +493,7 @@ void target_piet(Module* module) {
   const uint INIT_STACK_SIZE = 65536 + 8;
 
   uint w = longest_block + 20;
-  uint h = pc * 7 + (INIT_STACK_SIZE / (w - 4) + 1) * 3;
+  uint h = pc * 7 + (INIT_STACK_SIZE / (w - 4) + 1) * 4;
   byte* pixels = calloc(w * h, 1);
 
   // init stack.
