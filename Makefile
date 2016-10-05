@@ -207,17 +207,19 @@ endif
 include target.mk
 $(OUT.eir.bf.out): tools/runbf.sh
 
-ifdef PIET
+ifdef PIETASM
 TARGET := pietasm
 RUNNER := tools/runpietasm.sh
 include target.mk
 $(OUT.eir.piet.out): tools/runpietasm.sh
 endif
 
+ifdef PIET
 TARGET := piet
 RUNNER := tools/runpiet.sh
 include target.mk
 $(OUT.eir.piet.out): tools/runpiet.sh
+endif
 
 test: $(TEST_RESULTS)
 

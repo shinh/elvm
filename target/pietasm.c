@@ -191,13 +191,17 @@ static void pietasm_emit_inst(Inst* inst, int reg_jmp) {
 
   case LOAD:
     pietasm_push_src(inst, 0);
+    pietasm_dup();
+    // Put the address to the bottom of the stack.
+    emit_line("65544 1 roll");
 
     pietasm_push(PIETASM_MEM + 1);
     emit_line("add");
     emit_line("-1 roll");
     pietasm_dup();
 
-    pietasm_push_src(inst, 0);
+    // Get the address from the bottom of the stack.
+    emit_line("65544 -1 roll");
     pietasm_push(PIETASM_MEM + 2);
     emit_line("add");
     emit_line("1 roll");
