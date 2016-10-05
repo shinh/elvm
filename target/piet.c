@@ -7,6 +7,7 @@
 
 #define PIET_IMM_BASE 6
 #define PIET_INIT_STACK_SIZE 65545
+#define PIET_DUMP_INST 0
 
 enum {
   PIET_PUSH,
@@ -72,6 +73,9 @@ typedef struct PietBlock {
 } PietBlock;
 
 static void dump_piet_inst(PietInst* pi) {
+#if !PIET_DUMP_INST
+  return;
+#endif
   static const char* PIET_INST_NAMES[] = {
     "push",
     "pop",
@@ -491,11 +495,14 @@ void target_piet(Module* module) {
   uint init_state_size = piet_init_state(module->data, &init_state);
 
   uint w = longest_block + 20;
-  uint h = pc * 7 + (init_state_size / (w - 4 - PIET_IMM_BASE * 2) + 1) * 4;
+  uint h =
+      pc * 7 + (init_state_size / (w - 4 - PIET_IMM_BASE * 2) + 1) * 4 + 10;
   byte* pixels = calloc(w * h, 1);
 
+#if 0
   fprintf(stderr, "estimated init_state_size=%d w=%d h=%d\n",
           init_state_size, w, h);
+#endif
 
   uint c = 0;
   uint y = 0;
