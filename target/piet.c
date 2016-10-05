@@ -163,14 +163,6 @@ static void piet_label(uint id) {
   emit_line("_track_%u:", id);
 }
 
-static void piet_pop() {
-  emit_line("pop");
-}
-
-static void piet_dup() {
-  emit_line("dup");
-}
-
 static void piet_br(uint id) {
   emit_line("br._track_%u", id);
 }
@@ -179,24 +171,30 @@ static void piet_bz(uint id) {
   emit_line("bz._track_%u", id);
 }
 
-static void piet_roll(uint depth, uint count) {
-  emit_line("%d %d roll", depth, count);
+static void piet_roll(PietInst** pi, uint depth, uint count) {
+  piet_push(pi, depth);
+  piet_push(pi, count);
+  piet_emit(pi, PIET_ROLL);
 }
 
-static void piet_rroll(uint depth, uint count) {
-  emit_line("%d -%d roll", depth, count);
+static void piet_rroll(PietInst** pi, uint depth, uint count) {
+  piet_push(pi, depth);
+  piet_push(pi, 1);
+  piet_push(pi, count + 1);
+  piet_emit(pi, PIET_SUB);
+  piet_emit(pi, PIET_ROLL);
 }
 
-static void piet_load(uint pos) {
-  piet_rroll(pos + 1, 1);
-  piet_dup();
-  piet_roll(pos + 2, 1);
+static void piet_load(PietInst** pi, uint pos) {
+  piet_rroll(pi, pos + 1, 1);
+  piet_emit(pi, PIET_DUP);
+  piet_roll(pi, pos + 2, 1);
 }
 
-static void piet_store_top(uint pos) {
-  piet_rroll(pos + 2, 1);
-  piet_pop();
-  piet_roll(pos + 1, 1);
+static void piet_store_top(PietInst** pi, uint pos) {
+  piet_rroll(pi, pos + 2, 1);
+  piet_emit(pi, PIET_POP);
+  piet_roll(pi, pos + 1, 1);
 }
 
 #if 0
@@ -230,7 +228,7 @@ static void piet_init_state(Data* data) {
 
 static void piet_push_value(PietInst** pi, Value* v, uint stk) {
   if (v->type == REG) {
-    piet_load(PIET_A + v->reg + stk);
+    piet_load(pi, PIET_A + v->reg + stk);
   } else if (v->type == IMM) {
     piet_push(pi, v->imm & 65535);
   } else {
@@ -312,7 +310,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   switch (inst->op) {
   case MOV:
     piet_push_src(pi, inst, 0);
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case ADD:
@@ -320,7 +318,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push_src(pi, inst, 1);
     emit_line("add");
     piet_uint_mod();
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case SUB:
@@ -328,7 +326,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push_src(pi, inst, 1);
     emit_line("sub");
     piet_uint_mod();
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case LOAD:
@@ -337,25 +335,25 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push(pi, PIET_MEM + 1);
     emit_line("add");
     emit_line("-1 roll");
-    piet_dup();
+    piet_emit(pi, PIET_DUP);
 
     piet_push_src(pi, inst, 0);
     piet_push(pi, PIET_MEM + 2);
     emit_line("add");
     emit_line("1 roll");
 
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case STORE:
     piet_push_dst(pi, inst, 0);
     piet_push_src(pi, inst, 1);
-    piet_dup();
+    piet_emit(pi, PIET_DUP);
 
     piet_push(pi, PIET_MEM + 3);
     emit_line("add");
     emit_line("-1 roll");
-    piet_pop();
+    piet_emit(pi, PIET_POP);
 
     piet_push(pi, PIET_MEM + 1);
     emit_line("add");
@@ -370,7 +368,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   case GETC: {
     piet_push(pi, 256);
     emit_line("in");
-    piet_dup();
+    piet_emit(pi, PIET_DUP);
     piet_push(pi, 256);
     emit_line("sub");
 
@@ -378,16 +376,16 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     uint done_id = piet_gen_label();
 
     piet_bz(zero_id);
-    piet_roll(2, 1);
-    piet_pop();
+    piet_roll(pi, 2, 1);
+    piet_emit(pi, PIET_POP);
     piet_br(done_id);
 
     piet_label(zero_id);
-    piet_pop();
+    piet_emit(pi, PIET_POP);
     piet_push(pi, 0);
 
     piet_label(done_id);
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
 
     break;
   }
@@ -406,7 +404,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   case LE:
   case GE:
     piet_cmp(pi, inst, false);
-    piet_store_top(PIET_A + inst->dst.reg);
+    piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
 
   case JEQ:
@@ -485,28 +483,62 @@ void target_piet(Module* module) {
     }
   }
 
+  const uint INIT_STACK_SIZE = 65536 + 8;
+
   uint w = longest_block + 20;
-  uint h = pc * 7 + 20;
+  uint h = pc * 7 + (INIT_STACK_SIZE / (w - 4) + 1) * 3;
   byte* pixels = calloc(w * h, 1);
 
+  // init stack.
   uint c = 0;
   uint y = 0;
-  for (uint x = 0; x < w; x++) {
+  uint x = 0;
+  pixels[y*w+x++] = 2;
+  c = piet_next_color(c, PIET_PUSH);
+  pixels[y*w+x++] = c + 2;
+  c = piet_next_color(c, PIET_NOT);
+  pixels[y*w+x++] = c + 2;
+  int dx = 1;
+  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
+    c = piet_next_color(c, PIET_DUP);
+    pixels[y*w+x] = c + 2;
+    x += dx;
+
+    if (x == w) {
+      pixels[(y+1)*w+x-1] = c + 2;
+      pixels[(y+2)*w+x-1] = c + 2;
+      pixels[(y+3)*w+x-1] = c + 2;
+      x = w-1;
+      y += 4;
+      dx = -1;
+    }
+
+    if ((x == 1 && dx == -1) || i == INIT_STACK_SIZE - 1) {
+      pixels[(y+0)*w+x+0] = 1;
+      pixels[(y+0)*w+x-1] = 1;
+      pixels[(y-1)*w+x-1] = 1;
+      pixels[(y-1)*w+x+0] = 1;
+      pixels[(y+1)*w+x+0] = 1;
+      pixels[(y+2)*w+x+0] = 1;
+      pixels[(y+3)*w+x+0] = 1;
+      pixels[(y+3)*w+x-1] = 1;
+      pixels[(y+2)*w+x-1] = 1;
+      pixels[(y+2)*w+x+1] = 2;
+      c = 0;
+      x += 2;
+      y += 2;
+      dx = 1;
+    }
+  }
+
+  for (; x < w; x++) {
     pixels[y*w+x] = 1;
   }
-  c = 0;
-  pixels[y*w+0] = 2;
-  c = piet_next_color(c, PIET_PUSH);
-  pixels[y*w+1] = c + 2;
-  c = piet_next_color(c, PIET_NOT);
-  pixels[y*w+2] = c + 2;
 
   pixels[(y+1)*w+w-1] = 1;
+  pixels[(y+2)*w+w-1] = 1;
 
-  y += 2;
-  for (uint x = 0; x < w; x++) {
-    pixels[y*w+x] = 1;
-  }
+  y += 3;
 
   c = 0;
   byte BORDER_TABLE[7];
@@ -523,12 +555,20 @@ void target_piet(Module* module) {
   c = piet_next_color(c, PIET_PTR);
   BORDER_TABLE[6] = c + 2;
 
-  for (uint by = y + 1; by < h; by++) {
-    pixels[by*w] = 1;
-    pixels[by*w+w-1] = BORDER_TABLE[by%7];
+  for (uint i = 0; i < 3; i++) {
+    pixels[(y+i)*w+w-1] = 1;
   }
 
-  y += 4;
+  for (uint x = 0; x < w; x++) {
+    pixels[(y+3)*w+x] = 1;
+  }
+
+  for (uint i = 3; i < h - y; i++) {
+    pixels[(y+i)*w] = 1;
+    pixels[(y+i)*w+w-1] = BORDER_TABLE[i%7];
+  }
+
+  y += 6;
 
   for (pb = pb_head.next; pb; pb = pb->next, y += 7) {
     assert(y < h);
