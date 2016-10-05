@@ -329,7 +329,7 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push_src(pi, inst, 0);
     piet_push(pi, PIET_MEM + 2);
     piet_emit(pi, PIET_ADD);
-    piet_push_minus1(pi);
+    piet_push(pi, 1);
     piet_emit(pi, PIET_ROLL);
 
     piet_store_top(pi, PIET_A + inst->dst.reg);
