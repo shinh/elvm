@@ -269,6 +269,8 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_push_dst(pi, inst, 0);
     piet_push_src(pi, inst, 1);
     piet_emit(pi, PIET_SUB);
+    piet_push(pi, 65536);
+    piet_emit(pi, PIET_ADD);
     piet_uint_mod(pi);
     piet_store_top(pi, PIET_A + inst->dst.reg);
     break;
@@ -406,7 +408,7 @@ static uint piet_init_state(Data* data, PietInst* pi) {
   for (uint i = 0; i < PIET_INIT_STACK_SIZE; i++) {
     uint v = 0;
     if (i >= PIET_MEM + 1 && data) {
-      v = data->v;
+      v = data->v % 65536;
       data = data->next;
     }
     vals[PIET_INIT_STACK_SIZE-i-1] = v;
