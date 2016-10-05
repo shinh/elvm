@@ -217,6 +217,8 @@ endif
 ifdef PIET
 TARGET := piet
 RUNNER := tools/runpiet.sh
+# Piet backend is 16bit.
+TEST_FILTER := $(addsuffix .piet,$(filter out/24_%.c.eir,$(OUT.eir))) out/eof.c.eir.piet out/neg.c.eir.piet
 include target.mk
 $(OUT.eir.piet.out): tools/runpiet.sh
 endif
