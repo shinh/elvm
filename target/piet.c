@@ -505,7 +505,7 @@ void target_piet(Module* module) {
       dx = -1;
     }
 
-    if ((x == 1 && dx == -1) || i == INIT_STACK_SIZE - 1) {
+    if ((x == 1 || i == INIT_STACK_SIZE - 1) && dx == -1) {
       pixels[(y+0)*w+x+0] = 1;
       pixels[(y+0)*w+x-1] = 1;
       pixels[(y-1)*w+x-1] = 1;
@@ -601,6 +601,8 @@ void target_piet(Module* module) {
       }
     }
   }
+
+  h = y + 10;
 
   printf("P6\n");
   printf("\n");
