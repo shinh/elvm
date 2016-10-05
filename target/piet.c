@@ -639,7 +639,7 @@ void target_piet(Module* module) {
   h = y + 10;
 
   printf("P6\n");
-  printf("\n");
+  printf("#\n");
   printf("%d %d\n", w, h);
   printf("255\n");
 
