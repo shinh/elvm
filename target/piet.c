@@ -186,35 +186,6 @@ static void piet_store_top(PietInst** pi, uint pos) {
   piet_roll(pi, pos + 1, 1);
 }
 
-#if 0
-static void piet_store(uint pos, uint val) {
-  piet_push(val);
-  piet_store_top(pos);
-}
-
-static void piet_init_state(Data* data) {
-  //emit_line("16777223");
-  emit_line("65543");  // 65536 + 7
-  uint loop_id = piet_gen_label();
-  uint done_id = piet_gen_label();
-  piet_label(loop_id);
-  emit_line("1 sub");
-  emit_line("dup");
-  piet_bz(done_id);
-  emit_line("0");
-  piet_roll(2, 1);
-  piet_br(loop_id);
-  piet_label(done_id);
-  emit_line("");
-
-  for (int mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      piet_store(PIET_MEM + mp, data->v & 65535);
-    }
-  }
-}
-#endif
-
 static void piet_push_value(PietInst** pi, Value* v, uint stk) {
   if (v->type == REG) {
     piet_load(pi, PIET_A + v->reg + stk);
@@ -274,25 +245,6 @@ static void piet_cmp(PietInst** pi, Inst* inst, int stk) {
     error("cmp");
   }
 }
-
-#if 0
-static void piet_reg_jmp_table(int min_pc, int max_pc, int last_label) {
-  if (min_pc + 1 == max_pc) {
-    piet_pop();
-    piet_br(min_pc);
-    return;
-  }
-
-  int mid_pc = (min_pc + max_pc) / 2;
-  piet_dup();
-  piet_push(mid_pc-1);
-  emit_line("gt");
-  piet_bz(last_label + mid_pc);
-  piet_reg_jmp_table(mid_pc, max_pc, last_label);
-  piet_label(last_label + mid_pc);
-  piet_reg_jmp_table(min_pc, mid_pc, last_label);
-}
-#endif
 
 static void piet_emit_inst(PietInst** pi, Inst* inst) {
   switch (inst->op) {
@@ -429,12 +381,49 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
   }
 }
 
-uint piet_next_color(uint c, uint op) {
+static uint piet_next_color(uint c, uint op) {
   op++;
   uint l = (c + op) % 3;
   uint h = (c / 3 + op / 3) % 6;
   return l + h * 3;
 }
+
+static uint piet_init_state(Data* data, PietInst* pi) {
+  const uint INIT_STACK_SIZE = 65536 + 9;
+  uint vals[INIT_STACK_SIZE];
+  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
+    uint v = 0;
+    if (i >= PIET_MEM && data) {
+      v = data->v;
+      data = data->next;
+    }
+    vals[INIT_STACK_SIZE-i-1] = v;
+  }
+
+  PietInst* opi = pi;
+  bool prev_zero = false;
+  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
+    uint v = vals[i];
+    fprintf(stderr, "v=%d\n", v);
+    if (v == 0 && prev_zero) {
+      piet_emit(&pi, PIET_DUP);
+    } else {
+      piet_push(&pi, v);
+    }
+    prev_zero = v == 0;
+  }
+
+  uint size = 0;
+  for (pi = opi; pi; pi = pi->next) {
+    if (pi->op == PIET_PUSH) {
+      size += pi->arg;
+    } else {
+      size++;
+    }
+  }
+  return size;
+}
+
 
 void target_piet(Module* module) {
   PietBlock pb_head;
@@ -490,37 +479,45 @@ void target_piet(Module* module) {
     }
   }
 
-  const uint INIT_STACK_SIZE = 65536 + 8;
+  PietInst init_state = {};
+  uint init_state_size = piet_init_state(module->data, &init_state);
 
   uint w = longest_block + 20;
-  uint h = pc * 7 + (INIT_STACK_SIZE / (w - 4) + 1) * 4;
+  uint h = pc * 7 + (init_state_size / (w - 4 - PIET_IMM_BASE * 2) + 1) * 4;
   byte* pixels = calloc(w * h, 1);
 
-  // init stack.
+  fprintf(stderr, "estimated init_state_size=%d w=%d h=%d\n",
+          init_state_size, w, h);
+
   uint c = 0;
   uint y = 0;
   uint x = 0;
-  pixels[y*w+x++] = 2;
-  c = piet_next_color(c, PIET_PUSH);
-  pixels[y*w+x++] = c + 2;
-  c = piet_next_color(c, PIET_NOT);
-  pixels[y*w+x++] = c + 2;
   int dx = 1;
-  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
-    c = piet_next_color(c, PIET_DUP);
-    pixels[y*w+x] = c + 2;
-    x += dx;
+  pixels[y*w+x++] = 2;
+  for (pi = init_state.next; pi; pi = pi->next) {
+    assert(y < h);
+    c = piet_next_color(c, pi->op);
 
-    if (x == w) {
+    if (pi->next && pi->next->op == PIET_PUSH) {
+      for (uint i = 0; i < pi->next->arg; i++) {
+        pixels[y*w+x] = c + 2;
+        x += dx;
+      }
+    } else {
+      pixels[y*w+x] = c + 2;
+      x += dx;
+    }
+
+    if (x >= w - PIET_IMM_BASE && dx == 1) {
       pixels[(y+1)*w+x-1] = c + 2;
       pixels[(y+2)*w+x-1] = c + 2;
       pixels[(y+3)*w+x-1] = c + 2;
-      x = w-1;
+      x = x-1;
       y += 4;
       dx = -1;
     }
 
-    if ((x == 1 || i == INIT_STACK_SIZE - 1) && dx == -1) {
+    if ((x <= 1 + PIET_IMM_BASE || !pi->next) && dx == -1) {
       while (x >= w - 2) {
         pixels[(y+0)*w+x+0] = 1;
         x--;
