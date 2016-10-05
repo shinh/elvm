@@ -6,6 +6,7 @@
 #include <target/util.h>
 
 #define PIET_IMM_BASE 6
+#define PIET_INIT_STACK_SIZE 65545
 
 enum {
   PIET_PUSH,
@@ -271,6 +272,11 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
 
   case LOAD:
     piet_push_src(pi, inst, 0);
+    piet_emit(pi, PIET_DUP);
+    // Put the address to the bottom of the stack.
+    piet_push(pi, PIET_INIT_STACK_SIZE);
+    piet_push(pi, 1);
+    piet_emit(pi, PIET_ROLL);
 
     piet_push(pi, PIET_MEM + 1);
     piet_emit(pi, PIET_ADD);
@@ -278,7 +284,11 @@ static void piet_emit_inst(PietInst** pi, Inst* inst) {
     piet_emit(pi, PIET_ROLL);
     piet_emit(pi, PIET_DUP);
 
-    piet_push_src(pi, inst, 0);
+    // Get the address from the bottom of the stack.
+    piet_push(pi, PIET_INIT_STACK_SIZE);
+    piet_push_minus1(pi);
+    piet_emit(pi, PIET_ROLL);
+
     piet_push(pi, PIET_MEM + 2);
     piet_emit(pi, PIET_ADD);
     piet_push(pi, 1);
@@ -389,22 +399,20 @@ static uint piet_next_color(uint c, uint op) {
 }
 
 static uint piet_init_state(Data* data, PietInst* pi) {
-  const uint INIT_STACK_SIZE = 65536 + 9;
-  uint vals[INIT_STACK_SIZE];
-  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
+  uint vals[PIET_INIT_STACK_SIZE];
+  for (uint i = 0; i < PIET_INIT_STACK_SIZE; i++) {
     uint v = 0;
-    if (i >= PIET_MEM && data) {
+    if (i >= PIET_MEM + 1 && data) {
       v = data->v;
       data = data->next;
     }
-    vals[INIT_STACK_SIZE-i-1] = v;
+    vals[PIET_INIT_STACK_SIZE-i-1] = v;
   }
 
   PietInst* opi = pi;
   bool prev_zero = false;
-  for (uint i = 0; i < INIT_STACK_SIZE; i++) {
+  for (uint i = 0; i < PIET_INIT_STACK_SIZE; i++) {
     uint v = vals[i];
-    fprintf(stderr, "v=%d\n", v);
     if (v == 0 && prev_zero) {
       piet_emit(&pi, PIET_DUP);
     } else {
