@@ -97,8 +97,9 @@ int sprintf(char* buf, const char* fmt, ...) {
 }
 
 int vprintf(const char* fmt, va_list ap) {
-  char buf[256] = {0};
+  char buf[256];
   int r = vsnprintf(buf, 256, fmt, ap);
+  buf[r] = 0;
   print_str(buf);
   return r;
 }
