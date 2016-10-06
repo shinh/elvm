@@ -7,6 +7,8 @@
 
 #define EXIT_FAILURE 1
 
+static void print_str(const char* p);
+
 typedef struct {
   int quot, rem;
 } div_t;
@@ -22,6 +24,10 @@ void abort(void) {
 void* malloc(int n) {
   int* r = _edata;
   _edata += n;
+  if (r > _edata) {
+    print_str("no memory!\n");
+    exit(1);
+  }
   return r;
 }
 
@@ -122,7 +128,6 @@ unsigned long long strtoull(const char *nptr, char **endptr, int base) {
   return strtol(nptr, endptr, base);
 }
 
-static void print_str(const char* p);
 int atoi(const char* s) {
   print_str("atoi not implemented\n");
   exit(1);
