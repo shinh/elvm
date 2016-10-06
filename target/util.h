@@ -38,7 +38,8 @@ void emit_6(int a, int b, int c, int d, int e, int f);
 void emit_le(uint32_t a);
 void emit_diff(uint32_t a, uint32_t b);
 
-static const int CHUNKED_FUNC_SIZE = 512;
+extern int CHUNKED_FUNC_SIZE;
+
 int emit_chunked_main_loop(Inst* inst,
                            void (*emit_func_prologue)(int func_id),
                            void (*emit_func_epilogue)(void),
