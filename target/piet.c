@@ -427,7 +427,7 @@ static uint piet_init_state(Data* data, PietInst* pi) {
   }
 
   uint size = 0;
-  for (pi = opi; pi; pi = pi->next) {
+  for (pi = opi->next; pi; pi = pi->next) {
     if (pi->op == PIET_PUSH) {
       size += pi->arg;
     } else {
