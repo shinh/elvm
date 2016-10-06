@@ -20,3 +20,9 @@
   (switch-to-buffer "*elc output*")
   (insert-string elvm-output))
 
+(defun elvm-main ()
+  (interactive)
+  (setq elvm-output "")
+  (funcall elvm-main)
+  (switch-to-buffer "*elvm output*")
+  (insert-string elvm-output))
