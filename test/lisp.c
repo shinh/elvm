@@ -73,12 +73,12 @@ void printExpr(Atom* expr) {
       putchar('-');
       v = -v;
     }
-    print_int(v);
+    printf("%d", v);
     return;
   }
 
   if (expr->type == STR) {
-    print_str((char*)expr->str);
+    fputs((char*)expr->str, stdout);
     return;
   }
 
@@ -468,7 +468,7 @@ Atom* eval(Atom* a, Table* val) {
       return e;
     }
 
-    print_str((char*)fn);
+    fputs((char*)fn, stdout);
     putchar(':');
     putchar(' ');
     ERROR("undefined function");
