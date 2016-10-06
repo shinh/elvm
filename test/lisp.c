@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../libc/_raw_print.h"
 
 int g_buf = -1;
 
@@ -64,9 +63,7 @@ typedef struct Table {
 
 void printExpr(Atom* expr) {
   if (!expr) {
-    putchar('n');
-    putchar('i');
-    putchar('l');
+    fputs("nil", stdout);
     return;
   }
 
@@ -87,13 +84,7 @@ void printExpr(Atom* expr) {
 
   putchar('(');
   if (expr->type == LAMBDA) {
-    putchar('l');
-    putchar('a');
-    putchar('m');
-    putchar('b');
-    putchar('d');
-    putchar('a');
-    putchar(' ');
+    fputs("lambda ", stdout);
   }
 
   List* l = expr->list;
