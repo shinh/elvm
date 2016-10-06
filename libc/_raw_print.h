@@ -1,7 +1,7 @@
 #ifndef ELVM_LIBC_RAW_PRINT_H_
 #define ELVM_LIBC_RAW_PRINT_H_
 
-#include <stdlib.h>
+#include "_builtin.h"
 
 int putchar(int c);
 

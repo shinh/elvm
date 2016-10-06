@@ -1,8 +1,9 @@
 #ifndef ELVM_LIBC_STRING_H_
 #define ELVM_LIBC_STRING_H_
 
-#include <stddef.h>
 #include <ctype.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 void* memset(void* d, int c, size_t n) {
   size_t i;
