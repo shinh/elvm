@@ -1,28 +1,16 @@
 #include <stdio.h>
-#include "../libc/_raw_print.h"
 
 int main() {
-  int i;
-  for (i = 1; i <= 100; i++) {
-    int done = 0;
-    if (i % 3 == 0) {
-      putchar('F');
-      putchar('i');
-      putchar('z');
-      putchar('z');
-      done = 1;
+  for (int i = 1; i <= 100; i++) {
+    if (i % 5) {
+      if (i % 3) {
+        printf("%d\n", i);
+      } else {
+        printf("Fizz\n");
+      }
+    } else {
+      printf("FizzBuzz\n" + i * i % 3 * 4);
     }
-    if (i % 5 == 0) {
-      putchar('B');
-      putchar('u');
-      putchar('z');
-      putchar('z');
-      done = 1;
-    }
-
-    if (!done)
-      print_int(i);
-    putchar('\n');
   }
   return 0;
 }
