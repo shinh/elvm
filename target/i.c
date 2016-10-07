@@ -75,27 +75,27 @@ static const char* i_src_str(Inst* inst) {
 static void i_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
+    i_emit_line("%s <- %s", I_REG_NAMES[inst->dst.reg], i_src_str(inst));
     break;
 
   case ADD:
     emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              I_REG_NAMES[inst->dst.reg],
+              I_REG_NAMES[inst->dst.reg], src_str(inst));
     break;
 
   case SUB:
     emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              I_REG_NAMES[inst->dst.reg],
+              I_REG_NAMES[inst->dst.reg], src_str(inst));
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = mem[%s];", I_REG_NAMES[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("mem[%s] = %s;", src_str(inst), I_REG_NAMES[inst->dst.reg]);
     break;
 
   case PUTC:
@@ -107,7 +107,7 @@ static void i_emit_inst(Inst* inst) {
 
   case GETC:
     emit_line("{ int _ = getchar(); %s = _ != EOF ? _ : 0; }",
-              reg_names[inst->dst.reg]);
+              I_REG_NAMES[inst->dst.reg]);
     break;
 
   case EXIT:
@@ -124,7 +124,7 @@ static void i_emit_inst(Inst* inst) {
   case LE:
   case GE:
     emit_line("%s = %s;",
-              reg_names[inst->dst.reg], cmp_str(inst, "1"));
+              I_REG_NAMES[inst->dst.reg], cmp_str(inst, "1"));
     break;
 
   case JEQ:
