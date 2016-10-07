@@ -12,6 +12,7 @@ void target_el(Module* module);
 void target_java(Module* module);
 void target_c(Module* module);
 void target_x86(Module* module);
+void target_i(Module* module);
 void target_ws(Module* module);
 void target_piet(Module* module);
 void target_pietasm(Module* module);
@@ -35,6 +36,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_c;
   } else if (!strcmp(ext, "x86")) {
     return target_x86;
+  } else if (!strcmp(ext, "i")) {
+    return target_i;
   } else if (!strcmp(ext, "ws")) {
     return target_ws;
   } else if (!strcmp(ext, "piet")) {

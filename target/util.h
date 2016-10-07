@@ -1,6 +1,7 @@
 #ifndef ELVM_UTIL_H_
 #define ELVM_UTIL_H_
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -9,6 +10,7 @@
 typedef uint32_t uint;
 typedef uint8_t byte;
 
+char* vformat(const char* fmt, va_list ap);
 char* format(const char* fmt, ...);
 
 #ifndef __eir__
