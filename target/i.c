@@ -53,6 +53,8 @@ static void i_emit_line(const char* fmt, ...) {
 }
 
 static char* i_imm(uint v) {
+  return format("#%d", v % 65536);
+#if 0
   if (v < 65536) {
     return format("#%d", v);
   }
@@ -66,6 +68,7 @@ static char* i_imm(uint v) {
     a = a * 2 + a0;
   }
   return format("#%dC\x08/#%d", a, b);
+#endif
 }
 
 static void i_init_state(Data* data) {
@@ -108,9 +111,18 @@ static void i_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
-              I_REG_NAMES[inst->dst.reg],
-              I_REG_NAMES[inst->dst.reg], src_str(inst));
+    i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
+    i_emit_line(":9 <- %s", i_src_str(inst));
+    i_emit_line(":10 <- #0C\x08/#65535");
+    for (int i = 0; i < 16; i++) {
+      i_emit_line(":9 <- :8C\x08/:9");
+      i_emit_line(":8 <- :V\x08-9");
+      i_emit_line(":8 <- :8 ~ :10");
+      i_emit_line(":9 <- :&9");
+      i_emit_line(":9 <- :9 ~ :10");
+      i_emit_line(":9 <- ':9C\x08/#0'~'#32767C\x08/#1'");
+    }
+    i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case SUB:
