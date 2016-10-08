@@ -107,6 +107,7 @@ static void i_init_state(Data* data) {
     i_emit_line("%s <- #0", I_REG_NAMES[i]);
   }
   i_emit_line(":12 <- #0");
+  i_emit_line(":13 <- #0");
 
   //i_emit_line(";1 <- #0"I_INT"#4096");
   i_emit_line(";1 <- #65535");
@@ -242,9 +243,29 @@ static void i_emit_inst(Inst* inst) {
 
   case GETC:
     i_emit_line(";4 <- #1");
+    i_emit_line(";4 SUB #1 <- #0");
     i_emit_line("WRITE IN ;4");
 #if defined(USE_C_INTERCAL)
-    i_emit_line("%s <- ;4 SUB #1", I_REG_NAMES[inst->dst.reg]);
+    i_emit_line(":8 <- ;4 SUB #1");
+
+    i_emit_line(":7 <- :8 ~ #256");
+    for (int i = 0; i < 16; i++) {
+      i_emit_line(":7 <- :7"I_INT":7");
+      i_emit_line(":7 <- :7 ~ #65535");
+    }
+    i_emit_line(":7 <- :7"I_INT"#255");
+    i_emit_line(":7 <- :V\x08-7");
+    i_emit_line(":7 <- :7 ~ '#0"I_INT"#65535'");
+    i_emit_line(":7 <- :7 ~ #255");
+
+    i_emit_line(":9 <- :13");
+    i_emit_add();
+    i_emit_line(":13 <- :8");
+
+    i_emit_line(":8 <- :8" I_INT ":7");
+    i_emit_line(":8 <- :&8 ~ '#0" I_INT "#65535'");
+
+    i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
 #else
     i_emit_line(":9 <- ;4 SUB #1");
     i_emit_line(":9 <- :9~#255");
