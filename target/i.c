@@ -104,6 +104,18 @@ static const char* i_src_str(Inst* inst) {
   return i_value_str(&inst->src);
 }
 
+static void i_emit_add() {
+  i_emit_line(":10 <- #0C\x08/#65535");
+  for (int i = 0; i < 16; i++) {
+    i_emit_line(":9 <- :8C\x08/:9");
+    i_emit_line(":8 <- :V\x08-9");
+    i_emit_line(":8 <- :8 ~ :10");
+    i_emit_line(":9 <- :&9");
+    i_emit_line(":9 <- :9 ~ :10");
+    i_emit_line(":9 <- ':9C\x08/#0'~'#32767C\x08/#1'");
+  }
+}
+
 static void i_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
@@ -113,22 +125,19 @@ static void i_emit_inst(Inst* inst) {
   case ADD:
     i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
     i_emit_line(":9 <- %s", i_src_str(inst));
-    i_emit_line(":10 <- #0C\x08/#65535");
-    for (int i = 0; i < 16; i++) {
-      i_emit_line(":9 <- :8C\x08/:9");
-      i_emit_line(":8 <- :V\x08-9");
-      i_emit_line(":8 <- :8 ~ :10");
-      i_emit_line(":9 <- :&9");
-      i_emit_line(":9 <- :9 ~ :10");
-      i_emit_line(":9 <- ':9C\x08/#0'~'#32767C\x08/#1'");
-    }
+    i_emit_add();
     i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
-              I_REG_NAMES[inst->dst.reg],
-              I_REG_NAMES[inst->dst.reg], src_str(inst));
+    i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
+    i_emit_line(":9 <- %s", i_src_str(inst));
+    i_emit_line(":9 <- :9C\x08/#65535");
+    i_emit_line(":9 <- \"':V\x08-9' ~ #65535\" ~ \"#0C\x08/#65535\"");
+    i_emit_add();
+    i_emit_line(":9 <- #1");
+    i_emit_add();
+    i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case LOAD:
