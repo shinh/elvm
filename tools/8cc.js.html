@@ -63,7 +63,7 @@ function assemble() {
     var eir = lang + "\n" + $("eir").value;
     main_elc(get_getchar(eir), get_putchar());
     var trg = OUTPUTS;
-    if (lang == 'x86') {
+    if (lang == 'x86' || lang == 'piet') {
       var escaped = '"';
       for (var i = 0; i < trg.length; i++) {
         var c = trg.charCodeAt(i);
@@ -183,6 +183,17 @@ int main() {
   return 0;
 }
 
+#if 0
+int putchar(int c);
+
+int main() {
+  const char* p = "Hello, world!\n";
+  for (; *p; p++)
+    putchar(*p);
+  return 0;
+}
+#endif
+
 </textarea>
 <textarea id="eir" cols=40 rows=24></textarea>
 <textarea id="trg" cols=40 rows=24></textarea>
@@ -194,10 +205,14 @@ int main() {
 <option value="js">JavaScript
 <option value="rb">Ruby
 <option value="py">Python
+<option value="java">Java
+<option value="el">Emacs Lisp
 <option value="c">C
 <option value="x86">x86
+<option value="piet">Piet
 <option value="ws">Whitespace
 <option value="bf">Brainfuck
+<option value="unl">Unlambda
 </select>
 
 <input type="button" value="compile" onclick="compile()" onmouseover="hover(this)">
