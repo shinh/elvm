@@ -106,6 +106,7 @@ static void i_init_state(Data* data) {
   for (int i = 0; i < 7; i++) {
     i_emit_line("%s <- #0", I_REG_NAMES[i]);
   }
+  i_emit_line(":12 <- #0");
 
   //i_emit_line(";1 <- #0"I_INT"#4096");
   i_emit_line(";1 <- #65535");
@@ -220,11 +221,23 @@ static void i_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
+#if defined(USE_C_INTERCAL)
+    i_emit_line(":9 <- %s~#255", i_src_str(inst));
+    i_emit_line(":9 <- #1"I_INT":9");
+    i_emit_line(":8 <- ;2 SUB :9");
+    i_emit_line(":9 <- :12");
+    i_emit_line(":12 <- :8");
+    i_emit_sub();
+    i_emit_line(";4 <- #1");
+    i_emit_line(";4 SUB #1 <- :8");
+    i_emit_line("READ OUT ;4");
+#else
     i_emit_line(":9 <- %s~#255", i_src_str(inst));
     i_emit_line(":9 <- #1"I_INT":9");
     i_emit_line(";4 <- #1");
     i_emit_line(";4 SUB #1 <- ;2 SUB :9");
     i_emit_line("READ OUT ;4");
+#endif
     break;
 
   case GETC:
