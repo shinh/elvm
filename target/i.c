@@ -297,7 +297,13 @@ static void i_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
     error("jcc");
+
   case JMP:
+    if (inst->jmp.type == REG) {
+      error("jmp reg");
+    } else {
+      i_emit_line("(%d) NEXT", inst->jmp.imm);
+    }
     break;
 
   default:
@@ -308,8 +314,12 @@ static void i_emit_inst(Inst* inst) {
 void target_i(Module* module) {
   i_init_state(module->data);
 
-  //int prev_pc = -1;
+  int prev_pc = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
+    if (prev_pc != inst->pc) {
+      emit_line("(%d) DO FORGET #1", inst->pc);
+    }
+    prev_pc = inst->pc;
     i_emit_inst(inst);
   }
 }
