@@ -194,14 +194,12 @@ static void i_emit_cmp(Inst* inst) {
       i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
       break;
 
+    case JGE:
+      i_emit_xor(8, ":8", "#32768");
+
     case JLT:
       i_emit_and(8, ":8", "#32768");
       i_emit_line(":8 <- #32768 ~ :8");
-      i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
-      break;
-
-    case JGE:
-      i_emit_line(":8 <- :8 ~ #32768");
       i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
       break;
 
