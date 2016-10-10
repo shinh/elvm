@@ -194,10 +194,12 @@ TARGET := x86
 RUNNER :=
 include target.mk
 
+ifdef CINT
 TARGET := i
 RUNNER := tools/runi.sh
 include target.mk
 $(OUT.eir.i.out): tools/runi.sh
+endif
 
 TARGET := ws
 RUNNER := tools/runws.sh
