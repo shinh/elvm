@@ -196,8 +196,8 @@ include target.mk
 
 TARGET := i
 RUNNER := tools/runi.sh
-#include target.mk
-$(OUT.eir.ws.out): tools/runi.sh
+include target.mk
+$(OUT.eir.i.out): tools/runi.sh
 
 TARGET := ws
 RUNNER := tools/runws.sh
