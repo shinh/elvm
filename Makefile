@@ -196,7 +196,7 @@ include target.mk
 
 TARGET := i
 RUNNER := tools/runi.sh
-include target.mk
+#include target.mk
 $(OUT.eir.ws.out): tools/runi.sh
 
 TARGET := ws
