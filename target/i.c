@@ -187,11 +187,14 @@ static void i_emit_cmp(Inst* inst) {
 
   switch (op) {
     case JEQ:
-      i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
+      i_emit_line(":8 <- #65535 ~ :8");
+      i_emit_line(":8 <- :8 ~ #1");
+      i_emit_xor(inst->dst.reg + 1, ":8", "#1");
       break;
 
     case JNE:
-      i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
+      i_emit_line(":8 <- #65535 ~ :8");
+      i_emit_line("%s <- :8 ~ #1", I_REG_NAMES[inst->dst.reg]);
       break;
 
     case JGE:
