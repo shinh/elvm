@@ -7,6 +7,13 @@ static const char* I_REG_NAMES[] = {
   ":1", ":2", ":3", ":4", ":5", ":6", ":7"
 };
 
+// :8  = tmp dst
+// :9  = tmp src
+// :10 = interleave(#0, #65535)
+// :12 = prev putc
+// :13 = prev getc
+// :14 = forget num
+
 #define USE_C_INTERCAL
 
 #if defined(USE_C_INTERCAL)
@@ -169,8 +176,6 @@ static void i_emit_sub() {
   i_emit_add();
   i_emit_line(":9 <- #1");
   i_emit_add();
-
-  //i_emit_line("READ OUT :8");
 }
 
 static void i_emit_cmp(Inst* inst) {
@@ -189,12 +194,12 @@ static void i_emit_cmp(Inst* inst) {
     case JEQ:
       i_emit_line(":8 <- #65535 ~ :8");
       i_emit_line(":8 <- :8 ~ #1");
-      i_emit_xor(inst->dst.reg + 1, ":8", "#1");
+      i_emit_xor(8, ":8", "#1");
       break;
 
     case JNE:
       i_emit_line(":8 <- #65535 ~ :8");
-      i_emit_line("%s <- :8 ~ #1", I_REG_NAMES[inst->dst.reg]);
+      i_emit_line(":8 <- :8 ~ #1");
       break;
 
     case JGE:
@@ -203,7 +208,6 @@ static void i_emit_cmp(Inst* inst) {
     case JLT:
       i_emit_and(8, ":8", "#32768");
       i_emit_line(":8 <- #32768 ~ :8");
-      i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
       break;
 
     default:
@@ -211,7 +215,7 @@ static void i_emit_cmp(Inst* inst) {
   }
 }
 
-static void i_emit_inst(Inst* inst) {
+static void i_emit_inst(Inst* inst, int* label) {
   switch (inst->op) {
   case MOV:
     i_emit_line("%s <- %s", I_REG_NAMES[inst->dst.reg], i_src_str(inst));
@@ -303,6 +307,7 @@ static void i_emit_inst(Inst* inst) {
   case LE:
   case GE:
     i_emit_cmp(inst);
+    i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case JEQ:
@@ -310,13 +315,32 @@ static void i_emit_inst(Inst* inst) {
   case JLT:
   case JGT:
   case JLE:
-  case JGE:
-    error("jcc");
+  case JGE: {
+    if (inst->jmp.type == REG) {
+      error("jcc reg");
+    }
+
+    i_emit_cmp(inst);
+    i_emit_line(":9 <- #1");
+    i_emit_add();
+
+    int l1 = ++*label;
+    int l2 = ++*label;
+    i_emit_line("(%d) NEXT", l1);
+    i_emit_line(":14 <- #1");
+    i_emit_line("(%d) NEXT", inst->jmp.imm);
+
+    emit_line("(%d) DO RESUME :8", l2);
+    emit_line("(%d) DO (%d) NEXT", l1, l2);
+    i_emit_line("FORGET #1");
+    break;
+  }
 
   case JMP:
     if (inst->jmp.type == REG) {
       error("jmp reg");
     } else {
+      i_emit_line(":14 <- #1");
       i_emit_line("(%d) NEXT", inst->jmp.imm);
     }
     break;
@@ -329,12 +353,19 @@ static void i_emit_inst(Inst* inst) {
 void target_i(Module* module) {
   i_init_state(module->data);
 
+  int label = 0;
+  for (Inst* inst = module->text; inst; inst = inst->next) {
+    label = inst->pc;
+  }
+
   int prev_pc = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
-      emit_line("(%d) DO FORGET #1", inst->pc);
+      i_emit_line(":14 <- #0");
+      emit_line("(%d) DO FORGET :14", inst->pc);
     }
     prev_pc = inst->pc;
-    i_emit_inst(inst);
+    emit_line("");
+    i_emit_inst(inst, &label);
   }
 }
