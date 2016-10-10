@@ -195,9 +195,8 @@ static void i_emit_cmp(Inst* inst) {
       break;
 
     case JLT:
-      i_emit_line(":8 <- :8 ~ #32768");
-      i_emit_line(":8 <- :&8");
-      i_emit_line(":8 <- #32768 ~ ':8 ~ :10'");
+      i_emit_and(8, ":8", "#32768");
+      i_emit_line(":8 <- #32768 ~ :8");
       i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
       break;
 
