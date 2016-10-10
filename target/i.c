@@ -106,6 +106,7 @@ static void i_init_state(Data* data) {
   for (int i = 0; i < 7; i++) {
     i_emit_line("%s <- #0", I_REG_NAMES[i]);
   }
+  i_emit_line(":10 <- #0"I_INT"#65535");
   i_emit_line(":12 <- #0");
   i_emit_line(":13 <- #0");
 
@@ -137,8 +138,21 @@ static const char* i_src_str(Inst* inst) {
   return i_value_str(&inst->src);
 }
 
+static void i_emit_bitop(const char* op, int dst,
+                         const char* a, const char* b) {
+  i_emit_line(":%d <- %s " I_INT " %s", dst, a, b);
+  i_emit_line(":%d <- ':%s%d' ~ :10", dst, op, dst);
+}
+
+static void i_emit_and(int dst, const char* a, const char* b) {
+  i_emit_bitop("&", dst, a, b);
+}
+
+static void i_emit_xor(int dst, const char* a, const char* b) {
+  i_emit_bitop("V\x08-", dst, a, b);
+}
+
 static void i_emit_add() {
-  i_emit_line(":10 <- #0"I_INT"#65535");
   for (int i = 0; i < 16; i++) {
     i_emit_line(":9 <- :8"I_INT":9");
     i_emit_line(":8 <- :V\x08-9");
@@ -150,16 +164,17 @@ static void i_emit_add() {
 }
 
 static void i_emit_sub() {
-  i_emit_line(":9 <- :9"I_INT"#65535");
-  i_emit_line(":9 <- \"':V\x08-9' ~ #65535\" ~ \"#0"I_INT"#65535\"");
+  i_emit_xor(9, ":9", "#65535");
+  i_emit_line(":9 <- :9 ~ #65535");
   i_emit_add();
   i_emit_line(":9 <- #1");
   i_emit_add();
+
+  //i_emit_line("READ OUT :8");
 }
 
 static void i_emit_cmp(Inst* inst) {
   int op = normalize_cond(inst->op, false);
-
   if (op == JGT || op == JLE) {
     op = op == JGT ? JLT : JGE;
     i_emit_line(":9 <- %s", I_REG_NAMES[inst->dst.reg]);
@@ -169,6 +184,7 @@ static void i_emit_cmp(Inst* inst) {
     i_emit_line(":9 <- %s", i_src_str(inst));
   }
   i_emit_sub();
+
   switch (op) {
     case JEQ:
       i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
@@ -180,6 +196,8 @@ static void i_emit_cmp(Inst* inst) {
 
     case JLT:
       i_emit_line(":8 <- :8 ~ #32768");
+      i_emit_line(":8 <- :&8");
+      i_emit_line(":8 <- #32768 ~ ':8 ~ :10'");
       i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
       break;
 
@@ -253,17 +271,14 @@ static void i_emit_inst(Inst* inst) {
       i_emit_line(":7 <- :7"I_INT":7");
       i_emit_line(":7 <- :7 ~ #65535");
     }
-    i_emit_line(":7 <- :7"I_INT"#255");
-    i_emit_line(":7 <- :V\x08-7");
-    i_emit_line(":7 <- :7 ~ '#0"I_INT"#65535'");
+    i_emit_xor(7, ":7", "#255");
     i_emit_line(":7 <- :7 ~ #255");
 
     i_emit_line(":9 <- :13");
     i_emit_add();
     i_emit_line(":13 <- :8");
 
-    i_emit_line(":8 <- :8" I_INT ":7");
-    i_emit_line(":8 <- :&8 ~ '#0" I_INT "#65535'");
+    i_emit_and(8, ":8", ":7");
 
     i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
 #else
