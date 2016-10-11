@@ -116,7 +116,13 @@ static char* i_imm(uint v) {
 
 static void i_init_state(Data* data) {
   for (int i = 0; i < 7; i++) {
-    i_emit_line("%s <- #0", I_REG_NAMES[i]);
+    if (i == SP) {
+      // INTERCAL backend cannot access mem[65535].
+      // TODO: Adjust memory layout to allow this.
+      i_emit_line("%s <- #65534", I_REG_NAMES[i]);
+    } else {
+      i_emit_line("%s <- #0", I_REG_NAMES[i]);
+    }
   }
   i_emit_line(":10 <- #0"I_INT"#65535");
   i_emit_line(":12 <- #0");
