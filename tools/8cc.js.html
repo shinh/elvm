@@ -5,6 +5,14 @@
 textarea {
   border-width: 3px;
 }
+.outer {
+  display: flex;
+  flex-wrap: wrap;
+}
+.box {
+  display: inline-flex;
+  flex-direction: column;
+}
 </style>
 
 <script src="headers.js"></script>
@@ -164,8 +172,27 @@ function hover(b) {
 
 <body>
 <h1>8cc.js</h1>
-<div>
+
+<div class="outer">
+
+<div class="box">
+<div class="box">C code</div>
+<div class="box">
 <textarea id="src" cols=40 rows=24>
+// You can run a larger C program (FizzBuzz) by changing this condition.
+// Note you may not want to do this for slower backends (e.g., Brainfuck).
+#if 1
+int putchar(int c);
+
+int main() {
+  const char* p = "Hello, world!\n";
+  for (; *p; p++)
+    putchar(*p);
+  return 0;
+}
+
+#else
+
 #include <stdio.h>
 
 int main() {
@@ -183,22 +210,35 @@ int main() {
   return 0;
 }
 
-#if 0
-int putchar(int c);
-
-int main() {
-  const char* p = "Hello, world!\n";
-  for (; *p; p++)
-    putchar(*p);
-  return 0;
-}
 #endif
 
 </textarea>
+</div>
+</div>
+
+<div class="box">
+<div class="box">ELVM IR</div>
+<div class="box">
 <textarea id="eir" cols=40 rows=24></textarea>
+</div>
+</div>
+
+<div class="box">
+<div class="box">Assembled code</div>
+<div class="box">
 <textarea id="trg" cols=40 rows=24></textarea>
+</div>
+</div>
+
+<div class="box">
+<div class="box">Output</div>
+<div class="box">
 <textarea id="out" cols=40 rows=24></textarea>
 </div>
+</div>
+
+</div>
+
 <pre id="err"></pre>
 
 <select id="lang">
@@ -210,14 +250,27 @@ int main() {
 <option value="c">C
 <option value="x86">x86
 <option value="piet">Piet
+<option value="i">C-INTERCAL
 <option value="ws">Whitespace
+<option value="bef">Befunge
 <option value="bf">Brainfuck
 <option value="unl">Unlambda
 </select>
 
-<input type="button" value="compile" onclick="compile()" onmouseover="hover(this)">
-<input type="button" value="assemble" onclick="assemble()" onmouseover="hover(this)">
-<input type="button" value="runEIR" onclick="runEIR()" onmouseover="hover(this)">
-<input type="button" value="runJS" onclick="runJS()" onmouseover="hover(this)">
+<input type="button" value="Compile" onclick="compile()" onmouseover="hover(this)">
+<input type="button" value="Assemble" onclick="assemble()" onmouseover="hover(this)">
+<input type="button" value="Run EIR" onclick="runEIR()" onmouseover="hover(this)">
+<input type="button" value="Run JS" onclick="runJS()" onmouseover="hover(this)">
+
+<ul>
+  <li>"Compile" runs 8cc.js on JavaScript to generate ELVM IR.
+  <li>"Assemble" runs ELVM's assembler (elc.js) for specified
+  language. Language selection makes sense only when you assemble
+  EIR.
+  <li>"Run EIR" runs ELVM IR on JavaScript (eli.js).
+  <li>"Run JS" runs "Assembled code" as JavaScript.
+  <li>You'll see blue and red boxes when you hover your mouse over a
+  button. Blue box is source and red box is destination.
+</ul>
 
 </body>
