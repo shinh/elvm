@@ -13,7 +13,6 @@ static const char* I_REG_NAMES[] = {
 // :11 = reg jmp
 // :12 = prev putc
 // :13 = prev getc
-// :14 = forget num
 // ;1  = memory
 // ;2  = putc table
 // ;3  = getc table (for CLC-INTERCAL only)
@@ -227,7 +226,6 @@ static void i_emit_cmp(Inst* inst, int add_fn) {
 }
 
 static void i_emit_jmp(Inst* inst, int reg_jmp) {
-  i_emit_line(":14 <- #1");
   if (inst->jmp.type == REG) {
     i_emit_line(":11 <- %s", I_REG_NAMES[inst->jmp.reg]);
     i_emit_line("(%d) NEXT", reg_jmp);
@@ -353,7 +351,6 @@ static void i_emit_inst(Inst* inst, int add_fn, int reg_jmp, int* label) {
     int l1 = ++*label;
     int l2 = ++*label;
     i_emit_line("(%d) NEXT", l1);
-    i_emit_line(":14 <- #1");
     i_emit_line("(%d) NEXT", inst->jmp.imm);
 
     emit_line("(%d) DO RESUME :8", l2);
@@ -411,8 +408,7 @@ void target_i(Module* module) {
   int prev_pc = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
-      i_emit_line(":14 <- #0");
-      emit_line("(%d) DO FORGET :14", inst->pc);
+      emit_line("(%d) DO FORGET #1", inst->pc);
     }
     prev_pc = inst->pc;
     emit_line("");
