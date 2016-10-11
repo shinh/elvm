@@ -179,6 +179,13 @@ static void i_emit_sub() {
   i_emit_add();
 }
 
+// Converts 0, 1 in :8 to 1, 2.
+static void i_emit_intercal_boolize() {
+  i_emit_line(":8 <- :8" I_INT "#1");
+  i_emit_line(":8 <- :V\x08-8");
+  i_emit_line(":8 <- :8 ~ #3");
+}
+
 static void i_emit_cmp(Inst* inst) {
   int op = normalize_cond(inst->op, false);
   if (op == JGT || op == JLE) {
@@ -332,8 +339,7 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
     }
 
     i_emit_cmp(inst);
-    i_emit_line(":9 <- #1");
-    i_emit_add();
+    i_emit_intercal_boolize();
 
     int l1 = ++*label;
     int l2 = ++*label;
@@ -368,8 +374,7 @@ static void i_emit_reg_jmp_table(uint pc, uint bit, uint max_pc, int* label) {
   }
 
   i_emit_line(":8 <- :11 ~ #%d", bit);
-  i_emit_line(":9 <- #1");
-  i_emit_add();
+  i_emit_intercal_boolize();
 
   int l1 = ++*label;
   int l2 = ++*label;
