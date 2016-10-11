@@ -428,6 +428,7 @@ void target_i(Module* module) {
   i_emit_line("RESUME #1");
 
   emit_line("");
-  emit_line("(%d) DO NOTe reg jmp table", reg_jmp);
+  i_emit_line("NOTe reg jmp");
+  emit_line("(%d) DO FORGET #1", reg_jmp);
   i_emit_reg_jmp_table(0, 1, reg_jmp, &label);
 }
