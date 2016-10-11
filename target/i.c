@@ -14,6 +14,10 @@ static const char* I_REG_NAMES[] = {
 // :12 = prev putc
 // :13 = prev getc
 // :14 = forget num
+// ;1  = memory
+// ;2  = putc table
+// ;3  = getc table (for CLC-INTERCAL only)
+// ;4  = temporary buffer for getc/putc
 
 #define USE_C_INTERCAL
 
@@ -254,11 +258,13 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s];", I_REG_NAMES[inst->dst.reg], src_str(inst));
+    i_emit_line("%s <- ;1 SUB %s",
+                I_REG_NAMES[inst->dst.reg], i_src_str(inst));
     break;
 
   case STORE:
-    emit_line("mem[%s] = %s;", src_str(inst), I_REG_NAMES[inst->dst.reg]);
+    i_emit_line(";1 SUB %s <- %s",
+                i_src_str(inst), I_REG_NAMES[inst->dst.reg]);
     break;
 
   case PUTC:
