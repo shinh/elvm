@@ -170,23 +170,16 @@ static void i_emit_xor(int dst, const char* a, const char* b) {
   i_emit_bitop("V\x08-", dst, a, b);
 }
 
-static void i_emit_add() {
-  for (int i = 0; i < 16; i++) {
-    i_emit_line(":9 <- :8"I_INT":9");
-    i_emit_line(":8 <- :V\x08-9");
-    i_emit_line(":8 <- :8 ~ :10");
-    i_emit_line(":9 <- :&9");
-    i_emit_line(":9 <- :9 ~ :10");
-    i_emit_line(":9 <- ':9"I_INT"#0'~'#32767"I_INT"#1'");
-  }
+static void i_emit_add(int add_fn) {
+  i_emit_line("(%d) NEXT", add_fn);
 }
 
-static void i_emit_sub() {
+static void i_emit_sub(int add_fn) {
   i_emit_xor(9, ":9", "#65535");
   i_emit_line(":9 <- :9 ~ #65535");
-  i_emit_add();
+  i_emit_add(add_fn);
   i_emit_line(":9 <- #1");
-  i_emit_add();
+  i_emit_add(add_fn);
 }
 
 // Converts 0, 1 in :8 to 1, 2.
@@ -196,7 +189,7 @@ static void i_emit_intercal_boolize() {
   i_emit_line(":8 <- :8 ~ #3");
 }
 
-static void i_emit_cmp(Inst* inst) {
+static void i_emit_cmp(Inst* inst, int add_fn) {
   int op = normalize_cond(inst->op, false);
   if (op == JGT || op == JLE) {
     op = op == JGT ? JLT : JGE;
@@ -206,7 +199,7 @@ static void i_emit_cmp(Inst* inst) {
     i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
     i_emit_line(":9 <- %s", i_src_str(inst));
   }
-  i_emit_sub();
+  i_emit_sub(add_fn);
 
   switch (op) {
     case JEQ:
@@ -243,7 +236,7 @@ static void i_emit_jmp(Inst* inst, int reg_jmp) {
   }
 }
 
-static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
+static void i_emit_inst(Inst* inst, int add_fn, int reg_jmp, int* label) {
   switch (inst->op) {
   case MOV:
     i_emit_line("%s <- %s", I_REG_NAMES[inst->dst.reg], i_src_str(inst));
@@ -252,28 +245,28 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
   case ADD:
     i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
     i_emit_line(":9 <- %s", i_src_str(inst));
-    i_emit_add();
+    i_emit_add(add_fn);
     i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case SUB:
     i_emit_line(":8 <- %s", I_REG_NAMES[inst->dst.reg]);
     i_emit_line(":9 <- %s", i_src_str(inst));
-    i_emit_sub();
+    i_emit_sub(add_fn);
     i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case LOAD:
     i_emit_line(":8 <- %s", i_src_str(inst));
     i_emit_line(":9 <- #1");
-    i_emit_add();
+    i_emit_add(add_fn);
     i_emit_line("%s <- ;1 SUB :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case STORE:
     i_emit_line(":8 <- %s", i_src_str(inst));
     i_emit_line(":9 <- #1");
-    i_emit_add();
+    i_emit_add(add_fn);
     i_emit_line(";1 SUB :8 <- %s", I_REG_NAMES[inst->dst.reg]);
     break;
 
@@ -284,7 +277,7 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
     i_emit_line(":8 <- ;2 SUB :9");
     i_emit_line(":9 <- :12");
     i_emit_line(":12 <- :8");
-    i_emit_sub();
+    i_emit_sub(add_fn);
     i_emit_line(";4 <- #1");
     i_emit_line(";4 SUB #1 <- :8");
     i_emit_line("READ OUT ;4");
@@ -313,7 +306,7 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
     i_emit_line(":7 <- :7 ~ #255");
 
     i_emit_line(":9 <- :13");
-    i_emit_add();
+    i_emit_add(add_fn);
     i_emit_line(":13 <- :8");
 
     i_emit_and(8, ":8", ":7");
@@ -340,7 +333,7 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
   case GT:
   case LE:
   case GE:
-    i_emit_cmp(inst);
+    i_emit_cmp(inst, add_fn);
     i_emit_line("%s <- :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
@@ -354,7 +347,7 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
       error("jcc reg");
     }
 
-    i_emit_cmp(inst);
+    i_emit_cmp(inst, add_fn);
     i_emit_intercal_boolize();
 
     int l1 = ++*label;
@@ -413,6 +406,7 @@ void target_i(Module* module) {
     label = inst->pc;
   }
   int reg_jmp = ++label;
+  int add_fn = ++label;
 
   int prev_pc = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -422,8 +416,20 @@ void target_i(Module* module) {
     }
     prev_pc = inst->pc;
     emit_line("");
-    i_emit_inst(inst, reg_jmp, &label);
+    i_emit_inst(inst, add_fn, reg_jmp, &label);
   }
+
+  emit_line("");
+  emit_line("(%d) DO NOTe add function", add_fn);
+  for (int i = 0; i < 16; i++) {
+    i_emit_line(":9 <- :8"I_INT":9");
+    i_emit_line(":8 <- :V\x08-9");
+    i_emit_line(":8 <- :8 ~ :10");
+    i_emit_line(":9 <- :&9");
+    i_emit_line(":9 <- :9 ~ :10");
+    i_emit_line(":9 <- ':9"I_INT"#0'~'#32767"I_INT"#1'");
+  }
+  i_emit_line("RESUME #1");
 
   emit_line("");
   emit_line("(%d) DO NOTe reg jmp table", reg_jmp);
