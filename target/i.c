@@ -10,6 +10,7 @@ static const char* I_REG_NAMES[] = {
 // :8  = tmp dst
 // :9  = tmp src
 // :10 = interleave(#0, #65535)
+// :11 = reg jmp
 // :12 = prev putc
 // :13 = prev getc
 // :14 = forget num
@@ -215,7 +216,17 @@ static void i_emit_cmp(Inst* inst) {
   }
 }
 
-static void i_emit_inst(Inst* inst, int* label) {
+static void i_emit_jmp(Inst* inst, int reg_jmp) {
+  i_emit_line(":14 <- #1");
+  if (inst->jmp.type == REG) {
+    i_emit_line(":11 <- %s", I_REG_NAMES[inst->jmp.reg]);
+    i_emit_line("(%d) NEXT", reg_jmp);
+  } else {
+    i_emit_line("(%d) NEXT", inst->jmp.imm);
+  }
+}
+
+static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
   switch (inst->op) {
   case MOV:
     i_emit_line("%s <- %s", I_REG_NAMES[inst->dst.reg], i_src_str(inst));
@@ -336,18 +347,41 @@ static void i_emit_inst(Inst* inst, int* label) {
     break;
   }
 
-  case JMP:
-    if (inst->jmp.type == REG) {
-      error("jmp reg");
-    } else {
-      i_emit_line(":14 <- #1");
-      i_emit_line("(%d) NEXT", inst->jmp.imm);
-    }
+  case JMP: {
+    i_emit_jmp(inst, reg_jmp);
     break;
+  }
 
   default:
     error("oops");
   }
+}
+
+static void i_emit_reg_jmp_table(uint pc, uint bit, uint max_pc, int* label) {
+  if (bit > max_pc) {
+    if (pc >= max_pc || pc == 0) {
+      i_emit_line("ERR %d", pc);
+    } else {
+      i_emit_line("(%d) NEXT", pc);
+    }
+    return;
+  }
+
+  i_emit_line(":8 <- :11 ~ #%d", bit);
+  i_emit_line(":9 <- #1");
+  i_emit_add();
+
+  int l1 = ++*label;
+  int l2 = ++*label;
+  i_emit_line("(%d) NEXT", l1);
+
+  i_emit_reg_jmp_table(pc + bit, bit * 2, max_pc, label);
+
+  emit_line("(%d) DO RESUME :8", l2);
+  emit_line("(%d) DO (%d) NEXT", l1, l2);
+  i_emit_line("FORGET #1");
+
+  i_emit_reg_jmp_table(pc, bit * 2, max_pc, label);
 }
 
 void target_i(Module* module) {
@@ -357,6 +391,7 @@ void target_i(Module* module) {
   for (Inst* inst = module->text; inst; inst = inst->next) {
     label = inst->pc;
   }
+  int reg_jmp = ++label;
 
   int prev_pc = 0;
   for (Inst* inst = module->text; inst; inst = inst->next) {
@@ -366,6 +401,10 @@ void target_i(Module* module) {
     }
     prev_pc = inst->pc;
     emit_line("");
-    i_emit_inst(inst, &label);
+    i_emit_inst(inst, reg_jmp, &label);
   }
+
+  emit_line("");
+  emit_line("(%d) DO NOTe reg jmp table", reg_jmp);
+  i_emit_reg_jmp_table(0, 1, reg_jmp, &label);
 }
