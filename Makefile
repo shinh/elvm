@@ -197,6 +197,8 @@ include target.mk
 ifdef CINT
 TARGET := i
 RUNNER := tools/runi.sh
+# INTERCAL backend is 16bit.
+TEST_FILTER := $(addsuffix .i,$(filter out/24_%.eir,$(OUT.eir))) out/eof.c.eir.i out/neg.c.eir.i
 include target.mk
 $(OUT.eir.i.out): tools/runi.sh
 endif

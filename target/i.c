@@ -258,13 +258,17 @@ static void i_emit_inst(Inst* inst, int reg_jmp, int* label) {
     break;
 
   case LOAD:
-    i_emit_line("%s <- ;1 SUB %s",
-                I_REG_NAMES[inst->dst.reg], i_src_str(inst));
+    i_emit_line(":8 <- %s", i_src_str(inst));
+    i_emit_line(":9 <- #1");
+    i_emit_add();
+    i_emit_line("%s <- ;1 SUB :8", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case STORE:
-    i_emit_line(";1 SUB %s <- %s",
-                i_src_str(inst), I_REG_NAMES[inst->dst.reg]);
+    i_emit_line(":8 <- %s", i_src_str(inst));
+    i_emit_line(":9 <- #1");
+    i_emit_add();
+    i_emit_line(";1 SUB :8 <- %s", I_REG_NAMES[inst->dst.reg]);
     break;
 
   case PUTC:
