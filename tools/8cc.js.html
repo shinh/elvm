@@ -146,16 +146,16 @@ function runJS() {
 function hover(b) {
   var src = null;
   var dst = null;
-  if (b.value == 'compile') {
+  if (b.value == 'Compile') {
     src = 'src';
     dst = 'eir';
-  } else if (b.value == 'assemble') {
+  } else if (b.value == 'Assemble') {
     src = 'eir';
     dst = 'trg';
-  } else if (b.value == 'runEIR') {
+  } else if (b.value == 'Run EIR') {
     src = 'eir';
     dst = 'out';
-  } else if (b.value == 'runJS') {
+  } else if (b.value == 'Run JS') {
     src = 'trg';
     dst = 'out';
   }
