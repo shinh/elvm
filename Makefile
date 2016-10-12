@@ -238,11 +238,12 @@ $(OUT.eir.piet.out): tools/runpiet.sh
 endif
 
 TARGET := unl
-RUNNER := unlambda
+RUNNER := tools/rununl.sh
 ifndef FULL
 TEST_FILTER := out/eli.c.eir.unl out/dump_ir.c.eir.unl
 endif
 include target.mk
+$(OUT.eir.unl.out): tools/rununl.sh
 
 test: $(TEST_RESULTS)
 
