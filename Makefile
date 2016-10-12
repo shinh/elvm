@@ -52,7 +52,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c el.c sh.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -178,6 +178,13 @@ include target.mk
 
 TARGET := el
 RUNNER := emacs --no-site-file --script
+include target.mk
+
+TARGET := sh
+RUNNER := bash
+ifndef FULL
+TEST_FILTER := out/fizzbuzz_fast.c.eir.sh out/8cc.c.eir.sh out/eli.c.eir.sh out/dump_ir.c.eir.sh
+endif
 include target.mk
 
 TARGET := java

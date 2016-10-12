@@ -9,13 +9,14 @@ code to an internal representation format called ELVM IR (EIR). Unlike
 LLVM bitcode, EIR is designed to be extremely simple, so there's more
 chance we can write a translator from EIR to an esoteric language.
 
-Currently, there are 13 backends:
+Currently, there are 14 backends:
 
 * Ruby
 * Python
 * JavaScript
 * Java
 * Emacs Lisp
+* Bash
 * C
 * i386-linux
 * C-INTERCAL
@@ -172,7 +173,7 @@ backends. You can run a C compiler on Emacs:
 
 I'm interested in
 
-* adding more backends (e.g., bash, WebAssembly, 16bit CPU, Malbolge
+* adding more backends (e.g., WebAssembly, 16bit CPU, Malbolge
   Unshackled, ...)
 * running more programs (e.g., lua.bf or mruby.bf?)
 * supporting more C features (e.g., bit operations)
