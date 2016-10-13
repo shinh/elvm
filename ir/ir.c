@@ -33,7 +33,7 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, TEXT, LONG, STRING
+  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC
 };
 
 enum {
@@ -229,6 +229,10 @@ static Op get_op(Parser* p, const char* buf) {
     return LONG;
   } else if (!strcmp(buf, ".string")) {
     return STRING;
+  } else if (!strcmp(buf, ".file")) {
+    return FILENAME;
+  } else if (!strcmp(buf, ".loc")) {
+    return LOC;
   }
   return OP_UNSET;
 }
@@ -267,6 +271,12 @@ static void parse_line(Parser* p, int c) {
       c = ir_getc(p);
     }
     add_imm_data(p, 0);
+    return;
+  } else if (op == (Op)FILENAME) {
+    skip_until_ret(p);
+    return;
+  } else if (op == (Op)LOC) {
+    skip_until_ret(p);
     return;
   } else if (op == OP_UNSET) {
     c = ir_getc(p);
