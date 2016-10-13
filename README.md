@@ -29,8 +29,8 @@ Currently, there are 14 backends:
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such
 languages. You can easily create Brainfuck programs by writing C code
-for example. One of an interesting testcase ELVM has is (a tiny Lisp
-interpreter)[https://github.com/shinh/elvm/blob/master/test/lisp.c]. The
+for example. One of interesting testcases ELVM has is [a tiny Lisp
+interpreter](https://github.com/shinh/elvm/blob/master/test/lisp.c). The
 all above language backends are passing the test, which means you can
 run Lisp on the above languages.
 
