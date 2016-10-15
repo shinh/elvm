@@ -9,7 +9,6 @@ static const char CONS[] = "``s``s`ks``s`kk``s`ks``s`k`sik`kk";
 static const char CAR[] = "``si`kk";
 static const char CDR[] = "``si`k`ki";
 static const char DOTCAR[] = "k";   // (x DOTCAR) = (CAR x)
-static const char DOTCDR[] = "`ki"; // (x DOTCDR) = (CDR x)
 
 // (CONS_KI x) = (cons (K I) x)
 static const char CONS_KI[] = "``s`k`s``si`k`kik";
@@ -28,6 +27,12 @@ static const char REPLACE_CAR1[] = "``si`k`k``s``s`k`s``s`ks``s`k`sik``s`kkk`k";
 
 // (COMPOSE f g x) = (f (g x))
 static const char COMPOSE[] = "``s`ksk";
+
+// (n POST_INC) = n+1
+static const char POST_INC[] = "```sii``s``s`ks``s`k`si``s`kk``s`k`s`k``s`k`s``si`k`kik``s`k`si``s``s`kskk`k`k``s`k`s``si`kkk";
+
+// (n POST_DEC) = n-1
+static const char POST_DEC[] = "```sii``s`k`s``si`k``s`k`s``si`k`kik``s`kk``s`k`s`k``s`k`s``si`kkk``s`k`si``s``s`kskk";
 
 // Church numers up to 24
 static const char* CHURCHNUM[] = {
@@ -154,7 +159,18 @@ static void unl_nth_end(void) {
   unl_emit(DOTCAR);
 }
 
-static void unl_emit_lib(int n) {
+typedef enum {
+  LIB_ADD = 2,
+  LIB_SUB,
+  LIB_EQ,
+  LIB_LT,
+  LIB_LOAD,
+  LIB_STORE,
+  LIB_PUTC,
+  LIB_GETC
+} LibNo;
+
+static void unl_emit_lib(LibNo n) {
   unl_emit(S2);
   unl_emit("`");
   unl_emit_churchnum(n);
@@ -163,45 +179,35 @@ static void unl_emit_lib(int n) {
   unl_emit(DOTCAR);
 }
 
-static void unl_lib_inc() {
-  unl_emit(S2);
-  unl_emit_lib(2);
-}
-
-static void unl_lib_dec() {
-  unl_emit(S2);
-  unl_emit_lib(3);
-}
-
 static void unl_lib_add() {
   unl_emit(S2);
   unl_emit(S2);
-  unl_emit_lib(4);
+  unl_emit_lib(LIB_ADD);
 }
 
 static void unl_lib_sub() {
   unl_emit(S2);
   unl_emit(S2);
-  unl_emit_lib(5);
+  unl_emit_lib(LIB_SUB);
 }
 
 static void unl_lib_eq() {
   unl_emit(S2);
   unl_emit(S2);
-  unl_emit_lib(6);
+  unl_emit_lib(LIB_EQ);
 }
 
 static void unl_lib_lt() {
   unl_emit(S2);
   unl_emit(S2);
-  unl_emit_lib(7);
+  unl_emit_lib(LIB_LT);
 }
 
 static void unl_lib_load() {
   unl_emit(S2);
 
   unl_emit(S2);
-  unl_emit_lib(8);
+  unl_emit_lib(LIB_LOAD);
   putchar('i');
 }
 
@@ -210,19 +216,19 @@ static void unl_lib_store() {
   unl_emit(S2);
 
   unl_emit(S2);
-  unl_emit_lib(9);
+  unl_emit_lib(LIB_STORE);
   putchar('i');
 }
 
 static void unl_lib_putc() {
   unl_emit(S2);
-  unl_emit_lib(10);
+  unl_emit_lib(LIB_PUTC);
 }
 
 static void unl_lib_getc() {
   unl_emit(S2);
   unl_emit("`kc");
-  unl_emit_lib(11);
+  unl_emit_lib(LIB_GETC);
 }
 
 static void unl_getreg(Reg reg) {
@@ -320,11 +326,15 @@ static void unl_emit_op(Inst* inst) {
   case ADD:
     unl_setreg_begin(unl_regpos(inst->dst.reg));
     if (inst->src.type == IMM && inst->src.imm == 1) {
-      unl_lib_inc();
+      unl_emit(S2);
       unl_getreg(inst->dst.reg);
+      unl_emit(K1);
+      unl_emit(POST_INC);
     } else if (inst->src.type == IMM && inst->src.imm == UINT_MAX) {
-      unl_lib_dec();
+      unl_emit(S2);
       unl_getreg(inst->dst.reg);
+      unl_emit(K1);
+      unl_emit(POST_DEC);
     } else {
       unl_lib_add();
       unl_getreg(inst->dst.reg);
@@ -336,8 +346,10 @@ static void unl_emit_op(Inst* inst) {
   case SUB:
     unl_setreg_begin(unl_regpos(inst->dst.reg));
     if (inst->src.type == IMM && inst->src.imm == 1) {
-      unl_lib_dec();
+      unl_emit(S2);
       unl_getreg(inst->dst.reg);
+      unl_emit(K1);
+      unl_emit(POST_DEC);
     } else {
       unl_lib_sub();
       unl_getreg(inst->dst.reg);
