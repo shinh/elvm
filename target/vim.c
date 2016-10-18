@@ -16,9 +16,14 @@ static void init_state_vim(Data* data) {
       emit_line("let s:mem[%d] = %d", mp, data->v);
     }
   }
+
+  // Assumes that all stdin input is put in the current buffer.
+  // Load it to s:input list at first.
   emit_line("let s:input = map(split(join(getline(1, '$'), \"\\n\"), '\\zs'), 'char2nr(v:val)')");
   emit_line("let s:ic = 0");
   emit_line("let s:output = []");
+
+  // After loading input to s:input, delete entire buffer to output the result.
   emit_line("normal! dG");
 }
 
@@ -77,16 +82,27 @@ static void vim_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
+    // :echon is not available because it can't output invisible characters such as Nul.
+    // So we save the output to s:output and will output it to the current buffer later.
     emit_line("let s:output += [%s]", src_str(inst));
     break;
 
   case GETC:
+    // getchar() is not available because Vim finishes to run script when stdin reaches to EOF
+    // on calling getchar().  To emulate standard getc() behavior, we save the stdin input to
+    // s:input at first, then load a character from it.
     emit_line("let %s = len(s:input) <= s:ic ? 0 : s:input[s:ic]", reg_names[inst->dst.reg]);
     emit_line("let s:ic += 1");
     break;
 
   case EXIT:
+    // When no output, return the script immediately.
+    // We can't use :quit here because buffer is not saved yet.
+    // And we can't use :finish because script can't be terminated by finish from external
+    // input (please see `:help E168`).
     emit_line("if len(s:output) == 0 | return 1 | endif");
+
+    // Convert the list of characters to list of line strings here.
     emit_line("let s:lines = ['']");
     emit_line("for s:ch in s:output");
     inc_indent();
@@ -96,12 +112,19 @@ static void vim_emit_inst(Inst* inst) {
     dec_indent();
     emit_line("else");
     inc_indent();
+    // Note that Vim treats Nul characters with NL (0xa) in a Vim buffer.
+    // So we need to care about it on coverting a character code to a string.
     emit_line("let s:lines[len(s:lines)-1] .= nr2char(s:ch == 0 ? 10 : s:ch)");
     dec_indent();
     emit_line("endif");
     emit_line("unlet s:ch");
     dec_indent();
     emit_line("endfor");
+
+    // Finally writes the result to the current buffer.
+    // Vim represents Nul character with NL (0xa) and represents newline with CR.
+    // Converted NL and CR will be automatically replaced on saving the buffer to
+    // a file on binary mode.
     emit_line("call setline(1, s:lines)");
     emit_line("return 1");
     break;
@@ -155,6 +178,7 @@ void target_vim(Module* module) {
   for (int i = 0; i < num_funcs; i++) {
     emit_line("elseif s:pc < %d", (i + 1) * CHUNKED_FUNC_SIZE);
     inc_indent();
+    // Func%d() returns 1 if the program exited or not (otherwise returns 0).
     emit_line("if Func%d() | break | endif", i);
     dec_indent();
   }
