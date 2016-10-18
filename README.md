@@ -16,6 +16,7 @@ Currently, there are 14 backends:
 * JavaScript
 * Java
 * Emacs Lisp
+* Vim script
 * Bash
 * C
 * i386-linux
@@ -168,6 +169,18 @@ backends. You can run a C compiler on Emacs:
 * M-x elc
 * M-x eval-buffer
 * M-x elvm-main
+
+### Vim script
+
+You can run a C compiler on Vim:
+
+* Open test/hello.c (or write your C code)
+* `:source /path/to/out/8cc.vim`
+* Now you can see ELVM IR in the buffer
+* Please prepend a backend name (`vim` for Vim) to the first line
+* `:source /path/to/out/elc.vim`
+* You can see Vim script code as the compilation result in current buffer
+* You can `:source` to run the code
 
 ## Future works
 
