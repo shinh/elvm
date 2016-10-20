@@ -9,7 +9,7 @@ code to an internal representation format called ELVM IR (EIR). Unlike
 LLVM bitcode, EIR is designed to be extremely simple, so there's more
 chance we can write a translator from EIR to an esoteric language.
 
-Currently, there are 14 backends:
+Currently, there are 15 backends:
 
 * Ruby
 * Python
