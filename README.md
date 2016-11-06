@@ -9,7 +9,7 @@ code to an internal representation format called ELVM IR (EIR). Unlike
 LLVM bitcode, EIR is designed to be extremely simple, so there's more
 chance we can write a translator from EIR to an esoteric language.
 
-Currently, there are 15 backends:
+Currently, there are 16 backends:
 
 * Ruby
 * Python
@@ -26,6 +26,7 @@ Currently, there are 15 backends:
 * Brainfuck
 * Piet
 * Unlambda
+* TeX
 
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such
@@ -181,6 +182,10 @@ You can run a C compiler on Vim:
 * `:source /path/to/out/elc.vim`
 * You can see Vim script code as the compilation result in current buffer
 * You can `:source` to run the code
+
+### TeX
+
+This backend was contributed by @hak7a3. See also [8cc.tex](https://github.com/hak7a3/8cc.tex).
 
 ## Future works
 
