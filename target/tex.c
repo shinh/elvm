@@ -40,14 +40,14 @@ static void tex_emit_inst(Inst* inst) {
   case ADD:
     emit_line("\\count0=\\@reg@%s\\relax", reg_names[inst->dst.reg]);
     emit_line("\\advance\\count0by%s\\relax", tex_src_str(inst));
-    emit_line("\\ifnum\\count0>%d\\advance\\count0by-%d\\fi", UINT_MAX, UINT_MAX + 1);
+    emit_line("\\ifnum\\count0>%d\\advance\\count0by-%s\\fi", UINT_MAX, "16777216");
     emit_line("\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
     break;
 
   case SUB:
     emit_line("\\count0=\\@reg@%s\\relax", reg_names[inst->dst.reg]);
     emit_line("\\advance\\count0by-%s\\relax", tex_src_str(inst));
-    emit_line("\\ifnum\\count0<0\\advance\\count0by%d\\fi", UINT_MAX + 1);
+    emit_line("\\ifnum\\count0<0\\advance\\count0by%s\\fi", "16777216");
     emit_line("\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
     break;
 
@@ -69,7 +69,7 @@ static void tex_emit_inst(Inst* inst) {
 
   case GETC:
     // input is also...
-    emit_line("\\read-1to\\@temp\\count0=\\@temp\\edef\\@reg@%s{\\the\\count0}%", reg_names[inst->dst.reg]);
+    emit_line("\\read-1to\\@temp\\count0=\\@temp\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
