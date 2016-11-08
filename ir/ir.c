@@ -256,14 +256,23 @@ static void parse_line(Parser* p, int c) {
     while (c != '"') {
       if (c == '\\') {
         c = ir_getc(p);
-        if (c == 'n')
+        if (c == 'n') {
           c = '\n';
-        else if (c == '\"')
+        } else if (c == 't') {
+          c = '\t';
+        } else if (c == '\"') {
           c = '\"';
-        else if (c == '\\')
+        } else if (c == '\\') {
           c = '\\';
-        else
+        } else if (c == 'x') {
+          char b[3];
+          b[0] = ir_getc(p);
+          b[1] = ir_getc(p);
+          b[2] = 0;
+          c = strtoul(b, NULL, 16);
+        } else {
           ir_error(p, "unknown escape");
+        }
         add_imm_data(p, c);
       } else {
         add_imm_data(p, c);
