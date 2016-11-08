@@ -260,6 +260,12 @@ static void parse_line(Parser* p, int c) {
           c = '\n';
         } else if (c == 't') {
           c = '\t';
+        } else if (c == 'b') {
+          c = '\b';
+        } else if (c == 'f') {
+          c = '\f';
+        } else if (c == 'r') {
+          c = '\r';
         } else if (c == '\"') {
           c = '\"';
         } else if (c == '\\') {
