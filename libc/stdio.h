@@ -40,7 +40,10 @@ int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
 
     char cur_buf[32];
     char* cur_p;
+ retry:
     switch (*++inp) {
+      case 'l':
+        goto retry;
       case 'd':
         cur_p = stringify_int(va_arg(ap, long), cur_buf + sizeof(cur_buf) - 1);
         break;
@@ -118,9 +121,9 @@ int printf(const char* fmt, ...) {
 }
 
 typedef char FILE;
-FILE* stdin;
-FILE* stdout;
-FILE* stderr;
+FILE* stdin = (FILE*)1;
+FILE* stdout = (FILE*)1;
+FILE* stderr = (FILE*)1;
 
 int fprintf(FILE* fp, const char* fmt, ...) {
   va_list ap;
