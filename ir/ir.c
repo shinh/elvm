@@ -238,9 +238,9 @@ static Op get_op(Parser* p, const char* buf) {
 }
 
 static void parse_line(Parser* p, int c) {
-  char buf[32];
+  char buf[64];
   buf[0] = c;
-  read_while_ident(p, buf + 1, 30);
+  read_while_ident(p, buf + 1, 62);
   Op op = get_op(p, buf);
   if (op == (Op)TEXT) {
     p->in_text = 1;
@@ -342,7 +342,7 @@ static void parse_line(Parser* p, int c) {
       a.imm = MOD24(read_int(p, c));
     } else {
       buf[0] = c;
-      read_while_ident(p, buf + 1, 30);
+      read_while_ident(p, buf + 1, 62);
       a.type = REG;
       if (!strcmp(buf, "A")) {
         a.reg = A;
