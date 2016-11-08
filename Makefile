@@ -6,16 +6,21 @@ ELI := out/eli
 ELC := out/elc
 8CC := out/8cc
 8CC_SRCS := \
-	8cc/main.c \
+	8cc/buffer.c \
 	8cc/cpp.c \
-	8cc/error.c \
-	8cc/lex.c \
-	8cc/parse.c \
 	8cc/debug.c \
-	8cc/list.c \
-	8cc/string.c \
 	8cc/dict.c \
-	8cc/gen.c
+	8cc/encoding.c \
+	8cc/error.c \
+	8cc/file.c \
+	8cc/gen.c \
+	8cc/lex.c \
+	8cc/main.c \
+	8cc/map.c \
+	8cc/parse.c \
+	8cc/path.c \
+	8cc/set.c \
+	8cc/vector.c
 
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
@@ -94,7 +99,7 @@ $(DSTS): out/%.c: test/%.c
 OUT.c := $(SRCS:test/%.c=out/%.c)
 
 out/8cc.c: $(8CC_SRCS)
-	cp 8cc/*.h out
+	cp 8cc/*.h 8cc/*.inc 8cc/include/*.h out
 	cat $(8CC_SRCS) > $@.tmp && mv $@.tmp $@
 OUT.c += out/8cc.c
 
@@ -134,13 +139,13 @@ EXT := out
 DEPS := $(TEST_INS)
 # TODO: Hacky!
 sharp := \#
-CMD = $2 -S -o $1.S test/8cc.in.c && sed -i 's/ *$(sharp).*//' $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
+CMD = $2 -S -o $1.S - < test/8cc.in.c && sed -i 's/ *$(sharp).*//' $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
 include build.mk
 
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
-CMD = $(8CC) -S -I. -Ilibc $2 -o $1.tmp && mv $1.tmp $1
+CMD = $(8CC) -S -I. -Ilibc -Iout $2 -o $1.tmp && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
 include build.mk
