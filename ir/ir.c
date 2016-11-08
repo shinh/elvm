@@ -92,7 +92,7 @@ static void skip_ws(Parser* p) {
 static void read_while_ident(Parser* p, char* buf, int len) {
   while (len--) {
     int c = ir_getc(p);
-    if (!isalnum(c) && c != '_') {
+    if (!isalnum(c) && c != '_' && c != '.') {
       ir_ungetc(p, c);
       *buf = 0;
       return;
