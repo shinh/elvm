@@ -7,7 +7,6 @@
 
 typedef unsigned long size_t;
 typedef unsigned long ptrdiff_t;
-typedef long off_t;
 
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
 

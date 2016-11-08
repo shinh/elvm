@@ -26,4 +26,8 @@ int isalnum(int c) {
   return isalpha(c) || isdigit(c);
 }
 
+int isprint(int c) {
+  return isspace(c) || (c >= 32 && c < 127);
+}
+
 #endif  // ELVM_LIBC_CTYPE_H_

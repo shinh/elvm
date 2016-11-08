@@ -189,6 +189,10 @@ int fgetc(FILE* fp) {
   return r;
 }
 
+int getc(FILE* fp) {
+  return fgetc(fp);
+}
+
 int ungetc(int c, FILE* fp) {
   if (g_ungot == EOF)
     return g_ungot = c;
