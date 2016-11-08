@@ -137,4 +137,47 @@ char* getenv(const char* name) {
   return NULL;
 }
 
+void qsort(void* vbase, size_t nmemb, size_t size,
+           int (*compar)(const void*, const void*)) {
+  if (nmemb <= 1)
+    return;
+  char* base = (char*)vbase;
+  char* pivot = base + (nmemb / 2) * size;
+  char* left = base;
+  char* right = base + (nmemb - 1) * size;
+#if 0
+  printf("nmemb=%d size=%d\n", nmemb, size);
+  for (int i = 0; i < nmemb; i++) {
+    printf("%d ", *((int*)base + i));
+  }
+  puts("");
+#endif
+  for (;;) {
+    //printf("left=%d right=%d", left-base, right-base);
+    while (compar(left, pivot) >= 32768)
+      left += size;
+    while ((compar(right, pivot) - 1) < 32768)
+      right -= size;
+    //printf(" => left=%d right=%d\n", left-base, right-base);
+    if (left >= right)
+      break;
+    for (size_t i = 0; i < size; i++) {
+      char tmp = left[i];
+      left[i] = right[i];
+      right[i] = tmp;
+    }
+    if (pivot == left)
+      pivot = right;
+    else if (pivot == right)
+      pivot = left;
+    left += size;
+    right -= size;
+  }
+  //left -= size;
+  right += size;
+  qsort(base, (size_t)(left - base) / size, size, compar);
+  qsort(right, (size_t)(base + nmemb * size - right) / size,
+        size, compar);
+}
+
 #endif  // ELVM_LIBC_STDLIB_H_
