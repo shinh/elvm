@@ -73,4 +73,81 @@ static unsigned int __builtin_mod(unsigned int a, unsigned int b) {
   return r.rem;
 }
 
+static void __builtin_to_bitarray(unsigned int v, unsigned char* b) {
+  for (int i = 0; i < 24; i++) {
+    b[i] = v % 2;
+    v /= 2;
+  }
+}
+
+static unsigned int __builtin_from_bitarray(unsigned char* b) {
+  unsigned int v = 0;
+  unsigned int r = 1;
+  for (int i = 0; i < 24; i++) {
+    v += b[i] * r;
+    r *= 2;
+  }
+  return v;
+}
+
+static unsigned int __builtin_and(unsigned int a, unsigned int b) {
+  unsigned char av[24];
+  unsigned char bv[24];
+  __builtin_to_bitarray(a, av);
+  __builtin_to_bitarray(b, bv);
+  for (int i = 0; i < 24; i++) {
+    av[i] = av[i] && bv[i];
+  }
+  return __builtin_from_bitarray(av);
+}
+
+static unsigned int __builtin_or(unsigned int a, unsigned int b) {
+  unsigned char av[24];
+  unsigned char bv[24];
+  __builtin_to_bitarray(a, av);
+  __builtin_to_bitarray(b, bv);
+  for (int i = 0; i < 24; i++) {
+    av[i] = av[i] || bv[i];
+  }
+  return __builtin_from_bitarray(av);
+}
+
+static unsigned int __builtin_xor(unsigned int a, unsigned int b) {
+  unsigned char av[24];
+  unsigned char bv[24];
+  __builtin_to_bitarray(a, av);
+  __builtin_to_bitarray(b, bv);
+  for (int i = 0; i < 24; i++) {
+    av[i] = av[i] != bv[i];
+  }
+  return __builtin_from_bitarray(av);
+}
+
+static unsigned int __builtin_not(unsigned int a) {
+  unsigned char av[24];
+  __builtin_to_bitarray(a, av);
+  for (int i = 0; i < 24; i++) {
+    av[i] = !av[i];
+  }
+  return __builtin_from_bitarray(av);
+}
+
+static unsigned int __builtin_shl(unsigned int a, unsigned int b) {
+  unsigned char av[48];
+  __builtin_to_bitarray(a, av + 24);
+  for (int i = 0; i < b; i++) {
+    av[24-i-1] = 0;
+  }
+  return __builtin_from_bitarray(av + 24 - b);
+}
+
+static unsigned int __builtin_shr(unsigned int a, unsigned int b) {
+  unsigned char av[48];
+  __builtin_to_bitarray(a, av);
+  for (int i = 0; i < b; i++) {
+    av[24+i] = 0;
+  }
+  return __builtin_from_bitarray(av + b);
+}
+
 #endif  // ELVM_LIBC_BUILTIN_H_
