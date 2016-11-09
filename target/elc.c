@@ -11,6 +11,7 @@ void target_js(Module* module);
 void target_el(Module* module);
 void target_vim(Module* module);
 void target_tex(Module* module);
+void target_cl(Module* module);
 void target_sh(Module* module);
 void target_java(Module* module);
 void target_c(Module* module);
@@ -37,6 +38,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_vim;
   } else if (!strcmp(ext, "tex")) {
     return target_tex;
+  } else if (!strcmp(ext, "cl")) {
+    return target_cl;
   } else if (!strcmp(ext, "sh")) {
     return target_sh;
   } else if (!strcmp(ext, "java")) {

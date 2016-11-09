@@ -57,7 +57,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c sh.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -191,6 +191,10 @@ include target.mk
 
 TARGET := tex
 RUNNER := tools/runtex.sh
+include target.mk
+
+TARGET := cl
+RUNNER := sbcl --script
 include target.mk
 
 TARGET := sh
