@@ -273,7 +273,14 @@ static void parse_line(Parser* p, int c) {
         } else if (c == 'x') {
           char b[3];
           b[0] = ir_getc(p);
-          b[1] = ir_getc(p);
+          c = ir_getc(p);
+          if (!((c >= '0' && c <= '9') ||
+                (c >= 'a' && c <= 'f') ||
+                (c >= 'A' && c <= 'F'))) {
+            ir_ungetc(p, c);
+            c = 0;
+          }
+          b[1] = c;
           b[2] = 0;
           c = strtoul(b, NULL, 16);
         } else {
