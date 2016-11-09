@@ -45,6 +45,7 @@ int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
       case 'l':
         goto retry;
       case 'd':
+      case 'u':
         cur_p = stringify_int(va_arg(ap, long), cur_buf + sizeof(cur_buf) - 1);
         break;
       case 'x':
@@ -65,6 +66,8 @@ int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
         break;
       default:
         print_int(*inp);
+        print_str(" in ");
+        print_str(fmt);
         print_str(": unknown format!\n");
         exit(1);
     }
