@@ -37,6 +37,15 @@ void my_div(unsigned int a, unsigned int b, _my_div_t* o) {
 
 static int __builtin_mul(int a, int b) {
   int i, e, v;
+  if (a < b) {
+    v = a;
+    a = b;
+    b = v;
+  }
+  if (b == 1)
+    return a;
+  if (b == 0)
+    return 0;
   int d[24];
   int r[24];
   for (i = 0, e = 1, v = a;; i++) {
@@ -62,6 +71,8 @@ static int __builtin_mul(int a, int b) {
 }
 
 static unsigned int __builtin_div(unsigned int a, unsigned int b) {
+  if (b == 1)
+    return a;
   _my_div_t r;
   my_div(a, b, &r);
   return r.quot;
