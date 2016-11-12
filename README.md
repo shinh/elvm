@@ -9,12 +9,13 @@ code to an internal representation format called ELVM IR (EIR). Unlike
 LLVM bitcode, EIR is designed to be extremely simple, so there's more
 chance we can write a translator from EIR to an esoteric language.
 
-Currently, there are 16 backends:
+Currently, there are 17 backends:
 
 * Ruby
 * Python
 * JavaScript
 * Java
+* CommonLisp
 * Emacs Lisp
 * Vim script
 * Bash
