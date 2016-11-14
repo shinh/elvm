@@ -1,3 +1,20 @@
+ifeq ($(TOOL),)
+ifneq ($(findstring out/,$(RUNNER)),)
+else ifneq ($(findstring tools/,$(RUNNER)),)
+else
+TOOL := $(firstword $(RUNNER))
+endif
+endif
+
+can_build :=
+ifeq ($(TOOL),)
+can_build := 1
+else ifneq ($(shell which $(TOOL)),)
+can_build := 1
+endif
+
+ifeq ($(can_build),1)
+
 include clear_vars.mk
 SRCS := $(OUT.eir)
 EXT := $(TARGET)
@@ -38,4 +55,14 @@ include diff.mk
 
 elc-$(TARGET): $(DIFFS)
 
+else
+
+$(info Skip building $(TARGET) due to lack of $(TOOL))
+
+$(TARGET) elc-$(TARGET):
+	@echo "*** Skip building $@ ***"
+
+endif  # can_build
+
 TEST_FILTER :=
+TOOL :=

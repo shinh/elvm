@@ -187,10 +187,12 @@ include target.mk
 
 TARGET := vim
 RUNNER := tools/runvim.sh
+TOOL := vim
 include target.mk
 
 TARGET := tex
 RUNNER := tools/runtex.sh
+TOOL := tex
 include target.mk
 
 TARGET := cl
@@ -206,6 +208,7 @@ include target.mk
 
 TARGET := java
 RUNNER := tools/runjava.sh
+TOOL := javac
 include target.mk
 $(OUT.eir.c.out): tools/runjava.sh
 
@@ -218,14 +221,13 @@ TARGET := x86
 RUNNER :=
 include target.mk
 
-ifdef CINT
 TARGET := i
 RUNNER := tools/runi.sh
+TOOL := ick
 # INTERCAL backend is 16bit.
 TEST_FILTER := $(addsuffix .i,$(filter out/24_%.eir,$(OUT.eir))) out/eof.c.eir.i out/neg.c.eir.i
 include target.mk
 $(OUT.eir.i.out): tools/runi.sh
-endif
 
 TARGET := ws
 RUNNER := tools/runws.sh
