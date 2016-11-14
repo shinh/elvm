@@ -18,7 +18,7 @@ int mem[MEMSZ];
 int regs[6];
 bool verbose;
 
-#ifndef __eir__
+#ifdef __GNUC__
 __attribute__((noreturn))
 #endif
 static void error(const char* msg) {

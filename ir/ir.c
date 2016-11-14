@@ -40,6 +40,9 @@ enum {
   REF = IMM + 1, LABEL
 };
 
+#ifdef __GNUC__
+__attribute__((noreturn))
+#endif
 static void ir_error(Parser* p, const char* msg) {
   fprintf(stderr, "%s:%d:%d: %s\n", p->filename, p->lineno, p->col, msg);
   exit(1);

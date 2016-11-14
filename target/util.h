@@ -13,7 +13,7 @@ typedef uint8_t byte;
 char* vformat(const char* fmt, va_list ap);
 char* format(const char* fmt, ...);
 
-#ifndef __eir__
+#ifdef __GNUC__
 __attribute__((noreturn))
 #endif
 void error(const char* fmt, ...);
