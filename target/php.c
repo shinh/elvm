@@ -1,43 +1,44 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static void init_state_js(Data* data) {
-  emit_line("var main = function(getchar, putchar) {");
+static void init_state_php(Data* data) {
+  emit_line("$main = function() {");
 
   for (int i = 0; i < 7; i++) {
-    emit_line("var %s = 0;", reg_names[i]);
+    emit_line("$%s = 0;", reg_names[i]);
   }
-  emit_line("var mem = new Int32Array(1 << 24);");
+  emit_line("$mem = new \\SplFixedArray(1 << 24);");
+  emit_line("$stdin = fopen('php://stdin', 'r');");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      emit_line("mem[%d] = %d;", mp, data->v);
+      emit_line("$mem[%d] = %d;", mp, data->v);
     }
   }
 }
 
-static void js_emit_func_prologue(int func_id) {
+static void php_emit_func_prologue(int func_id) {
   emit_line("");
-  emit_line("var func%d = function() {", func_id);
+  emit_line("$func%d = function() use ($pc, $running, $stdin) {", func_id);
   inc_indent();
-  emit_line("while (%d <= pc && pc < %d && running) {",
+  emit_line("while (%d <= $pc && $pc < %d && $running) {",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
-  emit_line("switch (pc) {");
+  emit_line("switch ($pc) {");
   emit_line("case -1:  // dummy");
   inc_indent();
 }
 
-static void js_emit_func_epilogue(void) {
+static void php_emit_func_epilogue(void) {
   dec_indent();
   emit_line("}");
-  emit_line("pc++;");
+  emit_line("$pc++;");
   dec_indent();
   emit_line("}");
   dec_indent();
   emit_line("};");
 }
 
-static void js_emit_pc_change(int pc) {
+static void php_emit_pc_change(int pc) {
   emit_line("break;");
   emit_line("");
   dec_indent();
@@ -45,43 +46,43 @@ static void js_emit_pc_change(int pc) {
   inc_indent();
 }
 
-static void js_emit_inst(Inst* inst) {
+static void php_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("$%s = $%s;", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
+    emit_line("$%s = ($%s + $%s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
+    emit_line("$%s = ($%s - $%s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("$%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("$mem[%s] = $%s;", src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    emit_line("putchar(%s);", src_str(inst));
+    emit_line("echo %s;", src_str(inst));
     break;
 
   case GETC:
-    emit_line("%s = getchar();",
+    emit_line("$%s = fgetc($stdin);",
               reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
-    emit_line("running = false; break;");
+    emit_line("$running = false; break;");
     break;
 
   case DUMP:
@@ -93,7 +94,7 @@ static void js_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("%s = (%s) | 0;",
+    emit_line("$%s = (%s) | 0;",
               reg_names[inst->dst.reg], cmp_str(inst, "true"));
     break;
 
@@ -104,7 +105,7 @@ static void js_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
   case JMP:
-    emit_line("if (%s) pc = %s - 1;",
+    emit_line("if (%s) pc = $%s - 1;",
               cmp_str(inst, "true"), value_str(&inst->jmp));
     break;
 
@@ -113,21 +114,21 @@ static void js_emit_inst(Inst* inst) {
   }
 }
 
-void target_js(Module* module) {
-  init_state_js(module->data);
+void target_php(Module* module) {
+  init_state_php(module->data);
 
-  emit_line("var running = true;");
+  emit_line("$running = true;");
 
   int num_funcs = emit_chunked_main_loop(module->text,
-                                         js_emit_func_prologue,
-                                         js_emit_func_epilogue,
-                                         js_emit_pc_change,
-                                         js_emit_inst);
+                                         php_emit_func_prologue,
+                                         php_emit_func_epilogue,
+                                         php_emit_pc_change,
+                                         php_emit_inst);
 
   emit_line("");
-  emit_line("while (running) {");
+  emit_line("while ($running) {");
   inc_indent();
-  emit_line("switch (pc / %d | 0) {", CHUNKED_FUNC_SIZE);
+  emit_line("switch ($pc / %d | 0) {", CHUNKED_FUNC_SIZE);
   for (int i = 0; i < num_funcs; i++) {
     emit_line("case %d:", i);
     emit_line(" func%d();", i);
@@ -138,20 +139,4 @@ void target_js(Module* module) {
   emit_line("}");
 
   emit_line("};");
-
-  // For nodejs
-  emit_line("if (typeof require != 'undefined') {");
-  emit_line(" var sys = require('sys');");
-  emit_line(" var input = null;");
-  emit_line(" var ip = 0;");
-  emit_line(" var getchar = function() {");
-  emit_line("  if (input === null)");
-  emit_line("   input = require('fs').readFileSync('/dev/stdin');");
-  emit_line("  return input[ip++] | 0;");
-  emit_line(" };");
-  emit_line(" var putchar = function(c) {");
-  emit_line("  sys.print(String.fromCharCode(c & 255));");
-  emit_line(" };");
-  emit_line(" main(getchar, putchar);");
-  emit_line("}");
 }
