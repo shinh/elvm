@@ -6,6 +6,26 @@
 #include <target/util.h>
 
 static void sed_init_state(Data* data) {
+  emit_line(":in_loop");
+  emit_line("/^$/{x\ns/$/a,/\nx\nbin_done\n}");
+  for (int i = 1; i < 128; i++) {
+    if (i == 10)
+      continue;
+    putchar('/');
+    putchar('^');
+    if (i == '$' || i == '.' || i == '/' ||
+        i == '[' || i == '\\' || i == ']') {
+      putchar('\\');
+    }
+    putchar(i);
+    emit_line("/{s/.//\nx\ns/$/%x,/\nx\nbin_loop\n}", i);
+  }
+  emit_line(":in_done");
+  emit_line("${");
+
+  emit_line("x");
+  emit_line("s/a,$//");
+  emit_line("s/.*/i=& /");
   for (int i = 0; i < 6; i++) {
     emit_line("s/$/%s=0 /", reg_names[i]);
   }
@@ -67,6 +87,15 @@ static void sed_emit_inst(Inst* inst) {
     break;
 
   case GETC: {
+    emit_line("g");
+    emit_line("/i= /s/.*/0/");
+    emit_line("/i=[^ ]/{");
+    emit_line("s/.*i=\\([^,]*\\),.*/\\1/");
+    emit_line("x");
+    emit_line("s/i=[^,]*,/i=/");
+    emit_line("x");
+    emit_line("}");
+    sed_emit_set_dst(inst);
     break;
   }
 
@@ -143,4 +172,6 @@ void target_sed(Module* module) {
   emit_line(":out_done");
   emit_line("x");
   emit_line("p");
+
+  emit_line("}");
 }
