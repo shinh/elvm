@@ -28,11 +28,7 @@ BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
-ifeq ($(uname),Linux)
-ELC_EIR := out/elc.c.eir.x86
-else
-ELC_EIR := out/eli out/elc.c.eir
-endif
+ELC_EIR := out/elc.c.eir.c.gcc.exe
 
 all: test
 
@@ -56,6 +52,9 @@ tinycc/tcc: tinycc/config.h
 
 tinycc/config.h: tinycc/configure
 	cd tinycc && ./configure
+
+out/elc.c.eir.c.gcc.exe: out/elc.c.eir.c
+	$(CC) -o $@ $<
 
 CSRCS := $(LIB_IR_SRCS) ir/dump_ir.c ir/eli.c
 COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
