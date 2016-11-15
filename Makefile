@@ -61,7 +61,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -209,6 +209,12 @@ ifndef FULL
 TEST_FILTER := out/fizzbuzz_fast.c.eir.sh out/8cc.c.eir.sh out/eli.c.eir.sh out/dump_ir.c.eir.sh
 endif
 include target.mk
+
+ifdef SED
+TARGET := sed
+RUNNER := tools/runsed.sh
+include target.mk
+endif
 
 TARGET := java
 RUNNER := tools/runjava.sh
