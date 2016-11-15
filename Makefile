@@ -2,6 +2,8 @@ COMMONFLAGS := -W -Wall -W -Werror -MMD -MP -O -g -Wno-missing-field-initializer
 CFLAGS := -std=gnu99 -m32 $(COMMONFLAGS) -Wno-missing-field-initializers
 CXXFLAGS := -std=c++11 $(COMMONFLAGS)
 
+uname := $(shell uname)
+
 ELI := out/eli
 ELC := out/elc
 8CC := out/8cc
@@ -26,8 +28,11 @@ BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
-#ELC_EIR := out/eli out/elc.c.eir
+ifeq ($(uname),Linux)
 ELC_EIR := out/elc.c.eir.x86
+else
+ELC_EIR := out/eli out/elc.c.eir
+endif
 
 all: test
 
@@ -139,13 +144,13 @@ EXT := out
 DEPS := $(TEST_INS)
 # TODO: Hacky!
 sharp := \#
-CMD = $2 -S -o $1.S - < test/8cc.in.c && sed -i 's/ *$(sharp).*//' $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
+CMD = $2 -S -o $1.S.tmp - < test/8cc.in.c && sed 's/ *$(sharp).*//' $1.S.tmp > $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
 include build.mk
 
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := eir
-CMD = $(8CC) -S -I. -Ilibc -Iout $2 -o $1.tmp && mv $1.tmp $1
+CMD = $(8CC) -S -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.eir += $(SRCS:%=%.$(EXT))
 include build.mk
@@ -217,9 +222,11 @@ RUNNER := tools/runc.sh
 include target.mk
 $(OUT.eir.c.out): tools/runc.sh
 
+ifeq ($(uname),Linux)
 TARGET := x86
 RUNNER :=
 include target.mk
+endif
 
 TARGET := i
 RUNNER := tools/runi.sh
