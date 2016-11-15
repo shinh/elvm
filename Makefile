@@ -212,7 +212,7 @@ include target.mk
 
 ifdef SED
 TARGET := sed
-RUNNER := tools/runsed.sh
+RUNNER := sed -n -f
 include target.mk
 endif
 

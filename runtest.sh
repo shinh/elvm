@@ -12,7 +12,11 @@ ext=$(echo ${cmd} | sed 's/.*\.//')
 ins=$(/bin/ls */${name}*.in 2> /dev/null || true)
 
 if [ -z "${ins}" ]; then
-    ${cmd} < /dev/null > ${tmp}
+    if [ ${ext} = "sed" ]; then
+        echo | ${cmd} > ${tmp}
+    else
+        ${cmd} < /dev/null > ${tmp}
+    fi
 else
     rm -f ${tmp}
     for i in ${ins}; do
@@ -24,6 +28,10 @@ else
         fi
         echo >> ${tmp}
     done
+fi
+
+if [ ${ext} = "sed" ]; then
+    perl -i -p0 -e 's/\n$//ms' ${tmp}
 fi
 
 mv ${tmp} ${out}
