@@ -18,7 +18,8 @@ static void sed_init_state(Data* data) {
 
 static void sed_emit_value(Value* v) {
   if (v->type == REG) {
-    assert(0);
+    emit_line("g");
+    emit_line("s/.*%s=\\([^ ]*\\).*/\\1/", reg_names[v->reg]);
   } else {
     emit_line("s/$/%x/", v->imm);
   }
@@ -28,9 +29,19 @@ static void sed_emit_src(Inst* inst) {
   sed_emit_value(&inst->src);
 }
 
+static void sed_emit_set_dst(Inst* inst) {
+  emit_line("G");
+  emit_line("s/^\\([^\\n]*\\)\\n\\(.*%s=\\)[^ ]*/\\2\\1/",
+            reg_names[inst->dst.reg]);
+  emit_line("x");
+  emit_line("s/.*//");
+}
+
 static void sed_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
+    sed_emit_src(inst);
+    sed_emit_set_dst(inst);
     break;
 
   case ADD:
@@ -96,12 +107,14 @@ void target_sed(Module* module) {
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
-      // TODO
+      emit_line("");
+      emit_line(":pc_%x", inst->pc);
     }
     prev_pc = inst->pc;
     sed_emit_inst(inst);
   }
 
+  emit_line("");
   emit_line(":exit");
   emit_line("s/.*//");
   emit_line("x");
