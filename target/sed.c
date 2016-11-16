@@ -96,6 +96,37 @@ static void sed_emit_add(Inst* inst) {
   id++;
 }
 
+static void sed_emit_sub(Inst* inst) {
+  static int id = 0;
+  sed_emit_dst_src(inst);
+  emit_line("s/^/1000000/");
+  emit_line(" s/\\(.*\\) \\([0-9a-f]*\\)"
+            "/\\1@ \\2@x fedcba9876543210 0123456789abcdef;@\\1 \\2/");
+  emit_line(":sub_loop_%d", id);
+  emit_line(" s/\\(.\\)@\\(.*\\)\\(.\\)@\\(.\\)\\? "
+            "\\(.*\\1\\(.*\\)\\) \\(.*\\3\\(.*\\)\\);"
+            "/@\\2; \\4\\8\\1\\6\\5 \\5 \\7;/");
+  emit_line(" s/; .\\{16\\}\\(.\\)\\([0-9a-f]\\{15\\}\\([^ ]\\)\\)\\?"
+            "[0-9a-f]* \\(.*\\);\\(.*\\)/@\\3 \\4;\\1\\5/");
+
+  emit_line(" /^@ @/{");
+  emit_line("  s/@ @. .*;/;/");
+  emit_line("  s/@.*//");
+  emit_line("  s/.*\\(......\\)$/\\1/");
+  emit_line("  s/^0*\\([0-9a-f]\\)/\\1/");
+  emit_line("  bsub_done_%d", id);
+  emit_line(" }");
+
+  emit_line(" s/^@/0@/");
+  emit_line(" s/ @/ 0@/");
+  emit_line("bsub_loop_%d", id);
+  emit_line(":sub_done_%d", id);
+
+  sed_emit_set_dst(inst);
+
+  id++;
+}
+
 static void sed_emit_cmp(Inst* inst) {
   static int id = 0;
   uint op = normalize_cond(inst->op, false);
@@ -160,6 +191,7 @@ static void sed_emit_inst(Inst* inst) {
     break;
 
   case SUB:
+    sed_emit_sub(inst);
     break;
 
   case LOAD:
