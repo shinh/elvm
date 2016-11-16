@@ -96,6 +96,45 @@ static void sed_emit_add(Inst* inst) {
   id++;
 }
 
+static void sed_emit_cmp(Inst* inst) {
+  static int id = 0;
+  uint op = normalize_cond(inst->op, false);
+  sed_emit_dst_src(inst);
+  if (op == JLT || op == JLE) {
+    emit_line("s/\\(.*\\) \\(.*\\)/\\2 \\1/");
+    op = op == JLT ? JGT : JGE;
+  }
+
+  switch (op) {
+  case JEQ:
+    emit_line("s/^\\(.*\\) \\1$/1/");
+    emit_line("s/^.* .*$/0/");
+    break;
+
+  case JNE:
+    emit_line("s/^\\(.*\\) \\1$/0/");
+    emit_line("s/^.* .*$/1/");
+    break;
+
+  case JGE:
+  case JGT:
+    emit_line(":cmp_loop_%d", id);
+    emit_line("/^\\(.\\).* \\1/{");
+    emit_line(" s/^\\(.\\)\\(.*\\) \\1/\\2 /");
+    emit_line(" bcmp_loop_%d", id);
+    emit_line("}");
+    emit_line("s/$/;fedcba9876543210/");
+    emit_line("s/^\\(.\\).* \\(.\\).*;.*\\1.*\\2.*/1/");
+    if (op == JGE)
+      emit_line("s/^\\(.*\\) \\1;.*/1/");
+    emit_line("s/^.* .*/0/");
+    id++;
+    break;
+  }
+
+  sed_emit_set_dst(inst);
+}
+
 static void sed_emit_jmp(Inst* inst) {
   if (inst->jmp.type == REG) {
     sed_emit_value(&inst->jmp);
@@ -178,6 +217,7 @@ static void sed_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
+    sed_emit_cmp(inst);
     break;
 
   case JEQ:
