@@ -127,12 +127,16 @@ static void sed_emit_cmp(Inst* inst) {
     emit_line("s/^\\(.\\).* \\(.\\).*;.*\\1.*\\2.*/1/");
     if (op == JGE)
       emit_line("s/^\\(.*\\) \\1;.*/1/");
+    emit_line("s/^..* ;.*/1/");
+    emit_line("s/^...* .;.*/1/");
+    emit_line("s/^....* ..;.*/1/");
+    emit_line("s/^.....* ...;.*/1/");
+    emit_line("s/^......* ....;.*/1/");
+    emit_line("s/^....... .....;.*/1/");
     emit_line("s/^.* .*/0/");
     id++;
     break;
   }
-
-  sed_emit_set_dst(inst);
 }
 
 static void sed_emit_jmp(Inst* inst) {
@@ -218,6 +222,7 @@ static void sed_emit_inst(Inst* inst) {
   case LE:
   case GE:
     sed_emit_cmp(inst);
+    sed_emit_set_dst(inst);
     break;
 
   case JEQ:
@@ -226,6 +231,12 @@ static void sed_emit_inst(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
+    sed_emit_cmp(inst);
+    emit_line("/^1$/{");
+    emit_line(" s/.//");
+    sed_emit_jmp(inst);
+    emit_line("}");
+    emit_line("s/.//");
     break;
 
   case JMP:
