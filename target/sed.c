@@ -57,6 +57,15 @@ static void sed_emit_set_dst(Inst* inst) {
   emit_line("s/.*//");
 }
 
+static void sed_emit_jmp(Inst* inst) {
+  if (inst->jmp.type == REG) {
+    sed_emit_value(&inst->jmp);
+    emit_line("bjmp_reg");
+  } else {
+    emit_line("bpc_%x", inst->jmp.imm);
+  }
+}
+
 static void sed_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
@@ -123,6 +132,7 @@ static void sed_emit_inst(Inst* inst) {
     break;
 
   case JMP:
+    sed_emit_jmp(inst);
     break;
 
   default:
@@ -141,6 +151,13 @@ void target_sed(Module* module) {
     }
     prev_pc = inst->pc;
     sed_emit_inst(inst);
+  }
+
+  // TODO: Use O(log(N)) jmp.
+  emit_line("");
+  emit_line(":jmp_reg");
+  for (int i = 0; i <= prev_pc; i++) {
+    emit_line("/^%x$/bpc_%x", i, i);
   }
 
   emit_line("");
