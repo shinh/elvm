@@ -49,6 +49,16 @@ static void sed_emit_src(Inst* inst) {
   sed_emit_value(&inst->src);
 }
 
+static void sed_emit_dst(Inst* inst) {
+  sed_emit_value(&inst->dst);
+}
+
+static void sed_emit_dst_src(Inst* inst) {
+  sed_emit_dst(inst);
+  emit_line("s/$/ /");
+  sed_emit_src(inst);
+}
+
 static void sed_emit_set_dst(Inst* inst) {
   emit_line("G");
   emit_line("s/^\\([^\\n]*\\)\\n\\(.*%s=\\)[^ ]*/\\2\\1/",
@@ -80,9 +90,21 @@ static void sed_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
+    sed_emit_src(inst);
+    emit_line("G");
+    emit_line("s/^\\([^\\n]*\\)\\n.*m\\1=\\([^ ]*\\).*/\\2/");
+    sed_emit_set_dst(inst);
     break;
 
   case STORE:
+    sed_emit_dst_src(inst);
+    emit_line("G");
+    emit_line("/ \\([^\\n]*\\).*m\\1=/"
+              "s/^\\([^ ]*\\) \\([^\\n]*\\)\\n\\(.*m\\2=\\)[^ ]*/\\3\\1/");
+    emit_line("/ \\([^\\n]*\\).*m\\1=/!"
+              "s/^\\([^ ]*\\) \\([^\\n]*\\)\\n\\(.*\\)/\\3m\\2=\\1 /");
+    emit_line("x");
+    emit_line("s/.*//");
     break;
 
   case PUTC:
