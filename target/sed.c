@@ -122,7 +122,9 @@ static void sed_emit_inst(Inst* inst) {
   case LOAD:
     sed_emit_src(inst);
     emit_line("G");
-    emit_line("s/^\\([^\\n]*\\)\\n.*m\\1=\\([^ ]*\\).*/\\2/");
+    emit_line("s/^\\([^\\n]*\\)\\n.*m\\1=\\([^ ]*\\).*/@\\2/");
+    emit_line("/^@/!s/.*/0/");
+    emit_line("s/^@//");
     sed_emit_set_dst(inst);
     break;
 
