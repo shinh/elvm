@@ -20,6 +20,7 @@ Currently, there are 18 backends:
 * Vim script
 * Bash
 * C
+* C++14 (compile-time)
 * i386-linux
 * C-INTERCAL
 * Whitespace
