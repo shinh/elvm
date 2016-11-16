@@ -23,6 +23,8 @@ else
         echo "=== ${i} ===" >> ${tmp}
         if [ ${ext} = "ws" ]; then
             (cat ${i} && echo -en "\0") | ${cmd} >> ${tmp}
+        elif [ ${ext} = "sed" ]; then
+            (cat ${i} && echo) | ${cmd} >> ${tmp}
         else
             ${cmd} < ${i} >> ${tmp}
         fi
