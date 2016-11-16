@@ -38,8 +38,8 @@ static void sed_init_state(Data* data) {
 
 static void sed_emit_value(Value* v) {
   if (v->type == REG) {
-    emit_line("g");
-    emit_line("s/.*%s=\\([^ ]*\\).*/\\1/", reg_names[v->reg]);
+    emit_line("G");
+    emit_line("s/\\n.* %s=\\([^ ]*\\).*/\\1/", reg_names[v->reg]);
   } else {
     emit_line("s/$/%x/", v->imm);
   }
@@ -61,7 +61,7 @@ static void sed_emit_dst_src(Inst* inst) {
 
 static void sed_emit_set_dst(Inst* inst) {
   emit_line("G");
-  emit_line("s/^\\([^\\n]*\\)\\n\\(.*%s=\\)[^ ]*/\\2\\1/",
+  emit_line("s/^\\([^\\n]*\\)\\n\\(.* %s=\\)[^ ]*/\\2\\1/",
             reg_names[inst->dst.reg]);
   emit_line("x");
   emit_line("s/.*//");
@@ -167,6 +167,9 @@ static void sed_emit_inst(Inst* inst) {
     break;
 
   case DUMP:
+    //emit_line("x");
+    //emit_line("p");
+    //emit_line("x");
     break;
 
   case EQ:
