@@ -79,18 +79,16 @@ static void sed_emit_add(Inst* inst) {
   emit_line(" s/; .\\{16\\}\\(.\\)\\([0-9a-f]\\{15\\}\\([0-9a-f]\\)\\)\\?"
             "[0-9a-f]* \\([^;]*\\);\\(.*\\)/@\\3 \\4;\\1\\5/");
 
-  emit_line(" /^@ @/{");
-  emit_line("  s/@ @. .*;/;1/");
-  emit_line("  s/.*;//");
-  emit_line("  s/.*\\(......\\)$/\\1/");
-  emit_line("  s/^0*\\([0-9a-f]\\)/\\1/");
-  emit_line("  badd_done_%d", id);
+  emit_line(" /^@ @/!{");
+  emit_line("  s/^@/0@/");
+  emit_line("  s/ @/ 0@/");
+  emit_line("  badd_loop_%d", id);
   emit_line(" }");
 
-  emit_line(" s/^@/0@/");
-  emit_line(" s/ @/ 0@/");
-  emit_line("badd_loop_%d", id);
-  emit_line(":add_done_%d", id);
+  emit_line(" s/@ @. .*;/;1/");
+  emit_line(" s/.*;//");
+  emit_line(" s/.*\\(......\\)$/\\1/");
+  emit_line(" s/^0*\\([0-9a-f]\\)/\\1/");
 
   sed_emit_set_dst(inst);
 
@@ -110,18 +108,16 @@ static void sed_emit_sub(Inst* inst) {
   emit_line(" s/; .\\{16\\}\\(.\\)\\([0-9a-f]\\{15\\}\\([^ ]\\)\\)\\?"
             "[0-9a-f]* \\(.*\\);\\(.*\\)/@\\3 \\4;\\1\\5/");
 
-  emit_line(" /^@ @/{");
-  emit_line("  s/@ @. .*;/;/");
-  emit_line("  s/@.*//");
-  emit_line("  s/.*\\(......\\)$/\\1/");
-  emit_line("  s/^0*\\([0-9a-f]\\)/\\1/");
-  emit_line("  bsub_done_%d", id);
+  emit_line(" /^@ @/!{");
+  emit_line("  s/^@/0@/");
+  emit_line("  s/ @/ 0@/");
+  emit_line("  bsub_loop_%d", id);
   emit_line(" }");
 
-  emit_line(" s/^@/0@/");
-  emit_line(" s/ @/ 0@/");
-  emit_line("bsub_loop_%d", id);
-  emit_line(":sub_done_%d", id);
+  emit_line(" s/@ @. .*;/;/");
+  emit_line(" s/@.*//");
+  emit_line(" s/.*\\(......\\)$/\\1/");
+  emit_line(" s/^0*\\([0-9a-f]\\)/\\1/");
 
   sed_emit_set_dst(inst);
 
