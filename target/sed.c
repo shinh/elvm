@@ -287,6 +287,33 @@ static void sed_emit_inst(Inst* inst) {
   }
 }
 
+static void sed_emit_jmp_table_rec(int depth, char* reg, int pc, int last_pc) {
+  static const int WIDTH[] = {
+    4096, 256, 16, 1
+  };
+  const int w = WIDTH[depth];
+  for (int i = 0; i < 16 && pc <= last_pc; i++, pc += w) {
+    reg[depth] = i > 9 ? 'a' + i - 10 : '0' + i;
+    reg[depth+1] = 0;
+    if (depth == 3) {
+      emit_line("/^%s$/bpc_%x", reg, pc);
+    } else {
+      emit_line("/^%s/{", reg);
+      sed_emit_jmp_table_rec(depth + 1, reg, pc, last_pc);
+      emit_line("}");
+    }
+  }
+}
+
+static void sed_emit_jmp_table(int last_pc) {
+  emit_line("");
+  emit_line(":jmp_reg");
+  emit_line("s/^/000/");
+  emit_line("s/.*\\(....\\)/\\1/");
+  char reg[5];
+  sed_emit_jmp_table_rec(0, reg, 0, last_pc);
+}
+
 void target_sed(Module* module) {
   sed_init_state(module->data);
 
@@ -301,12 +328,7 @@ void target_sed(Module* module) {
     sed_emit_inst(inst);
   }
 
-  // TODO: Use O(log(N)) jmp.
-  emit_line("");
-  emit_line(":jmp_reg");
-  for (int i = 0; i <= prev_pc; i++) {
-    emit_line("/^%x$/bpc_%x", i, i);
-  }
+  sed_emit_jmp_table(prev_pc);
 
   emit_line("");
   emit_line(":exit");
