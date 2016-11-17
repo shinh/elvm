@@ -36,7 +36,7 @@ static char* stringify_hex(long v, char* p) {
   do {
     --p;
     c = v % 16;
-    *p = c < 10 ? c + '0' : c - 10 + 'A';
+    *p = c < 10 ? c + '0' : c - 10 + 'a';
     v /= 16;
   } while (v);
   if (is_negative)
