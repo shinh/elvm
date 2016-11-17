@@ -295,6 +295,7 @@ void target_sed(Module* module) {
     if (prev_pc != inst->pc) {
       emit_line("");
       emit_line(":pc_%x", inst->pc);
+      emit_line("s/.*//");
     }
     prev_pc = inst->pc;
     sed_emit_inst(inst);
