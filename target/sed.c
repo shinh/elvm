@@ -149,6 +149,18 @@ static void sed_emit_cmp(Inst* inst) {
 
   case JGE:
   case JGT:
+    emit_line("s/^..* $/1/");
+    emit_line("s/^...* .$/1/");
+    emit_line("s/^....* ..$/1/");
+    emit_line("s/^.....* ...$/1/");
+    emit_line("s/^......* ....$/1/");
+    emit_line("s/^....... .....$/1/");
+    emit_line("s/^ ..*$/0/");
+    emit_line("s/^. ...*$/0/");
+    emit_line("s/^.. ....*$/0/");
+    emit_line("s/^... .....*$/0/");
+    emit_line("s/^.... ......*$/0/");
+    emit_line("s/^..... .......$/0/");
     emit_line(":cmp_loop_%d", id);
     emit_line("/^\\(.\\).* \\1/{");
     emit_line(" s/^\\(.\\)\\(.*\\) \\1/\\2 /");
@@ -158,13 +170,8 @@ static void sed_emit_cmp(Inst* inst) {
     emit_line("s/^\\(.\\).* \\(.\\).*;.*\\1.*\\2.*/1/");
     if (op == JGE)
       emit_line("s/^\\(.*\\) \\1;.*/1/");
-    emit_line("s/^..* ;.*/1/");
-    emit_line("s/^...* .;.*/1/");
-    emit_line("s/^....* ..;.*/1/");
-    emit_line("s/^.....* ...;.*/1/");
-    emit_line("s/^......* ....;.*/1/");
-    emit_line("s/^....... .....;.*/1/");
     emit_line("s/^.* .*/0/");
+    emit_line("s/;.*//");
     id++;
     break;
   }
