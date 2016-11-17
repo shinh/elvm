@@ -216,6 +216,10 @@ RUNNER := sed -n -f
 ifndef FULL
 TEST_FILTER := out/24_cmp.c.eir.sed out/24_cmp2.c.eir.sed out/24_muldiv.c.eir.sed out/bitops.c.eir.sed out/copy_struct.c.eir.sed out/eof.c.eir.sed out/fizzbuzz.c.eir.sed out/fizzbuzz_fast.c.eir.sed out/global_struct_ref.c.eir.sed out/lisp.c.eir.sed out/printf.c.eir.sed out/qsort.c.eir.sed out/8cc.c.eir.sed out/elc.c.eir.sed out/dump_ir.c.eir.sed out/eli.c.eir.sed
 endif
+# Only GNU sed can output NUL.
+ifeq ($(findstring GNU,$(shell sed --version)),)
+TEST_FILTER += out/04getc.eir.sed
+endif
 include target.mk
 
 TARGET := java
