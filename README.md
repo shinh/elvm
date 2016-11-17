@@ -9,7 +9,7 @@ code to an internal representation format called ELVM IR (EIR). Unlike
 LLVM bitcode, EIR is designed to be extremely simple, so there's more
 chance we can write a translator from EIR to an esoteric language.
 
-Currently, there are 17 backends:
+Currently, there are 18 backends:
 
 * Ruby
 * Python
@@ -28,6 +28,7 @@ Currently, there are 17 backends:
 * Piet
 * Unlambda
 * TeX
+* sed
 
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such
@@ -186,7 +187,27 @@ You can run a C compiler on Vim:
 
 ### TeX
 
-This backend was contributed by @hak7a3. See also [8cc.tex](https://github.com/hak7a3/8cc.tex).
+This backend was contributed by @hak7a3. See
+also [8cc.tex](https://github.com/hak7a3/8cc.tex).
+
+### sed
+
+This backend is very slow so only limited tests run by default. You
+can run them by
+
+    $ FULL=1 make sed
+
+but it could take years to run all tests. I believe C compiler in sed
+works, but I haven't confirmed it's working yet. You can try Lisp
+interpreter instead:
+
+    $ FULL=1 make out/lisp.c.eir.sed.out.diff
+    $ echo '(+ 4 3)' | time sed -n -f out/lisp.c.eir.sed
+
+This backend should support both GNU sed and BSD sed, so this backend
+is more portable than [sedlisp](https://github.com/shinh/sedlisp),
+though much slower. Also note, due to limitation of BSD sed, programs
+cannot output non-ASCII characters and NUL.
 
 ## Future works
 
