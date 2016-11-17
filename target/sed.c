@@ -214,9 +214,10 @@ static void sed_emit_inst(Inst* inst) {
     sed_emit_dst_src(inst);
     emit_line("G");
     emit_line("/ \\([^\\n]*\\)\\n.*m\\1=/"
-              "s/^\\([^ ]*\\) \\([^\\n]*\\)\\n\\(.*m\\2=\\)[^ ]*/\\3\\1/");
-    emit_line("/ \\([^\\n]*\\)\\n.*m\\1=/!"
+              "s/^\\([^ ]*\\) \\([^\\n]*\\)\\n\\(.*m\\2=\\)[^ ]*/@\\3\\1/");
+    emit_line("/^@/!"
               "s/^\\([^ ]*\\) \\([^\\n]*\\)\\n\\(.*\\)/\\3m\\2=\\1 /");
+    emit_line("s/^@//");
     emit_line("x");
     emit_line("s/.*//");
     break;
