@@ -5,6 +5,8 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+static const char SED_REG_NAMES[] = "ABCDFS";
+
 static void sed_init_state(Data* data) {
   emit_line(":in_loop");
   emit_line("/^$/{x\ns/$/a,/\nx\nbin_done\n}");
@@ -27,7 +29,7 @@ static void sed_init_state(Data* data) {
   emit_line("s/a,$//");
   emit_line("s/.*/i=& /");
   for (int i = 0; i < 6; i++) {
-    emit_line("s/$/%s=0 /", reg_names[i]);
+    emit_line("s/$/%c=0 /", SED_REG_NAMES[i]);
   }
   emit_line("s/$/o= /");
   for (int mp = 0; data; data = data->next, mp++) {
@@ -39,7 +41,8 @@ static void sed_init_state(Data* data) {
 static void sed_emit_value(Value* v) {
   if (v->type == REG) {
     emit_line("G");
-    emit_line("s/\\n.* %s=\\([^ ]*\\).*/\\1/", reg_names[v->reg]);
+    emit_line("s/\\n[^%c]* %c=\\([^ ]*\\).*/\\1/",
+              SED_REG_NAMES[v->reg], SED_REG_NAMES[v->reg]);
   } else {
     emit_line("s/$/%x/", v->imm);
   }
@@ -61,8 +64,8 @@ static void sed_emit_dst_src(Inst* inst) {
 
 static void sed_emit_set_dst(Inst* inst) {
   emit_line("G");
-  emit_line("s/^\\([^\\n]*\\)\\n\\(.* %s=\\)[^ ]*/\\2\\1/",
-            reg_names[inst->dst.reg]);
+  emit_line("s/^\\([^\\n]*\\)\\n\\([^%c]* %c=\\)[^ ]*/\\2\\1/",
+            SED_REG_NAMES[inst->dst.reg], SED_REG_NAMES[inst->dst.reg]);
   emit_line("x");
   emit_line("s/.*//");
 }
