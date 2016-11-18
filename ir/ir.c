@@ -607,9 +607,13 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
       dump_val(&inst->src, fp);
       break;
     case PUTC:
+      fprintf(fp, " ");
+      dump_val(&inst->src, fp);
+      break;
     case GETC:
       fprintf(fp, " ");
       dump_val(&inst->dst, fp);
+      break;
     case EXIT:
     case DUMP:
       break;
