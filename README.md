@@ -176,7 +176,8 @@ backends. You can run a C compiler on Emacs:
 
 ### Vim script
 
-You can run a C compiler on Vim:
+This backend was contributed by @rhysd. You can run a C compiler on
+Vim:
 
 * Open test/hello.c (or write your C code)
 * `:source /path/to/out/8cc.vim`
@@ -186,10 +187,19 @@ You can run a C compiler on Vim:
 * You can see Vim script code as the compilation result in current buffer
 * You can `:source` to run the code
 
+You can find more descriptions and released vim script in
+[8cc.vim](https://github.com/rhysd/8cc.vim).
+
 ### TeX
 
 This backend was contributed by @hak7a3. See
 also [8cc.tex](https://github.com/hak7a3/8cc.tex).
+
+### C++14 (compile-time)
+
+This backend was contributed by @kw-udon. You can find more
+descriptions in
+[constexpr-8cc](https://github.com/kw-udon/constexpr-8cc).
 
 ### sed
 
