@@ -129,8 +129,13 @@ unsigned long long strtoull(const char *nptr, char **endptr, int base) {
 }
 
 int atoi(const char* s) {
-  print_str("atoi not implemented\n");
-  exit(1);
+  int n = 0;
+  unsigned long i = 0;
+  while (s[i] >= '0' && s[i] <= '9') {
+    n = (n << 3) + (n << 1);
+    n += s[i++] - '0';
+  }
+  return n;
 }
 
 char* getenv(const char* name) {
