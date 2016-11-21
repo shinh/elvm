@@ -58,51 +58,132 @@ static void bef_emit_s(const char* s) {
     bef_emit(*s);
 }
 
-static void bef_emit_num(uint v) {
-  if (v > 9 && v < 82) {
-    for (uint i = 2; i < 10; i++) {
-      for (uint j = i; j < 10; j++) {
-        if (i * j == v) {
-          bef_emit('0' + i);
-          bef_emit('0' + j);
-          bef_emit('*');
-          return;
-        }
+static int bef_num_base9(uint v, char *c) {
+  char *cbase = c;
+  char b9[10];
+  int b9l = 0;
+  do {
+    b9[b9l++] = v % 9;
+    v /= 9;
+  } while(v);
+  for (int i = 0; i < b9l; i++) {
+    if (i == 0 && b9[b9l - 1] == 1) {
+      *c++ = '9';
+      if (b9l == 1) return 1;
+      i++;
+    } else if (i != 0) {
+      *c++ = '9';
+      *c++ = '*';
+    }
+    uint n = b9[b9l - i - 1];
+    if (n) {
+      *c++ = '0' + n;
+      if (i != 0) {
+        *c++ = '+';
       }
     }
   }
+  return c - cbase;
+}
 
-  char op = '+';
-  uint c[9];
-  uint cs = 0;
-  do {
-    c[cs++] = v % 9;
-    v /= 9;
-  } while (v);
-
-  for (uint i = 0; i < cs; i++) {
-    if (i != 0)
-      bef_emit_s("9*");
-    char v = c[cs - i - 1];
-    if (v || cs == 1) {
-      bef_emit(v + '0');
-      if (i != 0)
-        bef_emit(op);
+#ifndef BEFNUMCACHESIZE
+#define BEFNUMCACHESIZE 6562
+#endif
+#ifndef BEFNUMMAXFACTOR
+#define BEFNUMMAXFACTOR 59049
+#endif
+static char* befnumcache[BEFNUMCACHESIZE] = {
+  "0","1","2","3","4","5","6","7","8","9",
+  "19+", "29+", "39+", "49+", "59+", "69+", "79+", "89+", "99+",
+};
+static int bef_num_digits(uint v, char *c);
+static int bef_num_factor_core(uint v, char *c) {
+  int shortlen = 36;
+  int incr = 1 + (v&1); // Skip even numbers for odd numbers
+  for (uint i = 1 + incr; i*i < v; i += incr) {
+    if (v % i == 0) {
+      char ijs[74];
+      uint j = v / i;
+      int ijlen = bef_num_digits(i, ijs);
+      ijlen += bef_num_digits(j, ijs + ijlen);
+      if (ijlen < shortlen) {
+        shortlen = ijlen;
+        memcpy(c, ijs, ijlen);
+        c[ijlen] = '*';
+        if (ijlen == 2) return 3;
+      }
     }
+  }
+  return shortlen < 36 ? shortlen + 1 : 99;
+}
+
+static int bef_num_factor(uint v, char *c) {
+  int shortlen = 99; // An arbitrarily large number bef_num_base9 will beat
+  for (int off = 0; off < 19; off++) {
+    char cs[37];
+    int len = bef_num_factor_core(v + off - 9, cs);
+    if (len < (off != 9 ? shortlen-2 : shortlen)) {
+      if (off != 9) {
+        cs[len] = off < 9 ? '9' - off : '0' + (off - 9);
+        cs[len+1] = off < 9 ? '+' : '-';
+        len += 2;
+      }
+      shortlen = len;
+      memcpy(c, cs, len);
+      if (len == 3) return 3;
+    }
+  }
+  return shortlen;
+}
+
+static int bef_num_digits(uint v, char *c) {
+  if (v < BEFNUMCACHESIZE) {
+    char *code = befnumcache[v];
+    if (code != NULL) {
+      strcpy(c, code);
+      return strlen(code);
+    }
+  } else if (v > BEFNUMMAXFACTOR) {
+    return bef_num_base9(v, c);
+  }
+  int f9l = bef_num_factor(v, c);
+  if (0 && f9l > 3) {
+    char b9[37];
+    int b9l = bef_num_base9(v, b9);
+    if (b9l <= f9l) {
+      memcpy(c, b9, b9l);
+      if (v < BEFNUMCACHESIZE) {
+        befnumcache[v] = malloc(b9l+1);
+        memcpy(befnumcache[v], b9, b9l);
+        befnumcache[v][b9l] = 0;
+      }
+      return b9l;
+    }
+  }
+  if (v < BEFNUMCACHESIZE) {
+    befnumcache[v] = malloc(f9l+1);
+    memcpy(befnumcache[v], c, f9l);
+    befnumcache[v][f9l] = 0;
+  }
+  return f9l;
+}
+
+static void bef_emit_num(uint v) {
+  char c[37];
+  int clen = bef_num_digits(v, c);
+  for (int i = 0; i < clen; i++) {
+    bef_emit(c[i]);
   }
 }
 
 static void bef_emit_uint_mod() {
-  for (int i = 0; i < 8; i++)
-    bef_emit('8');
-  for (int i = 0; i < 7; i++)
-    bef_emit('*');
+  bef_emit_s("88*:*:*");
 }
 
 static void bef_emit_value(Value* v) {
   if (v->type == REG) {
     bef_emit('0' + v->reg);
-    bef_emit_num(0);
+    bef_emit('0');
     bef_emit('g');
   } else {
     bef_emit_num(v->imm);
@@ -132,7 +213,7 @@ static void bef_make_room() {
   }
 }
 
-static void bef_emit_cmp(Inst* inst) {
+static void bef_emit_cmp(Inst* inst, int boolify) {
   uint op = normalize_cond(inst->op, false);
   if (op == JLT || op == JGE) {
     bef_emit_src(inst);
@@ -144,22 +225,23 @@ static void bef_emit_cmp(Inst* inst) {
   }
   switch (op) {
     case JEQ:
-      bef_emit_s("-!");
-      break;
     case JNE:
-      bef_emit_s("-!!");
+      bef_emit('-');
       break;
     case JGT:
-      bef_emit_s("`");
-      break;
     case JLE:
-      bef_emit_s("`!");
+      bef_emit('`');
       break;
+  }
+  if (op == JEQ || op == JLE) {
+    bef_emit('!');
+  } else if (op == JNE && boolify) {
+    bef_emit_s("!!");
   }
 }
 
 static void bef_emit_jmp(Inst* inst) {
-  bef_emit_cmp(inst);
+  bef_emit_cmp(inst, 0);
   bef_make_room();
   bef_emit_s("#v_v");
 
@@ -264,7 +346,7 @@ static void bef_emit_inst(Inst* inst) {
     case GT:
     case LE:
     case GE:
-      bef_emit_cmp(inst);
+      bef_emit_cmp(inst, 1);
       bef_emit_store_reg(inst->dst.reg);
       break;
 
