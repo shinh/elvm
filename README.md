@@ -5,9 +5,11 @@ Languages](https://esolangs.org/wiki/Main_Page). This project consists
 of two components - frontend and backend. Currently, the only frontend
 we have is a modified version of
 [8cc](https://github.com/rui314/8cc). The modified 8cc translates C
-code to an internal representation format called ELVM IR (EIR). Unlike
-LLVM bitcode, EIR is designed to be extremely simple, so there's more
-chance we can write a translator from EIR to an esoteric language.
+code to an internal representation format called
+[ELVM IR (EIR)](https://github.com/shinh/elvm/blob/master/ELVM.md).
+Unlike LLVM bitcode, EIR is designed to be extremely simple, so
+there's more chance we can write a translator from EIR to an esoteric
+language.
 
 Currently, there are 18 backends:
 
@@ -75,6 +77,9 @@ backends. The above demo runs ELVM toolchain on JavaScript (thus slow).
 * sizeof(char) == sizeof(int) == sizeof(void*) == 1
 * The word-size is backend dependent, but most backend uses 24bit words
 * A single programming counter may contain multiple operations
+
+See [ELVM.md](https://github.com/shinh/elvm/blob/master/ELVM.md) for
+more detail.
 
 ### Directories
 

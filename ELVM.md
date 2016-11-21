@@ -37,11 +37,11 @@ LOAD dst, src
 - src: immediate or register
 - dst: register
 
-STORE dst, src
+STORE src, dst
 - copy src to address dst
 - src: register
 - dst: immediate or register
-  
+
 PUTC src
 - print character (mod 256) from src
 - src: immediate or register
