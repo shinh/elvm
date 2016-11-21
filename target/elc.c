@@ -8,6 +8,7 @@
 void target_rb(Module* module);
 void target_py(Module* module);
 void target_js(Module* module);
+void target_php(Module* module);
 void target_el(Module* module);
 void target_vim(Module* module);
 void target_tex(Module* module);
@@ -32,6 +33,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_py;
   } else if (!strcmp(ext, "js")) {
     return target_js;
+  } else if (!strcmp(ext, "php")) {
+    return target_php;
   } else if (!strcmp(ext, "el")) {
     return target_el;
   } else if (!strcmp(ext, "vim")) {

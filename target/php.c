@@ -2,6 +2,7 @@
 #include <target/util.h>
 
 static void init_state_php(Data* data) {
+  emit_line("<?php");
   emit_line("$main = function() {");
 
   for (int i = 0; i < 7; i++) {
@@ -105,7 +106,7 @@ static void php_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
   case JMP:
-    emit_line("if (%s) pc = $%s - 1;",
+    emit_line("if (%s) $pc = $%s - 1;",
               cmp_str(inst, "true"), value_str(&inst->jmp));
     break;
 
@@ -131,7 +132,7 @@ void target_php(Module* module) {
   emit_line("switch ($pc / %d | 0) {", CHUNKED_FUNC_SIZE);
   for (int i = 0; i < num_funcs; i++) {
     emit_line("case %d:", i);
-    emit_line(" func%d();", i);
+    emit_line(" $func%d();", i);
     emit_line(" break;");
   }
   emit_line("}");
