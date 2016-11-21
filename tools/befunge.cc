@@ -39,9 +39,6 @@
 #define OP_IF_TRUE_RANGE 252 ... 253
 #define OP_IF_FALSE_RANGE 254 ... 255
 
-
-#define OP(x) ((BASEOP+1)+(x))
-
 struct coord {
 	int32_t x, y;
 
