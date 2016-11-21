@@ -27,8 +27,8 @@
 #define OP_SWP 244
 #define OP_PRI 245
 #define OP_PRC 246
-#define OP_GI 247
-#define OP_GC 248
+#define OP_GC 247
+#define OP_GI 248
 #define OP_REM 249
 #define OP_WEM 250
 #define OP_RNG 251
@@ -256,8 +256,10 @@ struct cursor {
 				case(22)st.push(getchar());
 				case(23){
 					int x;
-					scanf("%d",&x);
-					st.push(x);
+					if(scanf("%d",&x)!=1)
+						st.push(-1);
+					else
+						st.push(x);
 				}
 				case(24){
 					coord getxy;
@@ -423,8 +425,10 @@ int main(int,char**argv){
 		case(OP_GC)st.push(getchar());
 		case(OP_GI){
 			int32_t x;
-			scanf("%d",&x);
-			st.push(x);
+			if(scanf("%d",&x)!=1)
+				st.push(-1);
+			else
+				st.push(x);
 		}
 		case(OP_REM){
 			coord getxy;
