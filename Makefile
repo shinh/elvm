@@ -61,7 +61,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -232,6 +232,12 @@ TARGET := c
 RUNNER := tools/runc.sh
 include target.mk
 $(OUT.eir.c.out): tools/runc.sh
+
+TARGET := cpp
+RUNNER := tools/runcpp.sh
+TOOL := g++-6
+include target.mk
+$(OUT.eir.cpp.out): tools/runcpp.sh
 
 ifeq ($(uname),Linux)
 TARGET := x86
