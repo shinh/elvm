@@ -7,6 +7,7 @@ static void init_state_php(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_line("$%s = 0;", reg_names[i]);
   }
+  emit_line("$running = true;");
   emit_line("$mem = array();");
   emit_line("$stdin = fopen('php://stdin', 'r');");
   for (int mp = 0; data; data = data->next, mp++) {
@@ -15,6 +16,7 @@ static void init_state_php(Data* data) {
     }
   }
   emit_line("goto main;");
+  emit_line("");
 }
 
 static void php_emit_func_prologue(int func_id) {
@@ -48,25 +50,29 @@ static void php_emit_pc_change(int pc) {
 }
 
 static void php_emit_inst(Inst* inst) {
+  char ints_str_prefix = src_str(inst)[0];
+  int inst_is_variable = !('0' <= ints_str_prefix && ints_str_prefix <= '9');
   switch (inst->op) {
   case MOV:
-    emit_line("$%s = $%s;", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("$%s = %s%s;", reg_names[inst->dst.reg], inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case ADD:
-    emit_line("$%s = ($%s + $%s) & " UINT_MAX_STR ";",
+    emit_line("$%s = ($%s + %s%s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              reg_names[inst->dst.reg],
+              inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case SUB:
-    emit_line("$%s = ($%s - $%s) & " UINT_MAX_STR ";",
+    emit_line("$%s = ($%s - %s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              reg_names[inst->dst.reg],
+              inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case LOAD:
-    emit_line("$%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("$%s = $mem[%s];", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
@@ -74,7 +80,7 @@ static void php_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    emit_line("printf(\"%%c\", %s);", src_str(inst));
+    emit_line("printf(\"%%c\", %s%s);", inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case GETC:
@@ -117,8 +123,6 @@ static void php_emit_inst(Inst* inst) {
 
 void target_php(Module* module) {
   init_state_php(module->data);
-
-  emit_line("$running = true;");
 
   int num_funcs = emit_chunked_main_loop(module->text,
                                          php_emit_func_prologue,
