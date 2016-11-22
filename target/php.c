@@ -14,6 +14,7 @@ static void init_state_php(Data* data) {
       emit_line("$mem[%d] = %d;", mp, data->v);
     }
   }
+  emit_line("goto main;");
 }
 
 static void php_emit_func_prologue(int func_id) {
