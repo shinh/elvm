@@ -7,7 +7,7 @@ static void init_state_php(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_line("$%s = 0;", reg_names[i]);
   }
-  emit_line("$mem = new \\SplFixedArray(1 << 24);");
+  emit_line("$mem = array();");
   emit_line("$stdin = fopen('php://stdin', 'r');");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
