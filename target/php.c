@@ -3,7 +3,6 @@
 
 static void init_state_php(Data* data) {
   emit_line("<?php");
-  emit_line("$main = function() {");
 
   for (int i = 0; i < 7; i++) {
     emit_line("$%s = 0;", reg_names[i]);
@@ -74,7 +73,7 @@ static void php_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    emit_line("echo %s;", src_str(inst));
+    emit_line("printf(\"%%c\", %s);", src_str(inst));
     break;
 
   case GETC:
@@ -106,7 +105,7 @@ static void php_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
   case JMP:
-    emit_line("if (%s) $pc = $%s - 1;",
+    emit_line("if (%s) $pc = %s - 1;",
               cmp_str(inst, "true"), value_str(&inst->jmp));
     break;
 
@@ -138,6 +137,4 @@ void target_php(Module* module) {
   emit_line("}");
   dec_indent();
   emit_line("}");
-
-  emit_line("};");
 }
