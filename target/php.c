@@ -18,7 +18,7 @@ static void init_state_php(Data* data) {
 
 static void php_emit_func_prologue(int func_id) {
   emit_line("");
-  emit_line("$func%d = function() use ($pc, $running, $stdin) {", func_id);
+  emit_line("proc%d:", func_id);
   inc_indent();
   emit_line("while (%d <= $pc && $pc < %d && $running) {",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
@@ -35,7 +35,7 @@ static void php_emit_func_epilogue(void) {
   dec_indent();
   emit_line("}");
   dec_indent();
-  emit_line("};");
+  emit_line("goto main;");
 }
 
 static void php_emit_pc_change(int pc) {
@@ -126,12 +126,13 @@ void target_php(Module* module) {
                                          php_emit_inst);
 
   emit_line("");
+  emit_line("main:");
   emit_line("while ($running) {");
   inc_indent();
   emit_line("switch ($pc / %d | 0) {", CHUNKED_FUNC_SIZE);
   for (int i = 0; i < num_funcs; i++) {
     emit_line("case %d:", i);
-    emit_line(" $func%d();", i);
+    emit_line(" goto proc%d;", i);
     emit_line(" break;");
   }
   emit_line("}");
