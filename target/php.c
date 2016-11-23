@@ -91,7 +91,7 @@ static void php_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("$%s = fgetc($stdin);",
+    emit_line("$%s = ord(fgetc($stdin));",
               reg_names[inst->dst.reg]);
     break;
 
