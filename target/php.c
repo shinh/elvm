@@ -12,7 +12,7 @@ static void init_state_php(Data* data) {
   emit_line("call_user_func(function(){");
   inc_indent();
   for (int i = 0; i < 7; i++) {
-    emit_line("$%s = 0;", reg_names[i]);
+    emit_line("%s = 0;", reg_names[i]);
   }
   emit_line("$true = true; // dirty hack");
   emit_line("$running = true;");
@@ -61,41 +61,40 @@ static void php_emit_pc_change(int pc) {
 }
 
 static void php_emit_inst(Inst* inst) {
-  char ints_str_prefix = src_str(inst)[0];
-  int inst_is_variable = !('0' <= ints_str_prefix && ints_str_prefix <= '9');
   switch (inst->op) {
   case MOV:
-    emit_line("$%s = %s%s;", reg_names[inst->dst.reg], inst_is_variable ? "$" : "", src_str(inst));
+    emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case ADD:
-    emit_line("$%s = ($%s + %s%s) & " UINT_MAX_STR ";",
+    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
-              inst_is_variable ? "$" : "", src_str(inst));
+              src_str(inst));
     break;
 
   case SUB:
-    emit_line("$%s = ($%s - %s) & " UINT_MAX_STR ";",
+    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
-              inst_is_variable ? "$" : "", src_str(inst));
+              src_str(inst));
     break;
 
   case LOAD:
-    emit_line("$%s = $mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = @$mem[%s] ?: 0; // @undefined index as 0",
+              reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("$mem[%s] = $%s;", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("$mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    emit_line("printf(\"%%c\", %s%s);", inst_is_variable ? "$" : "", src_str(inst));
+    emit_line("printf(\"%%c\", %s);", src_str(inst));
     break;
 
   case GETC:
-    emit_line("$%s = ord(fgetc($stdin));",
+    emit_line("%s = ord(fgetc($stdin));",
               reg_names[inst->dst.reg]);
     break;
 
@@ -112,7 +111,7 @@ static void php_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("$%s = (%s) | 0;",
+    emit_line("%s = (%s) | 0;",
               reg_names[inst->dst.reg], cmp_str(inst, "true"));
     break;
 
