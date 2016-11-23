@@ -4,6 +4,8 @@
 static void init_state_php(Data* data) {
   emit_line("<?php");
 
+  emit_line("call_user_func(function(){");
+  inc_indent();
   for (int i = 0; i < 7; i++) {
     emit_line("$%s = 0;", reg_names[i]);
   }
@@ -21,7 +23,6 @@ static void init_state_php(Data* data) {
     }
   }
   emit_line("goto main;");
-  emit_line("");
 }
 
 static void php_emit_func_prologue(int func_id) {
@@ -163,4 +164,6 @@ void target_php(Module* module) {
   emit_line("}");
   dec_indent();
   emit_line("}");
+  dec_indent();
+  emit_line("});");
 }
