@@ -10,6 +10,9 @@ static void init_state_php(Data* data) {
   emit_line("$true = true; // dirty hack");
   emit_line("$running = true;");
   emit_line("$mem = array();");
+  /* Array initialization wastes a lot of memory */
+  emit_line("// for ($_ = 0; $_ < (1 << 24); $_++) $mem[$_] = null; unset($_);");
+
   emit_line("$stdin = fopen('php://stdin', 'r');");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
