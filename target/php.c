@@ -1,7 +1,12 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+static const char* PHP_REG_NAMES[] = {
+  "$a", "$b", "$c", "$d", "$bp", "$sp", "$pc"
+};
+
 static void init_state_php(Data* data) {
+  reg_names = PHP_REG_NAMES;
   emit_line("<?php");
 
   emit_line("call_user_func(function(){");
