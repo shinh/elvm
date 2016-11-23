@@ -50,8 +50,11 @@ static void php_emit_pc_change(int pc) {
 }
 
 static void php_emit_inst(Inst* inst) {
-  char ints_str_prefix = src_str(inst)[0];
-  int inst_is_variable = !('0' <= ints_str_prefix && ints_str_prefix <= '9');
+  char inst_str_prefix = src_str(inst)[0];
+  int inst_is_variable = !('0' <= inst_str_prefix && inst_str_prefix <= '9');
+  char tmp_str_prefix;
+  int tmp_is_variable;
+
   switch (inst->op) {
   case MOV:
     emit_line("$%s = %s%s;", reg_names[inst->dst.reg], inst_is_variable ? "$" : "", src_str(inst));
@@ -65,18 +68,22 @@ static void php_emit_inst(Inst* inst) {
     break;
 
   case SUB:
-    emit_line("$%s = ($%s - %s) & " UINT_MAX_STR ";",
+    emit_line("$%s = ($%s - %s%s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
               inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case LOAD:
-    emit_line("$%s = $mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("$%s = @$mem[%s%s] ?: 0; // @undefined index as 0",
+              reg_names[inst->dst.reg],
+              inst_is_variable ? "$" : "", src_str(inst));
     break;
 
   case STORE:
-    emit_line("$mem[%s] = $%s;", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("$mem[%s%s] = $%s;",
+              inst_is_variable ? "$" : "", src_str(inst),
+              reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
@@ -101,8 +108,10 @@ static void php_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("$%s = (%s) | 0;",
-              reg_names[inst->dst.reg], cmp_str(inst, "true"));
+    tmp_str_prefix = cmp_str(inst, "true")[0];
+    tmp_is_variable = !('0' <= tmp_str_prefix && tmp_str_prefix <= '9');
+    emit_line("$%s = (%s%s);", reg_names[inst->dst.reg],
+              tmp_is_variable ? "$" : "", cmp_str(inst, "true"));
     break;
 
   case JEQ:
@@ -112,8 +121,14 @@ static void php_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
   case JMP:
-    emit_line("if (%s) $pc = %s - 1;",
-              cmp_str(inst, "true"), value_str(&inst->jmp));
+    inst_str_prefix = cmp_str(inst, "true")[0];
+    inst_is_variable = !('0' <= inst_str_prefix && inst_str_prefix <= '9');
+    tmp_str_prefix = value_str(&inst->jmp)[0];
+    tmp_is_variable = !('0' <= tmp_str_prefix && tmp_str_prefix <= '9');
+
+    emit_line("if (%s%s) $pc = %s%s - 1;",
+              inst_is_variable ? "$" : "", cmp_str(inst, "true"),
+              tmp_is_variable ? "$" : "", value_str(&inst->jmp));
     break;
 
   default:
