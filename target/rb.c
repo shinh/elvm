@@ -1,12 +1,12 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static const char* REG_NAMES[] = {
+static const char* RB_REG_NAMES[] = {
   "@a", "@b", "@c", "@d", "@bp", "@sp", "@pc"
 };
 
 static void init_state_rb(Data* data) {
-  reg_names = REG_NAMES;
+  reg_names = RB_REG_NAMES;
   for (int i = 0; i < 7; i++) {
     emit_line("%s = 0", reg_names[i]);
   }
