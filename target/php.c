@@ -7,6 +7,7 @@ static void init_state_php(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_line("$%s = 0;", reg_names[i]);
   }
+  emit_line("$true = true; // dirty hack");
   emit_line("$running = true;");
   emit_line("$mem = array();");
   emit_line("$stdin = fopen('php://stdin', 'r');");
