@@ -24,7 +24,7 @@ ELC := out/elc
 	8cc/set.c \
 	8cc/vector.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt tinycc/tcc
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/tm tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -45,6 +45,9 @@ out/befunge: tools/befunge.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 out/bfopt: tools/bfopt.cc
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+out/tm: tools/tm.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 tinycc/tcc: tinycc/config.h
