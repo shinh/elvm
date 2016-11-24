@@ -26,6 +26,7 @@ void target_pietasm(Module* module);
 void target_bef(Module* module);
 void target_bf(Module* module);
 void target_unl(Module* module);
+void target_tm(Module* module);
 typedef void (*target_func_t)(Module*);
 
 static target_func_t get_target_func(const char* ext) {
@@ -72,6 +73,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_bf;
   } else if (!strcmp(ext, "unl")) {
     return target_unl;
+  } else if (!strcmp(ext, "tm")) {
+    return target_tm;
   } else {
     error("unknown flag: %s", ext);
   }

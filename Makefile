@@ -64,7 +64,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c tm.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -301,6 +301,10 @@ TEST_FILTER := out/eli.c.eir.unl out/dump_ir.c.eir.unl
 endif
 include target.mk
 $(OUT.eir.unl.out): tools/rununl.sh
+
+TARGET := tm
+RUNNER := out/tm
+include target.mk
 
 test: $(TEST_RESULTS)
 
