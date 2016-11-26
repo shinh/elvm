@@ -16,6 +16,7 @@ void target_cl(Module* module);
 void target_sh(Module* module);
 void target_sed(Module* module);
 void target_java(Module* module);
+void target_swift(Module* module);
 void target_c(Module* module);
 void target_cpp(Module* module);
 void target_x86(Module* module);
@@ -51,6 +52,8 @@ static target_func_t get_target_func(const char* ext) {
     return target_sed;
   } else if (!strcmp(ext, "java")) {
     return target_java;
+  } else if (!strcmp(ext, "swift")) {
+    return target_swift;
   } else if (!strcmp(ext, "c")) {
     return target_c;
   } else if (!strcmp(ext, "cpp")) {
