@@ -72,7 +72,7 @@ static const char* tf_src_str(Inst* inst) {
 static void tf_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    emit_line("%s = %s", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = %s", reg_names[inst->dst.reg], tf_src_str(inst));
     break;
 
   case ADD:
