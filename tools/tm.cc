@@ -69,7 +69,7 @@ class dtm {
 public:
   void add_transition(state_t q, symbol_t a, state_t r, symbol_t b, int d) {
     if (transitions.count(make_tuple(q,a)) > 0)
-      throw std::runtime_error("machine is not deterministic");
+      throw std::runtime_error("machine is not deterministic at state " + to_string(q));
     transitions.insert({make_tuple(q,a),make_tuple(r,b,d)});
   }
   bool has_transition(state_t q, symbol_t a) const {
@@ -143,12 +143,12 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, bool verbose=false) {
     while (pos >= tape.size())
       tape.push_back(BLANK);
     if (verbose) {
-      cerr << q << " |";
+      cerr << q << " | ";
       for (vector<symbol_t>::size_type i=0; i<tape.size(); i++) {
 	if (i == pos)
-	  cerr << " [" << tape[i] << "]";
+	  cerr << "[" << tape[i] << "]";
 	else
-	  cerr << " " << tape[i];
+	  cerr << tape[i];
       }
       cerr << endl;
     }
