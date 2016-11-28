@@ -17,6 +17,8 @@ static void init_state_tf(Data* data) {
   emit_line("mem = tf.concat(0, [data, "
             "tf.zeros([(1<<24)-len(data)], dtype=tf.int32, name='mem')])");
   emit_line("done = tf.constant(0, name='done')");
+  emit_line("out = tf.constant('', name='out')");
+  emit_line("CHAR_TBL = tf.constant([chr(i) for i in xrange(256)])");
 }
 
 #if 0
@@ -63,6 +65,10 @@ static const char* tf_value_str(Value* v) {
   }
 }
 
+static const char* tf_src_str(Inst* inst) {
+  return tf_value_str(&inst->src);
+}
+
 static void tf_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
@@ -90,7 +96,9 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    emit_line("sys.stdout.write(chr(%s))", src_str(inst));
+    emit_line("global CHAR_TBL");
+    emit_line("out = out + CHAR_TBL[tf.mod(%s, 256)]", tf_src_str(inst));
+    emit_line("out.set_shape(())");
     break;
 
   case GETC:
@@ -135,7 +143,7 @@ static void tf_emit_inst(Inst* inst) {
 void target_tf(Module* module) {
   init_state_tf(module->data);
 
-  static const char STATE_ARGS_STR[] = "a,b,c,d,pc,done,mem";
+  static const char STATE_ARGS_STR[] = "a,b,c,d,pc,done,mem,out";
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
@@ -170,10 +178,19 @@ void target_tf(Module* module) {
   dec_indent();
 
   emit_line("");
-  emit_line("tf.while_loop(");
+  emit_line("loop = tf.while_loop(");
   inc_indent();
-  emit_line("lambda %s: tf.not_equal(done, 0),", STATE_ARGS_STR);
+  emit_line("lambda %s: tf.equal(done, 0),", STATE_ARGS_STR);
   emit_line("run_step,");
   emit_line("loop_vars=[%s])", STATE_ARGS_STR);
   dec_indent();
+
+  emit_line("");
+  emit_line("sess = tf.InteractiveSession()");
+  emit_line("tf.initialize_all_variables().run()");
+  emit_line("r = sess.run(loop)");
+
+  emit_line("");
+  emit_line("import sys");
+  emit_line("sys.stdout.write(r[7])");
 }
