@@ -61,7 +61,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -180,6 +180,12 @@ include target.mk
 TARGET := py
 RUNNER := python
 include target.mk
+
+ifdef TF
+TARGET := tf
+RUNNER := python
+include target.mk
+endif
 
 TARGET := js
 RUNNER := nodejs
