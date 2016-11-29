@@ -40,40 +40,6 @@ static void init_state_tf(Data* data) {
   dec_indent();
 }
 
-#if 0
-static void tf_emit_func_prologue(int func_id) {
-  emit_line("");
-  emit_line("def func%d():", func_id);
-  inc_indent();
-  for (int i = 0; i < 7; i++) {
-    emit_line("global %s", reg_names[i]);
-  }
-  emit_line("global mem");
-  emit_line("");
-
-  emit_line("while %d <= pc and pc < %d:",
-            func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
-  inc_indent();
-  emit_line("if False:");
-  inc_indent();
-  emit_line("pass");
-}
-
-static void tf_emit_func_epilogue(void) {
-  dec_indent();
-  emit_line("pc += 1");
-  dec_indent();
-  dec_indent();
-}
-
-static void tf_emit_pc_change(int pc) {
-  emit_line("");
-  dec_indent();
-  emit_line("elif pc == %d:", pc);
-  inc_indent();
-}
-#endif
-
 static const char* tf_value_str(Value* v) {
   if (v->type == REG) {
     return reg_names[v->reg];
