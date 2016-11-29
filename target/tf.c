@@ -95,13 +95,13 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) & " UINT_MAX_STR,
+    emit_line("%s = (%s + %s) % 16777216",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) & " UINT_MAX_STR,
+    emit_line("%s = (%s - %s) % 16777216",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
@@ -111,7 +111,9 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case STORE:
-    emit_line("mem[%s] = %s", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("i = %s", src_str(inst));
+    emit_line("mem = tf.concat(0, [mem[:i], [%s], mem[i+1:]])",
+              reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
