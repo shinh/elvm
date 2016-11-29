@@ -184,7 +184,7 @@ static void tf_emit_func_epilogue(const char* args) {
 void target_tf(Module* module) {
   init_state_tf(module->data);
 
-  static const char STATE_ARGS_STR[] = "a,b,c,d,pc,done,mem,out,inp";
+  static const char STATE_ARGS_STR[] = "a,b,c,d,bp,sp,pc,done,mem,out,inp";
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
@@ -211,7 +211,7 @@ void target_tf(Module* module) {
   }
   emit_line("r = tf.case(fn_pairs, lambda: pc_%d(%s))",
             prev_pc, STATE_ARGS_STR);
-  emit_line("r[6].set_shape([1<<24])");
+  emit_line("r[8].set_shape([1<<24])");
   emit_line("return r");
   dec_indent();
 
@@ -229,5 +229,5 @@ void target_tf(Module* module) {
   emit_line("r = sess.run(loop, feed_dict={INPUT: input})");
 
   emit_line("");
-  emit_line("sys.stdout.write(r[7])");
+  emit_line("sys.stdout.write(r[9])");
 }
