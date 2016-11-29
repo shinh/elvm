@@ -2,8 +2,11 @@
 #include <target/util.h>
 
 static void init_state_tf(Data* data) {
+  emit_line("import sys");
   emit_line("import tensorflow as tf");
   emit_line("from tensorflow.python.framework import tensor_shape");
+  emit_line("");
+
   for (int i = 0; i < 7; i++) {
     //emit_line("%s = tf.Variable(0, name='%s')", reg_names[i], reg_names[i]);
     emit_line("%s = tf.constant(0, name='%s')", reg_names[i], reg_names[i]);
@@ -19,6 +22,22 @@ static void init_state_tf(Data* data) {
   emit_line("done = tf.constant(0, name='done')");
   emit_line("out = tf.constant('', name='out')");
   emit_line("CHAR_TBL = tf.constant([chr(i) for i in xrange(256)])");
+  emit_line("input = map(ord, sys.stdin.read())");
+  emit_line("INPUT_LEN = len(input)");
+  emit_line("INPUT = tf.placeholder("
+            "shape=[INPUT_LEN], dtype=tf.int32)");
+  emit_line("inp = tf.constant(-1, name='inp')");
+  emit_line("");
+  emit_line("def read_input(inp):");
+  inc_indent();
+  emit_line("global INPUT");
+  emit_line("global INPUT_LEN");
+  emit_line("inp = inp + tf.constant(1)");
+  emit_line("r = tf.cond(tf.less(inp, INPUT_LEN),"
+            " lambda: INPUT[inp], lambda: tf.constant(0))");
+  emit_line("r.set_shape(())");
+  emit_line("return r, inp");
+  dec_indent();
 }
 
 #if 0
@@ -96,13 +115,12 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    emit_line("global CHAR_TBL");
     emit_line("out = out + CHAR_TBL[tf.mod(%s, 256)]", tf_src_str(inst));
     emit_line("out.set_shape(())");
     break;
 
   case GETC:
-    emit_line("_ = sys.stdin.read(1); %s = ord(_) if _ else 0",
+    emit_line("%s, inp = read_input(inp)",
               reg_names[inst->dst.reg]);
     break;
 
@@ -143,7 +161,7 @@ static void tf_emit_inst(Inst* inst) {
 void target_tf(Module* module) {
   init_state_tf(module->data);
 
-  static const char STATE_ARGS_STR[] = "a,b,c,d,pc,done,mem,out";
+  static const char STATE_ARGS_STR[] = "a,b,c,d,pc,done,mem,out,inp";
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
@@ -155,6 +173,7 @@ void target_tf(Module* module) {
       emit_line("");
       emit_line("def pc_%x(%s):", inst->pc, STATE_ARGS_STR);
       inc_indent();
+      emit_line("global CHAR_TBL");
     }
     prev_pc = inst->pc;
     tf_emit_inst(inst);
@@ -188,9 +207,8 @@ void target_tf(Module* module) {
   emit_line("");
   emit_line("sess = tf.InteractiveSession()");
   emit_line("tf.initialize_all_variables().run()");
-  emit_line("r = sess.run(loop)");
+  emit_line("r = sess.run(loop, feed_dict={INPUT: input})");
 
   emit_line("");
-  emit_line("import sys");
   emit_line("sys.stdout.write(r[7])");
 }
