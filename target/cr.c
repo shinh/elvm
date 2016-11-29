@@ -2,57 +2,68 @@
 #include <target/util.h>
 
 static const char* CR_REG_NAMES[] = {
-  "@a", "@b", "@c", "@d", "@bp", "@sp", "@pc"
+  "REG[:a]", "REG[:b]", "REG[:c]", "REG[:d]", "REG[:bp]", "REG[:sp]", "REG[:pc]"
 };
 
-static void init_state_cr(Data* data) {
-  reg_names = CR_REG_NAMES;
-  emit_line("module Main");
+static void cr_init_state(Data* data) {
+  emit_line("{%% if flag?(:cr_elvm_input) %%}");
+  emit_line(" print \"#{STDIN.each_byte.to_a.map(&.to_i32).inspect} of Int32\"");
+  emit_line("{%% elsif flag?(:cr_elvm_output) %%}");
+  emit_line(" STDERR.write_byte ARGV[0].to_u8");
+  emit_line("{%% else %%}");
   inc_indent();
-  for (int i = 0; i < 7; i++) {
-    emit_line("property %s", reg_names[i] + 1);
-  }
+
+  emit_line("STATE = {input: 0, exit: 0}");
   emit_line("");
-  emit_line("def initialize");
-  inc_indent();
-  for (int i = 0; i < 7; i++) {
-    emit_line("%s = 0", reg_names[i]);
-  }
-  emit_line("@mem = [0] * (1 << 24)");
+
+  reg_names = CR_REG_NAMES;
+  emit_line("REG = {a: 0, b: 0, c: 0, d: 0, bp: 0, sp: 0, pc: 0}");
+  emit_line("");
+
+  emit_line("MEM = {");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      emit_line("@mem[%d] = %d", mp, data->v);
+      emit_line(" %d => %d,", mp, data->v);
     }
   }
+  emit_line("}");
+  emit_line("");
+
+  emit_line("INPUT = {{ `crystal run -D cr_elvm_input #{1.filename}` }}");
   dec_indent();
-  emit_line("end");
+  emit_line("{%% end %%}");
 }
 
 static void cr_emit_func_prologue(int func_id) {
-  emit_line("");
-  emit_line("def func%d", func_id);
-  inc_indent();
-  emit_line("while %d <= @pc && @pc < %d",
+  emit_line("{%% if %d <= REG[:pc] && REG[:pc] < %d %%}",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
-  emit_line("case @pc");
+  emit_line("{%% loop2 = STATE[:exit] == 1 ? [] of Int32 : [0] %%}");
+  emit_line("{%% for x in loop2 %%}");
+  inc_indent();
+  emit_line("{%% if STATE[:exit] == 0 && loop2.size < 100000 && (%d <= REG[:pc] && REG[:pc] < %d)",
+            func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
+  inc_indent();
+  emit_line("loop2.push 0");
+  emit_line("if false");
   inc_indent();
 }
 
 static void cr_emit_func_epilogue(void) {
   dec_indent();
   emit_line("end");
-  emit_line("@pc += 1");
+  emit_line("REG[:pc] = REG[:pc] + 1");
   dec_indent();
-  emit_line("end");
+  emit_line("end %%}");
   dec_indent();
-  emit_line("end");
+  emit_line("{%% end %%}");
+  dec_indent();
+  emit_line("{%% end %%}");
 }
 
 static void cr_emit_pc_change(int pc) {
-  emit_line("");
   dec_indent();
-  emit_line("when %d", pc);
+  emit_line("elsif REG[:pc] == %d", pc);
   inc_indent();
 }
 
@@ -75,24 +86,28 @@ static void cr_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    emit_line("%s = @mem[%s]", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = MEM[%s] || 0", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("@mem[%s] = %s", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("MEM[%s] = %s", src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    emit_line("putc %s", src_str(inst));
+    emit_line("`crystal run -D cr_elvm_output #{1.filename} -- #{%s & 255}`", src_str(inst));
     break;
 
   case GETC:
-    emit_line("c = STDIN.getc; %s = c ? c.ord : 0",
-              reg_names[inst->dst.reg]);
+    emit_line("if c = INPUT[STATE[:input]]");
+    emit_line(" %s = c", reg_names[inst->dst.reg]);
+    emit_line(" STATE[:input] = STATE[:input] + 1");
+    emit_line("else");
+    emit_line(" %s = 0", reg_names[inst->dst.reg]);
+    emit_line("end");
     break;
 
   case EXIT:
-    emit_line("exit");
+    emit_line("STATE[:exit] = 1");
     break;
 
   case DUMP:
@@ -114,9 +129,12 @@ static void cr_emit_inst(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
-  case JMP:
-    emit_line("%s && @pc = %s - 1",
+    emit_line("REG[:pc] = %s ? %s - 1 : REG[:pc]",
               cmp_str(inst, "true"), value_str(&inst->jmp));
+    break;
+
+  case JMP:
+    emit_line("REG[:pc] = %s - 1", value_str(&inst->jmp));
     break;
 
   default:
@@ -125,27 +143,23 @@ static void cr_emit_inst(Inst* inst) {
 }
 
 void target_cr(Module* module) {
-  init_state_cr(module->data);
-  emit_line("");
-
-  int num_funcs = emit_chunked_main_loop(module->text,
-                                         cr_emit_func_prologue,
-                                         cr_emit_func_epilogue,
-                                         cr_emit_pc_change,
-                                         cr_emit_inst);
-  dec_indent();
-  emit_line("end");
-
-  emit_line("");
-  emit_line("main = Main.new");
-  emit_line("while true");
+  cr_init_state(module->data);
+  emit_line("{%% unless flag?(:cr_elvm_input) || flag?(:cr_elvm_output) %%}");
   inc_indent();
-  emit_line("case main.pc / %d", CHUNKED_FUNC_SIZE);
-  for (int i = 0; i < num_funcs; i++) {
-    emit_line("when %d", i);
-    emit_line(" main.func%d", i);
-  }
-  emit_line("end");
+  emit_line("{%% loop1 = [0] %%}");
+  emit_line("{%% for x in loop1 %%}");
+  inc_indent();
+  emit_line("{%% loop2 = [] of Int32 %%}");
+  emit_line("{%% unless STATE[:exit] == 1 %%}");
+  emit_line(" {%% loop1.push 0 %%}");
+  emit_line("{%% end %%}");
+  emit_chunked_main_loop(module->text,
+                         cr_emit_func_prologue,
+                         cr_emit_func_epilogue,
+                         cr_emit_pc_change,
+                         cr_emit_inst);
   dec_indent();
-  emit_line("end");
+  emit_line("{%% end %%}");
+  dec_indent();
+  emit_line("{%% end %%}");
 }

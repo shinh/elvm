@@ -2,5 +2,4 @@
 
 set -e
 
-crystal build $1 -o $1.exe
-./$1.exe
+crystal build --no-codegen "$1" 2>&1
