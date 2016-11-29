@@ -7,8 +7,6 @@ typedef enum {BLANK, START, ZERO, ONE, REGISTER, ADDRESS, VALUE, OUTPUT, SRC, DS
 const char *symbol_names[] = {"_", "^", "0", "1", "r", "a", "v", "o", "s", "d", "."};
 const int num_symbols = 11;
 
-const char *direction_names[] = {"L", "N", "R"};
-
 const int word_size = 8;
 
 int next_state;
@@ -21,18 +19,34 @@ int new_state() {
 /* These functions take a start state and an accept state(s) as
    arguments and, as a convenience, return the accept state. */
 
+/* Generate a transition from state q, read symbol a,
+   write symbol b, move in direction d, go to state r. */
+
 int tm_transition(int q, symbol_t a, symbol_t b, int d, int r) {
+  const char *dname;
+  if (d == -1)      dname = "L";
+  else if (d == 0)  dname = "N"; 
+  else if (d == +1) dname = "R";
+  else error("invalid direction");
   emit_line("%d %s %d %s %s", 
 	    q, symbol_names[a], 
-	    r, symbol_names[b], direction_names[d+1]);
+	    r, symbol_names[b], dname);
   return r;
 }
+
+/* Generate transitions to write symbol b and move in direction d,
+   regardless of input symbol. */
 
 int tm_write(int q, symbol_t b, int d, int r) {
   for (symbol_t a=0; a<num_symbols; a++)
     tm_transition(q, a, b, d, r);
   return r;
 }
+
+/* Generate write transitions that do one thing for symbol a, 
+   and another thing for all other symbols.
+
+   Returns the state for the latter case. */
 
 int tm_write_if(int q, 
 		symbol_t a, int ba, int da, int ra,
@@ -43,11 +57,18 @@ int tm_write_if(int q,
   return r;
 }
 
+/* Generate transitions to move in direction d, regardless of input symbol. */
+
 int tm_move(int q, int d, int r) {
   for (symbol_t s=0; s<num_symbols; s++)
     tm_transition(q, s, s, d, r);
   return r;
 }
+
+/* Generate move transitions that do one thing for symbol a, 
+   and another thing for all other symbols.
+
+   Returns the state for the latter case. */
 
 int tm_move_if(int q, 
 	       symbol_t a, int da, int ra, 
@@ -57,6 +78,12 @@ int tm_move_if(int q,
     else             tm_transition(q, s, s, d, r);
   return r;
 }
+
+/* Generate move transitions that do one thing for symbol a, 
+   another thing for symbol b,
+   and another thing for all other symbols.
+
+   Returns the state for the last case. */
 
 int tm_move_if2(int q, 
 		symbol_t a, int da, int ra, 
@@ -69,12 +96,13 @@ int tm_move_if2(int q,
   return r;
 }
 
+/* Generate transitions that just change state and do nothing else. */
 int tm_noop(int q, int r) { 
   return tm_move(q, 0, r); 
 }
 
-int tm_write_word(int q, unsigned int x, int r) {
-  for (int i=word_size-1; i>0; i--) {
+int tm_write_bits(int q, unsigned int x, int n, int r) {
+  for (int i=n-1; i>0; i--) {
     q = tm_write(q, SCRATCH, +1, new_state());
     q = tm_write(q, (1<<i)&x?ONE:ZERO, +1, new_state());
   }
@@ -82,14 +110,21 @@ int tm_write_word(int q, unsigned int x, int r) {
   return tm_write(q, 1&x?ONE:ZERO, +1, r);
 }
 
-int tm_write_byte(int q, unsigned int x, int r) {
-  for (int i=7; i>0; i--) {
-    q = tm_write(q, SCRATCH, +1, new_state());
-    q = tm_write(q, (1<<i)&x?ONE:ZERO, +1, new_state());
-  }
-  q = tm_write(q, SCRATCH, +1, new_state());
-  return tm_write(q, 1&x?ONE:ZERO, +1, r);
+/* Generate transitions to write a machine word in binary,
+   leaving a scratch cell before each bit. */
+int tm_write_word(int q, unsigned int x, int r) {
+  return tm_write_bits(q, x, word_size, r);
 }
+
+/* Generate transitions to write a byte in binary,
+   leaving a scratch cell before each bit. */
+
+int tm_write_byte(int q, unsigned int x, int r) {
+  return tm_write_bits(q, x, 8, r);
+}
+
+/* Generate transitions to search in direction d for symbol a,
+   or until the end of the used portion of the tape is reached. */
 
 int tm_find(int q, int d, int a, int r_yes, int r_no) {
   symbol_t marker = d < 0 ? START : BLANK;
@@ -97,39 +132,46 @@ int tm_find(int q, int d, int a, int r_yes, int r_no) {
   return r_yes;
 }
 
+/* Generate transitions to move to the left end of the tape. */
+
 int tm_rewind(int q, int r) { 
   tm_move_if(q, START, 0, r, -1, q);
   return r;
 }
+
+/* Generate transitions to move to the right end of the used portion
+   of the tape. */
 
 int tm_ffwd(int q, int r) { 
   tm_move_if(q, BLANK, 0, r, +1, q);
   return r;
 }
 
+/* Generate transitions to find register reg. The head ends on the
+   scratch cell to the left of reg's value. */
+
 int tm_find_register(int q, Reg reg, int r) {
   int qstart = q;
-  q = tm_find(q, +1, REGISTER, new_state(), q_reject);   // .[r].0.1 ... .v.0.1
-  q = tm_move(q, +1, new_state());                       // .r[.]0.1 ... .v.0.1
+  q = tm_find(q, +1, REGISTER, new_state(), q_reject); // .[r].0.1 ... .v.0.1
+  q = tm_move(q, +1, new_state());                     // .r[.]0.1 ... .v.0.1
   for (int i=word_size-1; i>=0; i--) {
-    q = tm_move(q, +1, new_state());                     // .r.[0].1 ... .v.0.1
+    q = tm_move(q, +1, new_state());                   // .r.[0].1 ... .v.0.1
     symbol_t bit = (1<<i)&reg ? ONE : ZERO;
     int q_match = new_state();
     tm_move_if2(q,
-		bit, +1, q_match,                        // .r.0[.]1 ... .v.0.1
+		bit, +1, q_match,                      // .r.0[.]1 ... .v.0.1
 		BLANK, 0, q_reject,
 		+1, qstart);
     q = q_match;
   }
-  q = tm_move(q, +1, new_state());                       // .r.0.1 ... .[v].0.1
+  q = tm_move(q, +1, new_state());                     // .r.0.1 ... .[v].0.1
   tm_move_if(q,
-	     VALUE, +1, r,                               // .r.0.1 ... .v[.]0.1
+	     VALUE, +1, r,                             // .r.0.1 ... .v[.]0.1
 	     0, q_reject);
   return r;
 }
 
-// Copy bits from current position to the position marked by DST.
-int tm_copy(int q, int d, int r) {
+int tm_copy_helper(int q, int d, int scratch, int r) {
                                                       // [.]0.1 ... dx.x
   q = tm_write(q, SRC, 0, new_state());               // [s]0.1 ... dx.x
   int q_nextbit = q;
@@ -142,17 +184,42 @@ int tm_copy(int q, int d, int r) {
   q = new_state();
   q0 = tm_write(q0, SRC, +1, new_state());            // .0s[1] ... dx.x
   q0 = tm_find(q0, d, DST, new_state(), q_reject);    // .0s1 ... [d]x.x
-  q0 = tm_write(q0, SCRATCH, +1, new_state());        // .0s1 ... .[x].x
+  if (scratch)
+    q0 = tm_write(q0, SCRATCH, +1, new_state());      // .0s1 ... .[x].x
   q0 = tm_write(q0, ZERO, +1, q);                     // .0s1 ... .0[.]x
   q1 = tm_write(q1, SRC, +1, new_state());
   q1 = tm_find(q1, d, DST, new_state(), q_reject);
-  q1 = tm_write(q1, SCRATCH, +1, new_state());
+  if (scratch)
+    q1 = tm_write(q1, SCRATCH, +1, new_state());
   q1 = tm_write(q1, ONE, +1, q);
   q = tm_write(q, DST, 0, new_state());               // .0s1 ... .0[d]x
   tm_find(q, -d, SRC, q_nextbit, q_reject);           // .0[s]1 ... .0dx
   q = tm_find(q_clean, d, DST, new_state(), q_reject);
-  q = tm_write(q, SCRATCH, -1, new_state());
-  return tm_rewind(q, r);
+  if (scratch)
+    return tm_write(q, SCRATCH, 0, r);
+  else
+    return tm_noop(q, r);
+}
+
+/* Copy bits from current position to the position marked by DST.
+
+   The head starts on the scratch cell to the left of the source word,
+   and ends on the scratch cell to the right of the destination
+   word. */
+
+int tm_copy(int q, int d, int r) {
+  return tm_copy_helper(q, d, 1, r);
+}
+
+/* Copy bits from current position to the position marked by DST.
+
+   The head starts on the scratch cell to the left of the source word,
+   and ends on the cell to the right of the destination word. The
+   destination word does not have scratch cells, and the DST marker is
+   also not deleted afterwards. */
+
+int tm_compact(int q, int d, int r) {
+  return tm_copy_helper(q, d, 0, r);
 }
 
 void target_tm(Module* module) {
@@ -258,32 +325,12 @@ void target_tm(Module* module) {
 
     case EXIT:
       // Consolidate output segments
-      // Here (and only here), the destination has no scratch space
-      // so a DST symbol marks the first unwritten cell
       q = tm_write(q, DST, +1, new_state());              // d[.]
       int q_clear = new_state();
-      int q_findoutput = q;
+      int q_findo = q;
       q = tm_find(q, +1, OUTPUT, new_state(), q_clear);   // [o].0.1
-      q = tm_move(q, +1, new_state());                    // o[.]0.1
-      q = tm_write(q, SRC, 0, new_state());               // o[s]0.1
-
-      int q_nextbit = q;
-      q = tm_write(q, SCRATCH, +1, new_state());          // o.[0].1
-      int q0 = new_state(), q1 = new_state();
-      tm_move_if2(q, 
-		  ZERO, +1, q0,                           // o.0[.]1
-		  ONE, +1, q1,
-		  0, q_findoutput);
-
-      q = new_state();
-      q0 = tm_write(q0, SRC, -1, new_state());            // o.[0]s1
-      q0 = tm_find(q0, -1, DST, new_state(), q_reject);   // [d]
-      q0 = tm_write(q0, ZERO, +1, q);                     // 0[x]
-      q1 = tm_write(q1, SRC, -1, new_state());
-      q1 = tm_find(q1, -1, DST, new_state(), q_reject);
-      q1 = tm_write(q1, ONE, +1, q);
-      q = tm_write(q, DST, +1, new_state());              // 0d[x]
-      q = tm_find(q, +1, SRC, q_nextbit, q_reject);       // o.0[s]1
+      q = tm_write(q, SCRATCH, +1, new_state());          // .[.]0.1
+      q = tm_compact(q, -1, q_findo);
 
       // Clear rest of tape
       q_clear = tm_find(q_clear, -1, DST, new_state(), q_reject);
