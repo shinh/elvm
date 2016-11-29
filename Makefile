@@ -61,7 +61,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c swift.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -236,7 +236,13 @@ TARGET := java
 RUNNER := tools/runjava.sh
 TOOL := javac
 include target.mk
-$(OUT.eir.c.out): tools/runjava.sh
+$(OUT.eir.java.out): tools/runjava.sh
+
+TARGET := swift
+RUNNER := tools/runswift.sh
+TOOL := swiftc
+include target.mk
+$(OUT.eir.swift.out): tools/runswift.sh
 
 TARGET := c
 RUNNER := tools/runc.sh
