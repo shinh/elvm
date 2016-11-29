@@ -140,8 +140,10 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, bool verbose=false) {
   state_t q = 0;
   vector<symbol_t>::size_type pos = 0;
   while (true) {
-    while (pos >= tape.size())
+    while (pos+1 > tape.size())
       tape.push_back(BLANK);
+    while (tape.back() == BLANK && tape.size() > pos+1)
+      tape.pop_back();
     if (verbose) {
       cerr << q << " | ";
       for (vector<symbol_t>::size_type i=0; i<tape.size(); i++) {
