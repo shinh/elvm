@@ -104,13 +104,13 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) % 16777216",
+    emit_line("%s = (%s + %s) %% 16777216",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) % 16777216",
+    emit_line("%s = (%s - %s + 16777216) %% 16777216",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
@@ -204,6 +204,7 @@ void target_tf(Module* module) {
   emit_line("");
   emit_line("def run_step(%s):", STATE_ARGS_STR);
   inc_indent();
+  //emit_line("pc = tf.Print(pc, [pc])");
   emit_line("fn_pairs = []");
   for (int i = 0; i < prev_pc; i++) {
     emit_line("fn_pairs.append((tf.equal(pc, %d), lambda: pc_%d(%s)))",
