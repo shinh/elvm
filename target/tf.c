@@ -88,6 +88,15 @@ static const char* tf_src_str(Inst* inst) {
   return tf_value_str(&inst->src);
 }
 
+static const char* tf_cmp(Inst* inst) {
+  uint op = normalize_cond(inst->op, false);
+  static const char* OPS[] = {
+    "equal", "not_equal", "less", "greater", "less_equal", "greater_equal"
+  };
+  return format("tf.%s(%s, %s)",
+                OPS[op - JEQ], tf_value_str(&inst->dst), tf_src_str(inst));
+}
+
 static void tf_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
@@ -142,8 +151,9 @@ static void tf_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("%s = int(%s)",
-              reg_names[inst->dst.reg], cmp_str(inst, "True"));
+    emit_line("%s = tf.cond(%s,"
+              " lambda: tf.constant(1), lambda: tf.constant(0))",
+              reg_names[inst->dst.reg], tf_cmp(inst));
     break;
 
   case JEQ:
@@ -152,7 +162,9 @@ static void tf_emit_inst(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
-    error("TODO");
+    emit_line("pc = tf.cond(%s, lambda: %s - 1, lambda: pc)",
+              tf_cmp(inst), tf_value_str(&inst->jmp));
+    break;
 
   case JMP:
     emit_line("pc = %s - 1", tf_value_str(&inst->jmp));
@@ -163,6 +175,12 @@ static void tf_emit_inst(Inst* inst) {
   }
 }
 
+static void tf_emit_func_epilogue(const char* args) {
+  emit_line("pc = pc + 1");
+  emit_line("return [%s]", args);
+  dec_indent();
+}
+
 void target_tf(Module* module) {
   init_state_tf(module->data);
 
@@ -171,21 +189,17 @@ void target_tf(Module* module) {
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
       if (inst->pc) {
-        emit_line("pc = pc + 1");
-        emit_line("return [%s]", STATE_ARGS_STR);
-        dec_indent();
+        tf_emit_func_epilogue(STATE_ARGS_STR);
       }
       emit_line("");
-      emit_line("def pc_%x(%s):", inst->pc, STATE_ARGS_STR);
+      emit_line("def pc_%d(%s):", inst->pc, STATE_ARGS_STR);
       inc_indent();
       emit_line("global CHAR_TBL");
     }
     prev_pc = inst->pc;
     tf_emit_inst(inst);
   }
-  emit_line("pc = pc + 1");
-  emit_line("return [%s]", STATE_ARGS_STR);
-  dec_indent();
+  tf_emit_func_epilogue(STATE_ARGS_STR);
 
   emit_line("");
   emit_line("def run_step(%s):", STATE_ARGS_STR);
