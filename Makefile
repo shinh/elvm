@@ -61,7 +61,7 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c swift.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c swift.c cr.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -243,6 +243,12 @@ RUNNER := tools/runswift.sh
 TOOL := swiftc
 include target.mk
 $(OUT.eir.swift.out): tools/runswift.sh
+
+TARGET := cr
+RUNNER := tools/runcr.sh
+TOOL := crystal
+include target.mk
+$(OUT.eir.crystal.out): tools/runcr.sh
 
 TARGET := c
 RUNNER := tools/runc.sh
