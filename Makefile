@@ -78,6 +78,7 @@ ELC_SRCS := \
 	c.c \
 	cl.c \
 	cpp.c \
+	cpp_templ.c \
 	cr.c \
 	cs.c \
 	el.c \
@@ -310,6 +311,14 @@ RUNNER := tools/runcpp.sh
 TOOL := g++-6
 include target.mk
 $(OUT.eir.cpp.out): tools/runcpp.sh
+
+ifdef CPP_TEMPL
+TARGET := cpp_templ
+RUNNER := tools/runcpp_templ.sh
+TOOL := g++
+include target.mk
+$(OUT.eir.cpp_templ.out): tools/runcpp_templ.sh
+endif
 
 ifeq ($(uname),Linux)
 TARGET := $(ARCH)

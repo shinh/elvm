@@ -11,6 +11,7 @@ void target_bf(Module* module);
 void target_c(Module* module);
 void target_cl(Module* module);
 void target_cpp(Module* module);
+void target_cpp_templ(Module* module);
 void target_cr(Module* module);
 void target_cs(Module* module);
 void target_el(Module* module);
