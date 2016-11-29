@@ -108,6 +108,9 @@ static void tf_emit_inst(Inst* inst) {
 
   case LOAD:
     emit_line("%s = mem[%s]", reg_names[inst->dst.reg], src_str(inst));
+    // Workaround for .data, but I'm not sure why we need this.
+    // TODO: Remove this.
+    emit_line("%s.set_shape(())", reg_names[inst->dst.reg]);
     break;
 
   case STORE:
