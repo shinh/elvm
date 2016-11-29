@@ -191,7 +191,8 @@ void target_tf(Module* module) {
   dec_indent();
 
   emit_line("");
-  emit_line("# tf.write_graph(loop.as_graph_def(), 'graph.pbtxt')");
+  emit_line("# tf.train.write_graph(loop[9].graph.as_graph_def(),"
+            " '/tmp', 'graph.pbtxt')");
   emit_line("sess = tf.InteractiveSession()");
   emit_line("tf.initialize_all_variables().run()");
   emit_line("r = sess.run(loop, feed_dict={INPUT: input})");
