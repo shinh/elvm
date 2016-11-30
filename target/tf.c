@@ -4,6 +4,7 @@
 static void init_state_tf(Data* data) {
   emit_line("import sys");
   emit_line("import tensorflow as tf");
+  emit_line("from tensorflow.python.framework import function");
   emit_line("from tensorflow.python.framework import tensor_shape");
   emit_line("");
 
@@ -38,6 +39,19 @@ static void init_state_tf(Data* data) {
   emit_line("r.set_shape(())");
   emit_line("return r, inp");
   dec_indent();
+
+  emit_line("");
+  emit_line("@function.Defun(tf.int32, tf.int32)");
+  emit_line("def elvm_add(x, y):");
+  emit_line("  return (x + y) %% 16777216");
+  emit_line("");
+  emit_line("@function.Defun(tf.int32, tf.int32)");
+  emit_line("def elvm_sub(x, y):");
+  emit_line("  return (x - y + 16777216) %% 16777216");
+  emit_line("");
+  emit_line("@function.Defun(tf.int32, tf.int32, tf.int32)");
+  emit_line("def elvm_store(mem, x, y):");
+  emit_line("  return tf.concat(0, [mem[:y], [x], mem[y+1:]])");
 }
 
 static const char* tf_value_str(Value* v) {
@@ -70,28 +84,29 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) %% 16777216",
+    emit_line("%s = elvm_add(%s, %s)",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              reg_names[inst->dst.reg], tf_src_str(inst));
+    emit_line("%s.set_shape(())", reg_names[inst->dst.reg]);
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s + 16777216) %% 16777216",
+    emit_line("%s = elvm_sub(%s, %s)",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+              reg_names[inst->dst.reg], tf_src_str(inst));
+    emit_line("%s.set_shape(())", reg_names[inst->dst.reg]);
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s]", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = mem[%s]", reg_names[inst->dst.reg], tf_src_str(inst));
     // Workaround for .data, but I'm not sure why we need this.
     // TODO: Remove this.
     emit_line("%s.set_shape(())", reg_names[inst->dst.reg]);
     break;
 
   case STORE:
-    emit_line("i = %s", src_str(inst));
-    emit_line("mem = tf.concat(0, [mem[:i], [%s], mem[i+1:]])",
-              reg_names[inst->dst.reg]);
+    emit_line("mem = elvm_store(mem, %s, %s)",
+              reg_names[inst->dst.reg], tf_src_str(inst));
     break;
 
   case PUTC:
@@ -191,10 +206,10 @@ void target_tf(Module* module) {
   dec_indent();
 
   emit_line("");
-  emit_line("# tf.train.write_graph(loop[9].graph.as_graph_def(),"
+  emit_line("sess = tf.Session()");
+  emit_line("tf.train.write_graph(loop[9].graph.as_graph_def(),"
             " '/tmp', 'graph.pbtxt')");
-  emit_line("sess = tf.InteractiveSession()");
-  emit_line("tf.initialize_all_variables().run()");
+  emit_line("tf.initialize_all_variables().run(session=sess)");
   emit_line("r = sess.run(loop, feed_dict={INPUT: input})");
 
   emit_line("");
