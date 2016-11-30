@@ -41,6 +41,8 @@ STORE src, dst
 - copy src to address dst
 - src: register
 - dst: immediate or register
+(but internally in struct Inst defined in ir/ir.h dst is stored in
+Inst.src and src is stored in Inst.dst for implementation reason)
 
 PUTC src
 - print character (mod 256) from src
