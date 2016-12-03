@@ -48,6 +48,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <unistd.h>
 using namespace std;
 
 typedef int state_t;
@@ -195,13 +196,28 @@ void decode_tape(const vector<symbol_t> &tape, string &s) {
   }
 }
 
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    cerr << "usage: tm <filename>\n";
-    exit(2);
-  }
+void usage() {
+  cerr << "usage: tm [-v] <filename>\n";
+  exit(2);
+}
 
-  ifstream is(argv[1]);
+int main(int argc, char *argv[]) {
+  bool verbose = 0;
+  int ch;
+  while ((ch = getopt(argc, argv, "v")) != -1) {
+    switch (ch) {
+    case 'v': 
+      verbose = true;
+      break;
+    default: 
+      usage();
+    }
+  }
+  argc -= optind;
+  argv += optind;
+  if (argc != 1) usage();
+
+  ifstream is(argv[0]);
   dtm m;
   read_dtm(is, m);
 
@@ -213,7 +229,7 @@ int main(int argc, char *argv[]) {
   vector<symbol_t> tape;
   encode_tape(s, tape);
 
-  if (run_dtm(m, tape, true)) {
+  if (run_dtm(m, tape, verbose)) {
     decode_tape(tape, s);
     cout << s;
     return 0;

@@ -10,16 +10,17 @@ int new_state() {
 int q_reject;
 
 /* The tape is laid out like this:
-     ^_x_0_0_..._0_x_0_0_..._0_$
-   where x is one of: r, a, v, o.
+     [_x_0_0_..._0_x_0_0_..._0_]
+   where x is one of: r, a, v, i, o.
 
    The blanks between the symbols are used as scratch space. */
 
-typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, OUTPUT, SRC, DST} symbol_t;
-const char *symbol_names[] = {"_", "^", "$", "0", "1", "r", "a", "v", "o", "s", "d", "."};
+typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, INPUT, OUTPUT, SRC, DST} symbol_t;
+const char *symbol_names[] = {"_", "[", "]", "0", "1", "r", "a", "v", "i", "o", "s", "d"};
 const int num_symbols = 12;
+const int bit[2] = {ZERO, ONE};
 
-const int word_size = 8;
+const int word_size = 10;
 
 int intcmp(int x, int y) {
   if (x > y) return +1;
@@ -161,102 +162,146 @@ int tm_find(int q, int d, int a, int r_yes, int r_no) {
   return r_yes;
 }
 
-/* Generate transitions to move to the left end of the tape. */
+/* Generate transitions to move to the left or right end of the tape. */
 
 int tm_rewind(int q, int r) { 
   tm_move_if(q, START, 0, r, -1, q);
   return r;
 }
 
-/* Generate transitions to move to the right end of the used portion
-   of the tape. */
-
 int tm_ffwd(int q, int r) { 
   tm_move_if(q, END, 0, r, +1, q);
   return r;
 }
 
-/* Generate transitions to find register reg. The head ends on the
-   scratch cell to the left of reg's value. */
+/* Generate transitions to find register reg or address addr. The head
+   ends on the scratch cell to the left of the corresponding value. */
 
-int tm_find_register(int q, Reg reg, int r) {
+int tm_find_location(int q, symbol_t type, int addr, int r_found, int r_notfound) {
   int qstart = q;
-  q = tm_find(q, +1, REGISTER, new_state(), q_reject); // _[r]_0_1 ... _v_0_1
+  q = tm_find(q, +1, type, new_state(), r_notfound);   // _[r]_0_1 ... _v_0_1
   q = tm_move(q, +1, new_state());                     // _r[_]0_1 ... _v_0_1
   for (int i=word_size-1; i>=0; i--) {
     q = tm_move(q, +1, new_state());                   // _r_[0]_1 ... _v_0_1
-    symbol_t bit = (1<<i)&reg ? ONE : ZERO;
+    symbol_t bit = (1<<i)&addr ? ONE : ZERO;
     int q_match = new_state();
-    tm_move_if2(q,
-		bit, +1, q_match,                      // _r_0[_]1 ... _v_0_1
-		END, 0, q_reject,
-		+1, qstart);
+    tm_move_if(q,
+	       bit, +1, q_match,                       // _r_0[_]1 ... _v_0_1
+	       +1, qstart);
     q = q_match;
   }
   q = tm_move(q, +1, new_state());                     // _r_0_1 ... _[v]_0_1
   tm_move_if(q,
-	     VALUE, +1, r,                             // _r_0_1 ... _v[_]0_1
+	     VALUE, +1, r_found,                       // _r_0_1 ... _v[_]0_1
 	     0, q_reject);
+  return r_found;
+}
+
+int tm_new_location(int q, symbol_t type, int addr, int r) {
+  q = tm_ffwd(q, new_state());
+  q = tm_write(q, type, +1, new_state());
+  q = tm_write_word(q, addr, new_state());
+  q = tm_move(q, +1, new_state());
+  q = tm_write(q, VALUE, +1, new_state());
+  q = tm_write_word(q, 0, new_state());
+  q = tm_move(q, +1, new_state());
+  return tm_write(q, END, -1, r);
+}
+
+int tm_find_register(int q, Reg reg, int r) {
+  return tm_find_location(q, REGISTER, reg, r, q_reject);
+}
+
+int tm_find_memory(int q, int addr, int r) {
+  int q_append = new_state();
+  tm_find_location(q, ADDRESS, addr, r, q_append);
+  q = tm_new_location(q_append, ADDRESS, addr, new_state());
+  q = tm_find(q, -1, VALUE, new_state(), q_reject);
+  tm_move(q, +1, r);
   return r;
 }
 
 typedef enum {
+  BLANK_BEFORE_SRC = 1,
+  SKIP_AFTER_SRC = 2,
   BLANK_BEFORE_DST = 4,
-  BLANK_AFTER_DST = 8
+  SKIP_AFTER_DST = 8
 } mode_t;
 
 /* Copy bits from current position to the position marked by DST.
 
    The head starts on the scratch cell to the left of the source word,
    and ends on the cell to the right of the destination word (which is
-   blanked).
+   erased).
 
    If BLANK_BEFORE_DST is set, a blank cell is inserted before each bit.
 
-   If BLANK_AFTER_DST is set, an unaltered cell is inserted after each
+   If SKIP_AFTER_DST is set, an unaltered cell is inserted after each
    bit; in other words, the bits are written into the scratch cells.
 */
 
 int tm_copy_helper(int q, int d, unsigned int mode, int r) {
-  // The examples show mode == BLANK_BEFORE_DST.
-                                                      // [_]0_1 ... dx_x
-  q = tm_write(q, SRC, 0, new_state());               // [s]0_1 ... dx_x
-  int q_nextbit = q;
-  q = tm_write(q, BLANK, +1, new_state());            // _[0]_1 ... dx_x
-  int q0 = new_state(), q1 = new_state();
-  int q_clean = tm_move_if2(q,
-			   ZERO, +1, q0,              // _0[_]1 ... dx_x
-			   ONE, +1, q1,
-			   0, new_state());
-  q = new_state();
-  q0 = tm_write(q0, SRC, +1, new_state());            // _0s[1] ... dx_x
-  q0 = tm_find(q0, d, DST, new_state(), q_reject);    // _0s1 ... [d]x_x
-  if (mode & BLANK_BEFORE_DST)
-    q0 = tm_write(q0, BLANK, +1, new_state());        // _0s1 ... _[x]_x
-  q0 = tm_write(q0, ZERO, +1, q);                     // _0s1 ... _0[_]x
-  q1 = tm_write(q1, SRC, +1, new_state());
-  q1 = tm_find(q1, d, DST, new_state(), q_reject);
-  if (mode & BLANK_BEFORE_DST)
-    q1 = tm_write(q1, BLANK, +1, new_state());
-  q1 = tm_write(q1, ONE, +1, q);
-  if (mode & BLANK_AFTER_DST)
+  // The examples show mode == BLANK_BEFORE_SRC|BLANK_BEFORE_DST.
+  int q_store[2] = {new_state(), new_state()};
+  int q_cleansrc = new_state(), q_cleandst = new_state();
+  int q_nextbit = q;                                  
+
+  if (mode & BLANK_BEFORE_SRC) {
+    // Write SRC, then store bit
+                                                        // [_]0_1 ... dx_x
+    q = tm_write(q, SRC, 0, new_state());               // [s]0_1 ... dx_x
+    q = tm_move(q, +1, new_state());                    // s[0]_1 ... dx_x
+    tm_move_if2(q,
+		ZERO, 0, q_store[0],                    // s[0]_1 ... dx_x
+		ONE,  0, q_store[1],
+		0, q_cleansrc);
+  } else {
+    // Store bit, then write SRC
+    tm_write_if2(q, 
+		 ZERO, SRC, 0, q_store[0], 
+		 ONE, SRC, 0, q_store[1], 
+		 BLANK, 0, q_cleandst);
+  }
+  int q_write = new_state();
+  for (int b=0; b<2; b++) {
+    q = q_store[b];
+    q = tm_find(q, d, DST, new_state(), q_reject);    // s0_1 ... [d]x_x
+    if (mode & BLANK_BEFORE_DST)
+      q = tm_write(q, BLANK, +1, new_state());        // s0_1 ... _[x]_x
+    tm_write(q, bit[b], +1, q_write);                 // s0_1 ... _0[_]x
+  }
+  q = q_write;
+  if (mode & SKIP_AFTER_DST)
     q = tm_move(q, +1, new_state());
-  q = tm_write(q, DST, 0, new_state());               // _0s1 ... _0[d]x
-  tm_find(q, -d, SRC, q_nextbit, q_reject);           // _0[s]1 ... _0dx
-  q = tm_find(q_clean, d, DST, new_state(), q_reject);
+  q = tm_write(q, DST, 0, new_state());               // s0_1 ... _0[d]x
+  q = tm_find(q, -d, SRC, new_state(), q_reject);     // [s]0_1 ... _0dx
+  q = tm_write(q, BLANK, +1, new_state());            // _[0]_1 ... _0dx
+  if (mode & (BLANK_BEFORE_SRC|SKIP_AFTER_SRC))
+    tm_move(q, +1, q_nextbit);                          // _0[_]1 ... _0dx
+  else
+    tm_noop(q, q_nextbit);
+
+  q = q_cleansrc;
+  q = tm_move(q, -1, new_state());
+  q = tm_write(q, BLANK, 0, q_cleandst);
+  q = tm_find(q, d, DST, new_state(), q_reject);
   return tm_write(q, BLANK, 0, r);
 }
 
 int tm_copy(int q, int d, int r) {
-  return tm_copy_helper(q, d, BLANK_BEFORE_DST, r);
+  return tm_copy_helper(q, d, BLANK_BEFORE_SRC|BLANK_BEFORE_DST, r);
 }
 
 int tm_copy_to_scratch(int q, int d, int r) {
-  return tm_copy_helper(q, d, BLANK_AFTER_DST, r);
+  return tm_copy_helper(q, d, BLANK_BEFORE_SRC|SKIP_AFTER_DST, r);
 }
 
 int tm_copy_compact(int q, int d, int r) {
-  return tm_copy_helper(q, d, 0, r);
+  return tm_copy_helper(q, d, BLANK_BEFORE_SRC, r);
+}
+
+int tm_move_scratch(int q, int d, int r) {
+  return tm_copy_helper(q, d, SKIP_AFTER_SRC|SKIP_AFTER_DST, r);
 }
 
 /* Add binary number in scratch cells to binary number in main cells.
@@ -288,6 +333,76 @@ int tm_sub(int q, int r) {
   return r;
 }
 
+int tm_eq(int q, int r_eq, int r_ne) {
+  int q_nextbit = q;
+  int q0 = new_state(), q1 = new_state();
+  tm_move_if2(q, ZERO, +1, q0, ONE, +1, q1, 0, r_eq);
+  tm_move_if2(q0, ZERO, +1, q_nextbit, ONE, +1, r_ne, 0, q_reject);
+  tm_move_if2(q1, ZERO,  +1, r_ne, ONE, +1, q_nextbit, 0, q_reject);
+  return r_eq;
+}
+
+/* Reads address from current location on tape, and finds the memory
+   location with that address, creating a new memory location if
+   necessary. */
+
+int tm_find_memory_indirect(int q, int reg, int r) {
+  // mark first address as DST
+
+  int q_append = new_state();
+  q = tm_find(q, +1, ADDRESS, new_state(), q_append);
+  q = tm_move(q, +1, new_state());
+  q = tm_write(q, DST, -1, new_state());
+  q = tm_rewind(q, new_state());
+  q = tm_find_register(q, reg, new_state());
+
+  q = tm_copy_to_scratch(q, +1, new_state()); // _axyxyxy...[_]v_z_z_z...
+
+  // compare addresses
+  int q_nextaddr = new_state();
+  int q_compare = q;
+  q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
+  q = tm_move(q, +1, new_state());
+  q = tm_eq(q, new_state(), q_nextaddr);
+
+  // if equal: move right to value
+  q = tm_move(q, +1, new_state());
+  tm_move(q, +1, r);
+
+  // if not equal: 
+  // mark next address as DST
+  q = q_nextaddr;
+  q = tm_find(q, +1, ADDRESS, new_state(), q_append);
+  q = tm_move(q, +1, new_state());
+  q = tm_write(q, DST, -1, new_state());
+
+  //  return to previous address
+  q = tm_move(q, -1, new_state());
+  q = tm_move(q, -1, new_state());
+  q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
+  q = tm_move(q, +1, new_state());
+  
+  //  move address
+  tm_copy_helper(q, +1, SKIP_AFTER_SRC|SKIP_AFTER_DST, q_compare);
+
+  // if no more addresses: create new memory location
+  q = q_append;
+  q = tm_write(q, ADDRESS, +1, new_state());
+  q = tm_write(q, DST, -1, new_state());
+  q = tm_move(q, -1, new_state());
+  q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
+  q = tm_move(q, +1, new_state());
+  q = tm_copy_helper(q, +1, SKIP_AFTER_SRC|BLANK_BEFORE_DST, new_state());
+  q = tm_move(q, +1, new_state());
+  q = tm_write(q, VALUE, +1, new_state());
+  q = tm_write_word(q, 0, new_state());
+  q = tm_move(q, +1, new_state());
+  q = tm_write(q, END, -1, new_state());
+  q = tm_find(q, -1, VALUE, new_state(), q_reject);
+  tm_move(q, +1, r);
+  return r;
+}
+
 void target_tm(Module* module) {
   /* Every basic block's entry point is the state with the same number
      as its pc. Additional states are numbered starting after the
@@ -301,16 +416,13 @@ void target_tm(Module* module) {
   q_reject = new_state();
   int q = 0; // current state
   q = tm_write(q, START, +1, new_state());
+  q = tm_write(q, BLANK, +1, new_state());
+  q = tm_write(q, END, 0, new_state());
 
   // Initialize registers
   for (Reg reg=0; reg<6; reg++) {
     comment("register %s value 0", reg_names[reg]);
-    q = tm_write(q, BLANK, +1, new_state());
-    q = tm_write(q, REGISTER, +1, new_state());
-    q = tm_write_word(q, reg, new_state());
-    q = tm_write(q, BLANK, +1, new_state());
-    q = tm_write(q, VALUE, +1, new_state());
-    q = tm_write_word(q, 0, new_state());
+    q = tm_new_location(q, REGISTER, reg, new_state());
   }
 
   // Initialize memory
@@ -321,12 +433,7 @@ void target_tm(Module* module) {
       comment("address %d value %d '%c'", mp, data->v, data->v);
     else
       comment("address %d value %d", mp, data->v);
-    q = tm_write(q, BLANK, +1, new_state());
-    q = tm_write(q, ADDRESS, +1, new_state());
-    q = tm_write_word(q, mp, new_state());
-    q = tm_write(q, BLANK, +1, new_state());
-    q = tm_write(q, VALUE, +1, new_state());
-    q = tm_write_word(q, data->v, new_state());
+    q = tm_new_location(q, ADDRESS, mp, new_state());
     data = data->next;
     mp++;
   }
@@ -391,6 +498,38 @@ void target_tm(Module* module) {
       q = tm_rewind(q, new_state());
       break;
 
+    case LOAD:
+      assert (inst->dst.type == REG);
+      if (inst->src.type == REG) {
+	q = tm_find_memory_indirect(q, inst->src.reg, new_state());
+      } else if (inst->src.type == IMM) {
+	q = tm_find_memory(q, inst->src.imm, new_state());
+      } else
+	error("invalid src type");
+      q = tm_write(q, SRC, -1, new_state());
+      q = tm_rewind(q, new_state());
+      q = tm_find_register(q, inst->dst.reg, new_state());
+      q = tm_write(q, DST, +1, new_state());
+      q = tm_find(q, +1, SRC, new_state(), q_reject);
+      q = tm_copy(q, -1, new_state());
+      q = tm_rewind(q, new_state());
+      break;
+
+    case STORE:
+      assert (inst->dst.type == REG);
+      if (inst->src.type == REG) {
+	q = tm_find_memory_indirect(q, inst->src.reg, new_state());
+      } else if (inst->src.type == IMM) {
+	q = tm_find_memory(q, inst->src.imm, new_state());
+      } else
+	error("invalid dst type");
+      q = tm_write(q, DST, -1, new_state());
+      q = tm_rewind(q, new_state());
+      q = tm_find_register(q, inst->dst.reg, new_state());
+      q = tm_copy(q, +1, new_state());
+      q = tm_rewind(q, new_state());
+      break;
+
     case JMP:
       if (inst->jmp.type == REG)
 	error("not implemented");
@@ -407,6 +546,8 @@ void target_tm(Module* module) {
 	q = tm_write(q, DST, -1, new_state());
 	q = tm_rewind(q, new_state());
 	q = tm_find_register(q, inst->src.reg, new_state());
+	for (int i=0; i<(word_size-8)*2; i++)
+	  q = tm_move(q, +1, new_state());
 	q = tm_copy(q, +1, new_state());
       } else if (inst->src.type == IMM) {
 	q = tm_write_byte(q, inst->src.imm, new_state());
