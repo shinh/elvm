@@ -10,17 +10,25 @@ int new_state() {
 int q_reject;
 
 /* The tape is laid out like this:
-     [_x_0_0_..._0_x_0_0_..._0_]
-   where x is one of: r, a, v, i, o.
+     ^_00000...r_0_..._0_v_0_..._0_..._a_0_..._0_v_0_..._0_..._o000...0_...$
+       input   register    value       address   value         output
 
    The blanks between the symbols are used as scratch space. */
 
-typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, INPUT, OUTPUT, SRC, DST} symbol_t;
-const char *symbol_names[] = {"_", "[", "]", "0", "1", "r", "a", "v", "i", "o", "s", "d"};
-const int num_symbols = 12;
+typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, OUTPUT, SRC, DST} symbol_t;
+const char *symbol_names[] = {"_", "^", "$", "0", "1", "r", "a", "v", "o", "s", "d"};
+const int num_symbols = 11;
 const int bit[2] = {ZERO, ONE};
 
 const int word_size = 10;
+
+typedef enum {
+  SKIP_BEFORE_SRC = 1,
+  SKIP_AFTER_SRC = 2,
+  SKIP_BEFORE_DST = 4,
+  SKIP_AFTER_DST = 8
+} mode_t;
+
 
 int intcmp(int x, int y) {
   if (x > y) return +1;
@@ -133,24 +141,45 @@ int tm_noop(int q, int r) {
   return tm_move(q, 0, r); 
 }
 
+/* Inserts a symbol and shifts existing bits to the left/right until a
+   non-bit is reached. Afterwards, the head is on the first
+   non-bit. */
+
+int tm_insert(int q, symbol_t a, int d, int r) {
+  int q0 = new_state(), q1 = new_state();
+  tm_write_if2(q,  ZERO, a,    d, q0, ONE, a,    d, q1, a,    d, r);
+  tm_write_if2(q0, ZERO, ZERO, d, q0, ONE, ZERO, d, q1, ZERO, d, r);
+  tm_write_if2(q1, ZERO, ONE,  d, q0, ONE, ONE,  d, q1, ONE,  d, r);
+  return r;
+}
+
 /* Generate transitions to write a binary number,
    leaving a scratch cell before each bit. */
 
-int tm_write_bits(int q, unsigned int x, int n, int r) {
-  for (int i=n-1; i>0; i--) {
-    q = tm_move(q, +1, new_state());
+int tm_write_bits(int q, unsigned int x, int n, int mode, int r) {
+  for (int i=n-1; i>=0; i--) {
+    if (mode & SKIP_BEFORE_DST)
+      q = tm_move(q, +1, new_state());
     q = tm_write(q, (1<<i)&x?ONE:ZERO, +1, new_state());
+    if (mode & SKIP_AFTER_DST)
+      q = tm_move(q, +1, new_state());
   }
-  q = tm_move(q, +1, new_state());
-  return tm_write(q, 1&x?ONE:ZERO, +1, r);
+  return tm_noop(q, r);
 }
 
-int tm_write_word(int q, unsigned int x, int r) {
-  return tm_write_bits(q, x, word_size, r);
+int tm_erase_bits(int q, int r) {
+  int erase = q, skip = new_state();
+  tm_write_if2(erase, ZERO, BLANK, +1, skip, ONE, BLANK, +1, skip, BLANK, 0, r);
+  tm_move(skip, +1, erase);
+  return r;
 }
 
-int tm_write_byte(int q, unsigned int x, int r) {
-  return tm_write_bits(q, x, 8, r);
+int tm_write_word(int q, unsigned int x, int mode, int r) {
+  return tm_write_bits(q, x, word_size, mode, r);
+}
+
+int tm_write_byte(int q, unsigned int x, int mode, int r) {
+  return tm_write_bits(q, x, 8, mode, r);
 }
 
 /* Generate transitions to search in direction d for symbol a,
@@ -200,15 +229,16 @@ int tm_find_location(int q, symbol_t type, int addr, int r_found, int r_notfound
 int tm_new_location(int q, symbol_t type, int addr, int r) {
   q = tm_ffwd(q, new_state());
   q = tm_write(q, type, +1, new_state());
-  q = tm_write_word(q, addr, new_state());
   q = tm_move(q, +1, new_state());
+  q = tm_write_word(q, addr, SKIP_AFTER_DST, new_state());
   q = tm_write(q, VALUE, +1, new_state());
-  q = tm_write_word(q, 0, new_state());
   q = tm_move(q, +1, new_state());
+  q = tm_write_word(q, 0, SKIP_AFTER_DST, new_state());
   return tm_write(q, END, -1, r);
 }
 
 int tm_find_register(int q, Reg reg, int r) {
+  q = tm_rewind(q, new_state()); // to do: can be slow if input is long
   return tm_find_location(q, REGISTER, reg, r, q_reject);
 }
 
@@ -221,38 +251,25 @@ int tm_find_memory(int q, int addr, int r) {
   return r;
 }
 
-typedef enum {
-  BLANK_BEFORE_SRC = 1,
-  SKIP_AFTER_SRC = 2,
-  BLANK_BEFORE_DST = 4,
-  SKIP_AFTER_DST = 8
-} mode_t;
-
 /* Copy bits from current position to the position marked by DST.
 
    The head starts on the scratch cell to the left of the source word,
    and ends on the cell to the right of the destination word (which is
-   erased).
+   erased). */
 
-   If BLANK_BEFORE_DST is set, a blank cell is inserted before each bit.
-
-   If SKIP_AFTER_DST is set, an unaltered cell is inserted after each
-   bit; in other words, the bits are written into the scratch cells.
-*/
-
-int tm_copy_helper(int q, int d, unsigned int mode, int r) {
-  // The examples show mode == BLANK_BEFORE_SRC|BLANK_BEFORE_DST.
+int tm_copy(int q, int d, unsigned int mode, int r) {
+  // The examples show mode == SKIP_BEFORE_SRC|SKIP_AFTER_DST.
   int q_store[2] = {new_state(), new_state()};
   int q_cleansrc = new_state(), q_cleandst = new_state();
   int q_nextbit = q;                                  
 
-  if (mode & BLANK_BEFORE_SRC) {
+  if (mode & SKIP_BEFORE_SRC) {
     // Write SRC, then store bit
-                                                        // [_]0_1 ... dx_x
-    q = tm_write(q, SRC, 0, new_state());               // [s]0_1 ... dx_x
-    q = tm_move(q, +1, new_state());                    // s[0]_1 ... dx_x
+                                                        // [_]0_1 ... d_x
+    q = tm_write(q, SRC, 0, new_state());               // [s]0_1 ... d_x
+    q = tm_move(q, +1, new_state());                    // s[0]_1 ... d_x
     tm_move_if2(q,
-		ZERO, 0, q_store[0],                    // s[0]_1 ... dx_x
+		ZERO, 0, q_store[0],                    // s[0]_1 ... d_x
 		ONE,  0, q_store[1],
 		0, q_cleansrc);
   } else {
@@ -265,19 +282,19 @@ int tm_copy_helper(int q, int d, unsigned int mode, int r) {
   int q_write = new_state();
   for (int b=0; b<2; b++) {
     q = q_store[b];
-    q = tm_find(q, d, DST, new_state(), q_reject);    // s0_1 ... [d]x_x
-    if (mode & BLANK_BEFORE_DST)
-      q = tm_write(q, BLANK, +1, new_state());        // s0_1 ... _[x]_x
-    tm_write(q, bit[b], +1, q_write);                 // s0_1 ... _0[_]x
+    q = tm_find(q, d, DST, new_state(), q_reject);    // s0_1 ... [d]_x
+    if (mode & SKIP_BEFORE_DST)
+      q = tm_write(q, BLANK, +1, new_state());
+    tm_write(q, bit[b], +1, q_write);                 // s0_1 ... 0[_]x
   }
   q = q_write;
   if (mode & SKIP_AFTER_DST)
-    q = tm_move(q, +1, new_state());
-  q = tm_write(q, DST, 0, new_state());               // s0_1 ... _0[d]x
-  q = tm_find(q, -d, SRC, new_state(), q_reject);     // [s]0_1 ... _0dx
-  q = tm_write(q, BLANK, +1, new_state());            // _[0]_1 ... _0dx
-  if (mode & (BLANK_BEFORE_SRC|SKIP_AFTER_SRC))
-    tm_move(q, +1, q_nextbit);                          // _0[_]1 ... _0dx
+    q = tm_move(q, +1, new_state());                  // s0_1 ... 0[_]x
+  q = tm_write(q, DST, 0, new_state());               // s0_1 ... 0[d]x
+  q = tm_find(q, -d, SRC, new_state(), q_reject);     // [s]0_1 ... 0dx
+  q = tm_write(q, BLANK, +1, new_state());            // _[0]_1 ... 0dx
+  if (mode & (SKIP_BEFORE_SRC|SKIP_AFTER_SRC))
+    tm_move(q, +1, q_nextbit);                        // _0[_]1 ... 0dx
   else
     tm_noop(q, q_nextbit);
 
@@ -288,57 +305,99 @@ int tm_copy_helper(int q, int d, unsigned int mode, int r) {
   return tm_write(q, BLANK, 0, r);
 }
 
-int tm_copy(int q, int d, int r) {
-  return tm_copy_helper(q, d, BLANK_BEFORE_SRC|BLANK_BEFORE_DST, r);
-}
+/* Gets value val and places it at the current head position, with
+   each bit followed by a scratch cell. */
 
-int tm_copy_to_scratch(int q, int d, int r) {
-  return tm_copy_helper(q, d, BLANK_BEFORE_SRC|SKIP_AFTER_DST, r);
-}
-
-int tm_copy_compact(int q, int d, int r) {
-  return tm_copy_helper(q, d, BLANK_BEFORE_SRC, r);
-}
-
-int tm_move_scratch(int q, int d, int r) {
-  return tm_copy_helper(q, d, SKIP_AFTER_SRC|SKIP_AFTER_DST, r);
-}
-
-/* Add binary number in scratch cells to binary number in main cells.
-
-   Because numbers are written MSB-first, this function is backwards:
-   it expects each scratch bit to be to the right of its corresponding
-   main bit. The head starts on the scratch cell to the *right* of the
-   number, and ends on the scratch cell to the left of the number. */
-
-int tm_add(int q, int r) {
-  int s0 = q, s1 = new_state();
-  int m0 = new_state(), m1 = new_state(), m2 = new_state();
-  tm_write_if2(s0, ZERO, BLANK, -1, m0, ONE, BLANK, -1, m1, BLANK, 0, r);
-  tm_write_if2(s1, ZERO, BLANK, -1, m1, ONE, BLANK, -1, m2, BLANK, 0, r);
-  tm_write_if2(m0, ZERO, ZERO, -1, s0, ONE, ONE,  -1, s0, ZERO, 0, q_reject);
-  tm_write_if2(m1, ZERO, ONE,  -1, s0, ONE, ZERO, -1, s1, ZERO, 0, q_reject);
-  tm_write_if2(m2, ZERO, ZERO, -1, s1, ONE, ONE,  -1, s1, ZERO, 0, q_reject);
+int tm_copy_value(int q, Inst *inst, int mode, int r) {
+  assert(inst->dst.type == REG);
+  q = tm_find_register(q, inst->dst.reg, new_state()); // v[_]x_x...
+  if (inst->src.type == REG) {
+    if (inst->dst.reg == inst->src.reg)
+      error("not implemented");
+    q = tm_write(q, DST, -1, new_state());
+    q = tm_find_register(q, inst->src.reg, new_state());
+    q = tm_copy(q, intcmp(inst->dst.reg, inst->src.reg), SKIP_BEFORE_SRC|mode, r);
+  } else if (inst->src.type == IMM) {
+    q = tm_write_word(q, inst->src.imm, mode, r);
+  } else
+    error("invalid src type");
   return r;
 }
 
-int tm_sub(int q, int r) {
-  int s0 = q, s1 = new_state();
-  int m0 = new_state(), m1 = new_state(), m2 = new_state();
-  tm_write_if2(s0, ZERO, BLANK, -1, m0, ONE, BLANK, -1, m1, BLANK, 0, r);
-  tm_write_if2(s1, ZERO, BLANK, -1, m1, ONE, BLANK, -1, m2, BLANK, 0, r);
-  tm_write_if2(m0, ZERO, ZERO, -1, s0, ONE, ONE,  -1, s0, ZERO, 0, q_reject);
-  tm_write_if2(m1, ZERO, ONE,  -1, s1, ONE, ZERO, -1, s0, ZERO, 0, q_reject);
-  tm_write_if2(m2, ZERO, ZERO, -1, s1, ONE, ONE,  -1, s1, ZERO, 0, q_reject);
+/* Add/subtract binary number in scratch cells to/from binary number
+   in main cells, while erasing the scratch cells. */
+
+int tm_addsub(int q, int c, int r) {
+  assert (c == -1 || c == +1);
+
+  // Go to end of numbers
+  int q_end = new_state();
+  q = tm_move_if2(q, ZERO, +1, q, ONE, +1, q, -1, q_end);
+
+  // Perform the operation, putting result in scratch cells
+
+  // Carry bit
+  int carry[2] = {q, new_state()};
+  if (c == -1) { int tmp = carry[0]; carry[0] = carry[1]; carry[1] = tmp; }
+
+  // Carry bit plus bit from first number
+  int inter[3] = {new_state(), new_state(), new_state()};
+
+  int q_shift = new_state();
+  for (int a=0; a<2; a++) {
+    tm_transition(carry[a], ZERO,  BLANK, -1, inter[a]);
+    tm_transition(carry[a], ONE,   BLANK, -1, inter[a+1]);
+    tm_transition(carry[a], VALUE, VALUE, +1, q_shift);
+  }
+  for (int a=0; a<3; a++)
+    for (int b=0; b<2; b++) {
+      tm_transition(inter[a], bit[c == +1 ? b : !b], bit[(a+b)&1], -1, carry[(a+b)>>1]);
+    }
+  c = 0;
+
+  // Shift scratch cells to main cells
+  int q0 = new_state(), q1 = new_state();
+  q = q_shift;
+  tm_write_if2(q, ZERO, BLANK, +1, q0, ONE, BLANK, +1, q1, BLANK, 0, r);
+  q0 = tm_write(q0, ZERO, +1, q);
+  q1 = tm_write(q1, ONE,  +1, q);
   return r;
 }
 
-int tm_eq(int q, int r_eq, int r_ne) {
+/* Compare binary number in scratch cells to binary number in main
+   cells, while erasing the scratch cells. */
+
+int tm_compare(int q, Op op, int r_true, int r_false) {
+  int q_lt, q_eq, q_gt;
+  switch (op) {
+  case JEQ: case EQ: q_lt = r_false; q_eq = r_true;  q_gt = r_false; break;
+  case JNE: case NE: q_lt = r_true;  q_eq = r_false; q_gt = r_true;  break;
+  case JLT: case LT: q_lt = r_true;  q_eq = r_false; q_gt = r_false; break;
+  case JGE: case GE: q_lt = r_false; q_eq = r_true;  q_gt = r_true;  break;
+  case JGT: case GT: q_lt = r_false; q_eq = r_false; q_gt = r_true;  break;
+  case JLE: case LE: q_lt = r_true;  q_eq = r_true;  q_gt = r_false; break;
+  default: error("invalid comparison operation");
+  }
+
+  int q_nextbit = q;
+  int q0 = new_state(), q1 = new_state();
+  int erase_gt = new_state(), erase_lt = new_state();
+  tm_write_if2(q, ZERO, BLANK, +1, q0, ONE, BLANK, +1, q1, BLANK, 0, q_eq);
+  tm_move_if2(q0, ZERO, +1, q_nextbit, ONE, +1, erase_gt, 0, q_reject);
+  tm_move_if2(q1, ZERO, +1, erase_lt, ONE, +1, q_nextbit, 0, q_reject);
+  tm_erase_bits(erase_lt, q_lt);
+  tm_erase_bits(erase_gt, q_gt);
+  return r_true;
+}
+
+/* Similar, but doesn't erase the scratch cells. */
+
+int tm_equal(int q, int r_eq, int r_ne) {
   int q_nextbit = q;
   int q0 = new_state(), q1 = new_state();
   tm_move_if2(q, ZERO, +1, q0, ONE, +1, q1, 0, r_eq);
   tm_move_if2(q0, ZERO, +1, q_nextbit, ONE, +1, r_ne, 0, q_reject);
-  tm_move_if2(q1, ZERO,  +1, r_ne, ONE, +1, q_nextbit, 0, q_reject);
+  tm_move_if2(q1, ZERO, +1, r_ne, ONE, +1, q_nextbit, 0, q_reject);
   return r_eq;
 }
 
@@ -348,22 +407,20 @@ int tm_eq(int q, int r_eq, int r_ne) {
 
 int tm_find_memory_indirect(int q, int reg, int r) {
   // mark first address as DST
-
   int q_append = new_state();
   q = tm_find(q, +1, ADDRESS, new_state(), q_append);
   q = tm_move(q, +1, new_state());
   q = tm_write(q, DST, -1, new_state());
-  q = tm_rewind(q, new_state());
   q = tm_find_register(q, reg, new_state());
 
-  q = tm_copy_to_scratch(q, +1, new_state()); // _axyxyxy...[_]v_z_z_z...
+  q = tm_copy(q, +1, SKIP_BEFORE_SRC|SKIP_AFTER_DST, new_state()); // _axyxyxy...[_]v_z_z_z...
 
   // compare addresses
   int q_nextaddr = new_state();
   int q_compare = q;
   q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
   q = tm_move(q, +1, new_state());
-  q = tm_eq(q, new_state(), q_nextaddr);
+  q = tm_equal(q, new_state(), q_nextaddr);
 
   // if equal: move right to value
   q = tm_move(q, +1, new_state());
@@ -376,27 +433,29 @@ int tm_find_memory_indirect(int q, int reg, int r) {
   q = tm_move(q, +1, new_state());
   q = tm_write(q, DST, -1, new_state());
 
-  //  return to previous address
+  // return to previous address
   q = tm_move(q, -1, new_state());
   q = tm_move(q, -1, new_state());
   q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
   q = tm_move(q, +1, new_state());
   
-  //  move address
-  tm_copy_helper(q, +1, SKIP_AFTER_SRC|SKIP_AFTER_DST, q_compare);
+  // move address
+  tm_copy(q, +1, SKIP_AFTER_SRC|SKIP_AFTER_DST, q_compare);
 
   // if no more addresses: create new memory location
   q = q_append;
   q = tm_write(q, ADDRESS, +1, new_state());
+  q = tm_write(q, BLANK, +1, new_state());
   q = tm_write(q, DST, -1, new_state());
+  q = tm_move(q, -1, new_state());
   q = tm_move(q, -1, new_state());
   q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
   q = tm_move(q, +1, new_state());
-  q = tm_copy_helper(q, +1, SKIP_AFTER_SRC|BLANK_BEFORE_DST, new_state());
+  q = tm_copy(q, +1, SKIP_AFTER_SRC|SKIP_AFTER_DST, new_state());
   q = tm_move(q, +1, new_state());
   q = tm_write(q, VALUE, +1, new_state());
-  q = tm_write_word(q, 0, new_state());
   q = tm_move(q, +1, new_state());
+  q = tm_write_word(q, 0, SKIP_AFTER_DST, new_state());
   q = tm_write(q, END, -1, new_state());
   q = tm_find(q, -1, VALUE, new_state(), q_reject);
   tm_move(q, +1, r);
@@ -412,11 +471,16 @@ void target_tm(Module* module) {
     if (inst->pc >= next_state)
       next_state = inst->pc+1;
 
-  comment("beginning-of-tape marker");
   q_reject = new_state();
-  int q = 0; // current state
-  q = tm_write(q, START, +1, new_state());
-  q = tm_write(q, BLANK, +1, new_state());
+  int q = 0; // start state (pc 0)
+
+  comment("beginning-of-tape and input string");
+
+  // Insert START and a single scratch cell before input string
+  q = tm_insert(q, START, +1, new_state());
+  q = tm_rewind(q, new_state());
+  q = tm_move(q, +1, new_state());
+  q = tm_insert(q, BLANK, +1, new_state());
   q = tm_write(q, END, 0, new_state());
 
   // Initialize registers
@@ -450,52 +514,22 @@ void target_tm(Module* module) {
       q = tm_noop(q, inst->pc);
     prev_pc = inst->pc;
 
+    q = tm_rewind(q, new_state());
+
     switch (inst->op) {
 
     case MOV:
-      assert(inst->dst.type == REG);
-      if (inst->src.type == REG) {
-	if (inst->dst.reg == inst->src.reg)
-	  break;
-	q = tm_find_register(q, inst->dst.reg, new_state());
-	q = tm_write(q, DST, -1, new_state());
-	q = tm_rewind(q, new_state());
-	q = tm_find_register(q, inst->src.reg, new_state());
-	q = tm_copy(q, intcmp(inst->dst.reg, inst->src.reg), new_state());
-      } else if (inst->src.type == IMM) {
-	q = tm_find_register(q, inst->dst.reg, new_state());
-	q = tm_write_word(q, inst->src.imm, new_state());
-      } else
-	error("invalid src type");
-      q = tm_rewind(q, new_state());
+      q = tm_copy_value(q, inst, SKIP_BEFORE_DST, new_state());
       break;
 
     case ADD:
     case SUB:
-      // Positioning the head is tricky because tm_add/tm_sub operate
-      // right-to-left.
-      assert(inst->dst.type == REG);
-      q = tm_find_register(q, inst->dst.reg, new_state());
-      q = tm_move(q, +1, new_state());
-      if (inst->src.type == REG) {
-	if (inst->dst.reg == inst->src.reg)
-	  error("not implemented");
-	q = tm_move(q, +1, new_state());
-	q = tm_write(q, DST, 0, new_state());
-	q = tm_rewind(q, new_state());
-	q = tm_find_register(q, inst->src.reg, new_state());
-	q = tm_copy_to_scratch(q, intcmp(inst->dst.reg, inst->src.reg), new_state());
-	q = tm_move(q, -1, new_state());
-      } else if (inst->src.type == IMM) {
-	q = tm_write_word(q, inst->src.imm, new_state());
-      } else
-	error("invalid src type");
-      q = tm_move(q, -1, new_state());
+      q = tm_copy_value(q, inst, SKIP_AFTER_DST, new_state());
+      // ok not to go to beginning of value
       if (inst->op == ADD)
-	q = tm_add(q, new_state());
+	q = tm_addsub(q, +1, new_state());
       else if (inst->op == SUB)
-	q = tm_sub(q, new_state());
-      q = tm_rewind(q, new_state());
+	q = tm_addsub(q, -1, new_state());
       break;
 
     case LOAD:
@@ -507,12 +541,11 @@ void target_tm(Module* module) {
       } else
 	error("invalid src type");
       q = tm_write(q, SRC, -1, new_state());
-      q = tm_rewind(q, new_state());
       q = tm_find_register(q, inst->dst.reg, new_state());
+      q = tm_move(q, +1, new_state());
       q = tm_write(q, DST, +1, new_state());
       q = tm_find(q, +1, SRC, new_state(), q_reject);
-      q = tm_copy(q, -1, new_state());
-      q = tm_rewind(q, new_state());
+      q = tm_copy(q, -1, SKIP_BEFORE_SRC|SKIP_AFTER_DST, new_state());
       break;
 
     case STORE:
@@ -524,19 +557,32 @@ void target_tm(Module* module) {
       } else
 	error("invalid dst type");
       q = tm_write(q, DST, -1, new_state());
-      q = tm_rewind(q, new_state());
       q = tm_find_register(q, inst->dst.reg, new_state());
-      q = tm_copy(q, +1, new_state());
-      q = tm_rewind(q, new_state());
+      q = tm_move(q, +1, new_state());
+      q = tm_copy(q, +1, SKIP_BEFORE_SRC|SKIP_AFTER_DST, new_state());
       break;
 
-    case JMP:
-      if (inst->jmp.type == REG)
-	error("not implemented");
-      else if (inst->jmp.type == IMM)
-	q = tm_noop(q, inst->jmp.imm);
-      else
-	error("invalid jmp type");
+    case GETC:
+      assert (inst->dst.type == REG);
+      for (int i=0; i<9; i++)
+	q = tm_move(q, +1, new_state());
+      q = tm_insert(q, BLANK, -1, new_state());
+      q = tm_find_register(q, inst->dst.reg, new_state());
+      for (int i=0; i<(word_size-8); i++) {
+	q = tm_move(q, +1, new_state());
+	q = tm_write(q, ZERO, +1, new_state());
+      }
+      q = tm_write(q, DST, -1, new_state());
+      q = tm_rewind(q, new_state());
+      q = tm_move(q, +1, new_state());
+      q = tm_copy(q, +1, SKIP_BEFORE_DST, new_state());
+      q = tm_rewind(q, new_state());
+      q = tm_write(q, BLANK, +1, new_state());
+      int q_writestart = new_state();
+      q = tm_move_if(q, BLANK, +1, q, 0, q_writestart);
+      q = tm_move(q, -1, new_state());
+      q = tm_move(q, -1, new_state());
+      q = tm_write(q, START, 0, new_state());
       break;
 
     case PUTC:
@@ -544,18 +590,16 @@ void target_tm(Module* module) {
       q = tm_write(q, OUTPUT, +1, new_state());
       if (inst->src.type == REG) {
 	q = tm_write(q, DST, -1, new_state());
-	q = tm_rewind(q, new_state());
 	q = tm_find_register(q, inst->src.reg, new_state());
 	for (int i=0; i<(word_size-8)*2; i++)
 	  q = tm_move(q, +1, new_state());
-	q = tm_copy(q, +1, new_state());
+	q = tm_copy(q, +1, SKIP_BEFORE_SRC, new_state());
       } else if (inst->src.type == IMM) {
-	q = tm_write_byte(q, inst->src.imm, new_state());
+	q = tm_write_byte(q, inst->src.imm, 0, new_state());
       } else
 	error("invalid src type");
       q = tm_write(q, BLANK, +1, new_state());
       q = tm_write(q, END, 0, new_state());
-      q = tm_rewind(q, new_state());
       break;
 
     case EXIT:
@@ -565,19 +609,64 @@ void target_tm(Module* module) {
       int q_findo = q;
       q = tm_find(q, +1, OUTPUT, new_state(), q_clear);
       q = tm_write(q, BLANK, +1, new_state());
-      q = tm_copy_compact(q, -1, new_state());
+      q = tm_copy(q, -1, 0, new_state());
       tm_write(q, DST, +1, q_findo);
 
       // Clear rest of tape
       q_clear = tm_ffwd(q_clear, new_state());
       tm_write_if(q_clear, DST, BLANK, 0, -1, BLANK, -1, q_clear);
+      q = new_state();
+      break;
+
+    case JEQ:
+    case JNE:
+    case JLT:
+    case JGE:
+    case JGT:
+    case JLE:
+      q = tm_copy_value(q, inst, SKIP_AFTER_DST, new_state());
+      q = tm_find(q, -1, VALUE, new_state(), q_reject);
+      q = tm_move(q, +1, new_state());
+      if (inst->jmp.type == REG)
+	error("jmp reg not implemented");
+      else if (inst->jmp.type == IMM)
+	q = tm_compare(q, inst->op, inst->jmp.imm, new_state());
+      else
+	error("invalid jmp type");
+      break;
+
+    case JMP:
+      if (inst->jmp.type == REG)
+	error("jmp reg not implemented");
+      else if (inst->jmp.type == IMM)
+	q = tm_noop(q, new_state());
+      else
+	error("invalid jmp type");
+      break;
+
+    case EQ:
+    case NE:
+    case LT:
+    case GE:
+    case GT:
+    case LE:
+      q = tm_copy_value(q, inst, SKIP_AFTER_DST, new_state());
+      q = tm_find(q, -1, VALUE, new_state(), q_reject);
+      q = tm_move(q, +1, new_state());
+      int qt = new_state(), qf = new_state();
+      q = tm_compare(q, inst->op, qt, qf);
+      q = new_state();
+      qf = tm_find(qf, -1, VALUE, new_state(), q_reject);
+      qf = tm_write_word(qf, 0, SKIP_AFTER_DST, q);
+      qt = tm_find(qt, -1, VALUE, new_state(), q_reject);
+      qt = tm_write_word(qt, 1, SKIP_AFTER_DST, q);
       break;
 
     case DUMP:
       break;
 
     default:
-      error("not implemented");
+      error("invalid operation");
     }
   }
 }
