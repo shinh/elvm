@@ -29,7 +29,6 @@ typedef enum {
   SKIP_AFTER_DST = 8
 } mode_t;
 
-
 int intcmp(int x, int y) {
   if (x > y) return +1;
   else if (x < y) return -1;
@@ -305,18 +304,38 @@ int tm_copy(int q, int d, unsigned int mode, int r) {
   return tm_write(q, BLANK, 0, r);
 }
 
-/* Gets value val and places it at the current head position, with
-   each bit followed by a scratch cell. */
+/* Gets value from inst->src and copies it to inst->dst with mode
+   indicated by mode. */
 
 int tm_copy_value(int q, Inst *inst, int mode, int r) {
   assert(inst->dst.type == REG);
   q = tm_find_register(q, inst->dst.reg, new_state()); // v[_]x_x...
   if (inst->src.type == REG) {
-    if (inst->dst.reg == inst->src.reg)
-      error("not implemented");
-    q = tm_write(q, DST, -1, new_state());
-    q = tm_find_register(q, inst->src.reg, new_state());
-    q = tm_copy(q, intcmp(inst->dst.reg, inst->src.reg), SKIP_BEFORE_SRC|mode, r);
+    if (inst->dst.reg == inst->src.reg) {
+      if (mode == SKIP_AFTER_DST) {
+	// Copy each bit to the cell to its left
+	int q_end = new_state(), q_next = q;
+	q = tm_move(q, +1, new_state());
+	tm_move_if2(q, ZERO, +1, q_next, ONE, +1, q_next, -1, q_end);
+	q = q_end;
+	q = tm_move(q, -1, new_state());
+	q_next = q;
+	int q0 = new_state(), q1 = new_state();
+	q_end = new_state();
+	tm_move_if2(q, ZERO, -1, q0, ONE, -1, q1, +1, q_end);
+	tm_write(q0, ZERO, -1, q_next);
+	tm_write(q1, ONE,  -1, q_next);
+	q = q_end;
+	tm_move_if2(q, ZERO, +1, q, ONE, +1, q, 0, r);
+      } else {
+	// Do nothing
+	tm_noop(q, r);
+      }
+    } else {
+      q = tm_write(q, DST, -1, new_state());
+      q = tm_find_register(q, inst->src.reg, new_state());
+      q = tm_copy(q, intcmp(inst->dst.reg, inst->src.reg), SKIP_BEFORE_SRC|mode, r);
+    }
   } else if (inst->src.type == IMM) {
     q = tm_write_word(q, inst->src.imm, mode, r);
   } else
