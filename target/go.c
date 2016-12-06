@@ -100,30 +100,18 @@ static void go_emit_inst(Inst* inst) {
   }
 }
 
-static int go_init_state(Data* data) {
-  int prev_mc = -1;
+static void go_init_state(Data* data) {
+  emit_line("func elvmInit() {");
+  inc_indent();
+
+  emit_line("copy(mem, []" GO_INT_TYPE "{");
   for (int mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      int mc = mp / 1000;
-      while (prev_mc != mc) {
-        if (prev_mc != -1) {
-          dec_indent();
-          emit_line("}");
-        }
-        prev_mc++;
-        emit_line("func init%d() {", prev_mc);
-        inc_indent();
-      }
-      emit_line("mem[%d] = %d", mp, data->v);
-    }
+    emit_line(" %d,", data->v);
   }
+  emit_line("})");
 
-  if (prev_mc != -1) {
-    dec_indent();
-    emit_line("}");
-  }
-
-  return prev_mc + 1;
+  dec_indent();
+  emit_line("}");
 }
 
 void target_go(Module* module) {
@@ -135,7 +123,7 @@ void target_go(Module* module) {
   emit_line("var mem []" GO_INT_TYPE);
   emit_line("var buf [1]byte");
 
-  int num_inits = go_init_state(module->data);
+  go_init_state(module->data);
 
   CHUNKED_FUNC_SIZE = 256;
   int num_funcs = emit_chunked_main_loop(module->text,
@@ -148,9 +136,7 @@ void target_go(Module* module) {
   inc_indent();
 
   emit_line("mem = make([]" GO_INT_TYPE ", 1<<24)");
-  for (int i = 0; i < num_inits; i++) {
-    emit_line("init%d()", i);
-  }
+  emit_line("elvmInit()");
 
   emit_line("");
   emit_line("for {");
