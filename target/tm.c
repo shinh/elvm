@@ -1,3 +1,5 @@
+// to do: output gets collected at ^, not true start of tape
+
 #include <assert.h>
 #include <ctype.h>
 #include <ir/ir.h>
@@ -20,14 +22,14 @@ const char *symbol_names[] = {"_", "^", "$", "0", "1", "r", "a", "v", "o", "s", 
 const int num_symbols = 11;
 const int bit[2] = {ZERO, ONE};
 
-const int word_size = 10;
+const int word_size = 24;
 
 typedef enum {
   SKIP_BEFORE_SRC = 1,
   SKIP_AFTER_SRC = 2,
   SKIP_BEFORE_DST = 4,
   SKIP_AFTER_DST = 8
-} mode_t;
+} writemode_t;
 
 int intcmp(int x, int y) {
   if (x > y) return +1;
@@ -225,14 +227,14 @@ int tm_find_location(int q, symbol_t type, int addr, int r_found, int r_notfound
   return r_found;
 }
 
-int tm_new_location(int q, symbol_t type, int addr, int r) {
+int tm_new_location(int q, symbol_t type, int addr, int val, int r) {
   q = tm_ffwd(q, new_state());
   q = tm_write(q, type, +1, new_state());
   q = tm_move(q, +1, new_state());
   q = tm_write_word(q, addr, SKIP_AFTER_DST, new_state());
   q = tm_write(q, VALUE, +1, new_state());
   q = tm_move(q, +1, new_state());
-  q = tm_write_word(q, 0, SKIP_AFTER_DST, new_state());
+  q = tm_write_word(q, val, SKIP_AFTER_DST, new_state());
   return tm_write(q, END, -1, r);
 }
 
@@ -244,7 +246,7 @@ int tm_find_register(int q, Reg reg, int r) {
 int tm_find_memory(int q, int addr, int r) {
   int q_append = new_state();
   tm_find_location(q, ADDRESS, addr, r, q_append);
-  q = tm_new_location(q_append, ADDRESS, addr, new_state());
+  q = tm_new_location(q_append, ADDRESS, addr, 0, new_state());
   q = tm_find(q, -1, VALUE, new_state(), q_reject);
   tm_move(q, +1, r);
   return r;
@@ -464,17 +466,15 @@ int tm_find_memory_indirect(int q, int reg, int r) {
   // if no more addresses: create new memory location
   q = q_append;
   q = tm_write(q, ADDRESS, +1, new_state());
-  q = tm_write(q, BLANK, +1, new_state());
   q = tm_write(q, DST, -1, new_state());
-  q = tm_move(q, -1, new_state());
   q = tm_move(q, -1, new_state());
   q = tm_find(q, -1, ADDRESS, new_state(), q_reject);
   q = tm_move(q, +1, new_state());
-  q = tm_copy(q, +1, SKIP_AFTER_SRC|SKIP_AFTER_DST, new_state());
+  q = tm_copy(q, +1, SKIP_AFTER_SRC|SKIP_BEFORE_DST, new_state());
   q = tm_move(q, +1, new_state());
   q = tm_write(q, VALUE, +1, new_state());
+  q = tm_write_word(q, 0, SKIP_BEFORE_DST, new_state());
   q = tm_move(q, +1, new_state());
-  q = tm_write_word(q, 0, SKIP_AFTER_DST, new_state());
   q = tm_write(q, END, -1, new_state());
   q = tm_find(q, -1, VALUE, new_state(), q_reject);
   tm_move(q, +1, r);
@@ -505,7 +505,7 @@ void target_tm(Module* module) {
   // Initialize registers
   for (Reg reg=0; reg<6; reg++) {
     comment("register %s value 0", reg_names[reg]);
-    q = tm_new_location(q, REGISTER, reg, new_state());
+    q = tm_new_location(q, REGISTER, reg, 0, new_state());
   }
 
   // Initialize memory
@@ -516,7 +516,7 @@ void target_tm(Module* module) {
       comment("address %d value %d '%c'", mp, data->v, data->v);
     else
       comment("address %d value %d", mp, data->v);
-    q = tm_new_location(q, ADDRESS, mp, new_state());
+    q = tm_new_location(q, ADDRESS, mp, data->v, new_state());
     data = data->next;
     mp++;
   }
@@ -561,10 +561,10 @@ void target_tm(Module* module) {
 	error("invalid src type");
       q = tm_write(q, SRC, -1, new_state());
       q = tm_find_register(q, inst->dst.reg, new_state());
-      q = tm_move(q, +1, new_state());
       q = tm_write(q, DST, +1, new_state());
+      q = tm_move(q, +1, new_state());
       q = tm_find(q, +1, SRC, new_state(), q_reject);
-      q = tm_copy(q, -1, SKIP_BEFORE_SRC|SKIP_AFTER_DST, new_state());
+      q = tm_copy(q, -1, SKIP_BEFORE_SRC|SKIP_BEFORE_DST, new_state());
       break;
 
     case STORE:
@@ -576,21 +576,22 @@ void target_tm(Module* module) {
       } else
 	error("invalid dst type");
       q = tm_write(q, DST, -1, new_state());
-      q = tm_find_register(q, inst->dst.reg, new_state());
       q = tm_move(q, +1, new_state());
-      q = tm_copy(q, +1, SKIP_BEFORE_SRC|SKIP_AFTER_DST, new_state());
+      q = tm_find_register(q, inst->dst.reg, new_state());
+      q = tm_copy(q, +1, SKIP_BEFORE_SRC|SKIP_BEFORE_DST, new_state());
       break;
 
     case GETC:
       assert (inst->dst.type == REG);
-      for (int i=0; i<9; i++)
+      q = tm_move(q, +1, new_state());
+      q = tm_move(q, +1, new_state());
+      int q_eof = new_state(), q_done = new_state();
+      q = tm_move_if(q, REGISTER, +1, q_eof, +1, new_state());
+      for (int i=0; i<6; i++)
 	q = tm_move(q, +1, new_state());
       q = tm_insert(q, BLANK, -1, new_state());
       q = tm_find_register(q, inst->dst.reg, new_state());
-      for (int i=0; i<(word_size-8); i++) {
-	q = tm_move(q, +1, new_state());
-	q = tm_write(q, ZERO, +1, new_state());
-      }
+      q = tm_write_bits(q, 0, word_size-8, SKIP_BEFORE_DST, new_state());
       q = tm_write(q, DST, -1, new_state());
       q = tm_rewind(q, new_state());
       q = tm_move(q, +1, new_state());
@@ -601,7 +602,14 @@ void target_tm(Module* module) {
       q = tm_move_if(q, BLANK, +1, q, 0, q_writestart);
       q = tm_move(q, -1, new_state());
       q = tm_move(q, -1, new_state());
-      q = tm_write(q, START, 0, new_state());
+      tm_write(q, START, 0, q_done);
+
+      q = q_eof;
+      q = tm_find_register(q, inst->dst.reg, new_state());
+      q = tm_write_word(q, 0, SKIP_BEFORE_DST, q_done);
+
+      q = q_done;
+      
       break;
 
     case PUTC:
@@ -648,18 +656,21 @@ void target_tm(Module* module) {
       q = tm_move(q, +1, new_state());
       if (inst->jmp.type == REG)
 	error("jmp reg not implemented");
-      else if (inst->jmp.type == IMM)
-	q = tm_compare(q, inst->op, inst->jmp.imm, new_state());
-      else
+      else if (inst->jmp.type == IMM) {
+	int q_false = new_state();
+	tm_compare(q, inst->op, inst->jmp.imm, q_false);
+	q = q_false;
+      } else
 	error("invalid jmp type");
       break;
 
     case JMP:
       if (inst->jmp.type == REG)
 	error("jmp reg not implemented");
-      else if (inst->jmp.type == IMM)
-	q = tm_noop(q, new_state());
-      else
+      else if (inst->jmp.type == IMM) {
+	tm_noop(q, inst->jmp.imm);
+	q = new_state();
+      } else
 	error("invalid jmp type");
       break;
 
@@ -676,9 +687,11 @@ void target_tm(Module* module) {
       q = tm_compare(q, inst->op, qt, qf);
       q = new_state();
       qf = tm_find(qf, -1, VALUE, new_state(), q_reject);
-      qf = tm_write_word(qf, 0, SKIP_AFTER_DST, q);
+      qf = tm_move(qf, +1, new_state());
+      qf = tm_write_word(qf, 0, SKIP_BEFORE_DST, q);
       qt = tm_find(qt, -1, VALUE, new_state(), q_reject);
-      qt = tm_write_word(qt, 1, SKIP_AFTER_DST, q);
+      qt = tm_move(qt, +1, new_state());
+      qt = tm_write_word(qt, 1, SKIP_BEFORE_DST, q);
       break;
 
     case DUMP:
