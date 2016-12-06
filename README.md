@@ -11,30 +11,32 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 21 backends:
+Currently, there are 24 backends:
 
-* Ruby
-* Python
-* PHP
-* JavaScript
-* Java
-* CommonLisp
-* Emacs Lisp
-* Vim script
 * Bash
-* C
-* C++14 (compile-time)
-* Swift
-* i386-linux
-* C-INTERCAL
-* Whitespace
 * Befunge
 * Brainfuck
+* C
+* C++14 (compile-time)
+* C-INTERCAL
+* CommonLisp
+* Crystal (compile-time)
+* Emacs Lisp
+* Forth
+* Java
+* JavaScript
+* PHP
 * Piet
-* Unlambda
+* Python
+* Ruby
+* Swift
 * TeX
-* sed
 * TensorFlow (WIP)
+* Unlambda
+* Vim script
+* Whitespace
+* i386-linux
+* sed
 
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such

@@ -5,88 +5,63 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-void target_rb(Module* module);
-void target_py(Module* module);
-void target_tf(Module* module);
-void target_js(Module* module);
-void target_php(Module* module);
-void target_el(Module* module);
-void target_vim(Module* module);
-void target_tex(Module* module);
-void target_cl(Module* module);
-void target_sh(Module* module);
-void target_sed(Module* module);
-void target_java(Module* module);
-void target_swift(Module* module);
-void target_cr(Module* module);
-void target_c(Module* module);
-void target_cpp(Module* module);
-void target_x86(Module* module);
-void target_i(Module* module);
-void target_ws(Module* module);
-void target_piet(Module* module);
-void target_pietasm(Module* module);
 void target_bef(Module* module);
 void target_bf(Module* module);
-void target_unl(Module* module);
+void target_c(Module* module);
+void target_cl(Module* module);
+void target_cpp(Module* module);
+void target_cr(Module* module);
+void target_el(Module* module);
 void target_forth(Module* module);
+void target_i(Module* module);
+void target_java(Module* module);
+void target_js(Module* module);
+void target_php(Module* module);
+void target_piet(Module* module);
+void target_pietasm(Module* module);
+void target_py(Module* module);
+void target_rb(Module* module);
+void target_sed(Module* module);
+void target_sh(Module* module);
+void target_swift(Module* module);
+void target_tex(Module* module);
+void target_tf(Module* module);
+void target_unl(Module* module);
+void target_vim(Module* module);
+void target_ws(Module* module);
+void target_x86(Module* module);
 typedef void (*target_func_t)(Module*);
 
 static target_func_t get_target_func(const char* ext) {
-  if (!strcmp(ext, "rb")) {
-    return target_rb;
-  } else if (!strcmp(ext, "py")) {
-    return target_py;
-  } else if (!strcmp(ext, "tf")) {
-    return target_tf;
-  } else if (!strcmp(ext, "js")) {
-    return target_js;
-  } else if (!strcmp(ext, "php")) {
-    return target_php;
-  } else if (!strcmp(ext, "el")) {
-    return target_el;
-  } else if (!strcmp(ext, "vim")) {
-    return target_vim;
-  } else if (!strcmp(ext, "tex")) {
-    return target_tex;
-  } else if (!strcmp(ext, "cl")) {
-    return target_cl;
-  } else if (!strcmp(ext, "sh")) {
-    return target_sh;
-  } else if (!strcmp(ext, "sed")) {
-    return target_sed;
-  } else if (!strcmp(ext, "java")) {
-    return target_java;
-  } else if (!strcmp(ext, "swift")) {
-    return target_swift;
-  } else if (!strcmp(ext, "cr")) {
-    return target_cr;
-  } else if (!strcmp(ext, "c")) {
-    return target_c;
-  } else if (!strcmp(ext, "cpp")) {
-    return target_cpp;
-  } else if (!strcmp(ext, "x86")) {
-    return target_x86;
-  } else if (!strcmp(ext, "i")) {
-    return target_i;
-  } else if (!strcmp(ext, "ws")) {
-    return target_ws;
-  } else if (!strcmp(ext, "piet")) {
-    return target_piet;
-  } else if (!strcmp(ext, "pietasm")) {
-    return target_pietasm;
-  } else if (!strcmp(ext, "bef")) {
-    return target_bef;
-  } else if (!strcmp(ext, "bf")) {
+  if (!strcmp(ext, "bef")) return target_bef;
+  if (!strcmp(ext, "bf")) {
     split_basic_block_by_mem();
     return target_bf;
-  } else if (!strcmp(ext, "unl")) {
-    return target_unl;
-  } else if (!strcmp(ext, "forth")) {
-    return target_forth;
-  } else {
-    error("unknown flag: %s", ext);
   }
+  if (!strcmp(ext, "c")) return target_c;
+  if (!strcmp(ext, "cl")) return target_cl;
+  if (!strcmp(ext, "cpp")) return target_cpp;
+  if (!strcmp(ext, "cr")) return target_cr;
+  if (!strcmp(ext, "el")) return target_el;
+  if (!strcmp(ext, "forth")) return target_forth;
+  if (!strcmp(ext, "i")) return target_i;
+  if (!strcmp(ext, "java")) return target_java;
+  if (!strcmp(ext, "js")) return target_js;
+  if (!strcmp(ext, "php")) return target_php;
+  if (!strcmp(ext, "piet")) return target_piet;
+  if (!strcmp(ext, "pietasm")) return target_pietasm;
+  if (!strcmp(ext, "py")) return target_py;
+  if (!strcmp(ext, "rb")) return target_rb;
+  if (!strcmp(ext, "sed")) return target_sed;
+  if (!strcmp(ext, "sh")) return target_sh;
+  if (!strcmp(ext, "swift")) return target_swift;
+  if (!strcmp(ext, "tex")) return target_tex;
+  if (!strcmp(ext, "tf")) return target_tf;
+  if (!strcmp(ext, "unl")) return target_unl;
+  if (!strcmp(ext, "vim")) return target_vim;
+  if (!strcmp(ext, "ws")) return target_ws;
+  if (!strcmp(ext, "x86")) return target_x86;
+  error("unknown flag: %s", ext);
 }
 
 int main(int argc, char* argv[]) {

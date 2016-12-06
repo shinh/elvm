@@ -61,7 +61,35 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c tf.c js.c php.c el.c vim.c tex.c cl.c sh.c sed.c java.c swift.c cr.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c forth.c
+ELC_SRCS := \
+	elc.c \
+	util.c \
+	bef.c \
+	bf.c \
+	c.c \
+	cl.c \
+	cpp.c \
+	cr.c \
+	el.c \
+	forth.c \
+	i.c \
+	java.c \
+	js.c \
+	php.c \
+	piet.c \
+	pietasm.c \
+	py.c \
+	rb.c \
+	sed.c \
+	sh.c \
+	swift.c \
+	tex.c \
+	tf.c \
+	unl.c \
+	vim.c \
+	ws.c \
+	x86.c \
+
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
