@@ -3,35 +3,6 @@
 
 #define GO_INT_TYPE "int32"
 
-static void go_emit_func_prologue(int func_id) {
-  emit_line("");
-  emit_line("func func%d() {", func_id);
-  inc_indent();
-  emit_line("for %d <= pc && pc < %d {",
-            func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
-  inc_indent();
-  emit_line("switch pc {");
-  emit_line("case -1:  /* dummy */");
-  inc_indent();
-}
-
-static void go_emit_func_epilogue(void) {
-  dec_indent();
-  emit_line("}");
-  emit_line("pc++;");
-  dec_indent();
-  emit_line("}");
-  dec_indent();
-  emit_line("}");
-}
-
-static void go_emit_pc_change(int pc) {
-  emit_line("");
-  dec_indent();
-  emit_line("case %d:", pc);
-  inc_indent();
-}
-
 static void go_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
@@ -101,55 +72,57 @@ static void go_emit_inst(Inst* inst) {
 }
 
 static void go_init_state(Data* data) {
-  emit_line("func elvmInit() {");
-  inc_indent();
-
   emit_line("copy(mem, []" GO_INT_TYPE "{");
   for (int mp = 0; data; data = data->next, mp++) {
     emit_line(" %d,", data->v);
   }
   emit_line("})");
-
-  dec_indent();
-  emit_line("}");
 }
 
 void target_go(Module* module) {
   emit_line("package main");
   emit_line("import \"os\"");
-  for (int i = 0; i < 7; i++) {
-    emit_line("var %s " GO_INT_TYPE, reg_names[i]);
-  }
-  emit_line("var mem []" GO_INT_TYPE);
-  emit_line("var buf [1]byte");
-
-  go_init_state(module->data);
-
-  CHUNKED_FUNC_SIZE = 256;
-  int num_funcs = emit_chunked_main_loop(module->text,
-                                         go_emit_func_prologue,
-                                         go_emit_func_epilogue,
-                                         go_emit_pc_change,
-                                         go_emit_inst);
 
   emit_line("func main() {");
   inc_indent();
 
-  emit_line("mem = make([]" GO_INT_TYPE ", 1<<24)");
-  emit_line("elvmInit()");
+  for (int i = 0; i < 7; i++) {
+    emit_line("var %s " GO_INT_TYPE, reg_names[i]);
+    emit_line("_ = %s", reg_names[i]);
+  }
+  emit_line("var buf [1]byte");
+  emit_line("_ = buf");
+
+  emit_line("mem := make([]" GO_INT_TYPE ", 1<<24)");
+  go_init_state(module->data);
 
   emit_line("");
   emit_line("for {");
   inc_indent();
-  emit_line("switch pc / %d {", CHUNKED_FUNC_SIZE);
-  for (int i = 0; i < num_funcs; i++) {
-    emit_line("case %d:", i);
-    emit_line(" func%d()", i);
+
+  emit_line("switch pc {");
+  inc_indent();
+  int prev_pc = -1;
+  for (Inst* inst = module->text; inst; inst = inst->next) {
+    if (prev_pc != inst->pc) {
+      dec_indent();
+      emit_line("");
+      emit_line("case %d:", inst->pc);
+      prev_pc = inst->pc;
+      inc_indent();
+    }
+    go_emit_inst(inst);
   }
+  // end of switch
+  dec_indent();
   emit_line("}");
+  emit_line("pc++");
+
+  // end of for
   dec_indent();
   emit_line("}");
 
+  // end of main
   dec_indent();
   emit_line("}");
 }
