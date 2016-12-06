@@ -78,6 +78,7 @@ ELC_SRCS := \
 	php.c \
 	piet.c \
 	pietasm.c \
+	pl.c \
 	py.c \
 	rb.c \
 	sed.c \
@@ -347,6 +348,10 @@ $(OUT.eir.unl.out): tools/rununl.sh
 
 TARGET := forth
 RUNNER := gforth --dictionary-size 16M
+include target.mk
+
+TARGET := pl
+RUNNER := perl
 include target.mk
 
 test: $(TEST_RESULTS)
