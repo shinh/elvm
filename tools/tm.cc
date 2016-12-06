@@ -27,7 +27,7 @@
    first. The remainder of the tape is filled with blank symbols
    (_). For example, "ABC" would be encoded as
 
-   0 1 0 0 0 0 0 1 0 1 0 0 0 0 1 0 0 1 0 0 0 0 1 1 _ _ _ ...
+   010000010100001001000011___ ...
 
    The head starts on the first square of the tape.
 
@@ -137,15 +137,19 @@ void read_dtm(ifstream &is, dtm &m) {
   }
 }
 
-bool run_dtm(const dtm &m, vector<symbol_t> &tape, bool verbose=false) {
+bool run_dtm(const dtm &m, vector<symbol_t> &tape, int verbose=0) {
   state_t q = 0;
-  vector<symbol_t>::size_type pos = 0;
+  vector<symbol_t>::size_type pos = 0, max_pos = 0;
+  bool accept;
+  int steps = 0;
   while (true) {
     while (pos+1 > tape.size())
       tape.push_back(BLANK);
     while (tape.back() == BLANK && tape.size() > pos+1)
       tape.pop_back();
-    if (verbose) {
+    if (pos > max_pos)
+      max_pos = pos;
+    if (verbose >= 2) {
       cerr << q << " | ";
       for (vector<symbol_t>::size_type i=0; i<tape.size(); i++) {
 	if (i == pos)
@@ -155,17 +159,26 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, bool verbose=false) {
       }
       cerr << endl;
     }
-    if (q < 0)
-      return true; // accept
+    if (q < 0) {
+      accept = true;
+      break;
+    }
     int d;
-    if (!m.has_transition(q, tape[pos]))
-      return false;
+    if (!m.has_transition(q, tape[pos])) {
+      accept = false;
+      break;
+    }
     tie(q, tape[pos], d) = m.get_transition(q, tape[pos]);
     if (d == 1)
       ++pos;
     else if (d == -1 and pos > 0)
       --pos;
+    ++steps;
   }
+  if (verbose >= 1) {
+    cerr << "halt accept=" << accept << " steps=" << steps << " cells=" << max_pos+1 << endl;
+  }
+  return accept;
 }
 
 void encode_tape(const string &s, vector<symbol_t> &tape) {
@@ -197,17 +210,21 @@ void decode_tape(const vector<symbol_t> &tape, string &s) {
 }
 
 void usage() {
-  cerr << "usage: tm [-v] <filename>\n";
+  cerr << "usage: tm [-n] [-v] <filename>\n";
   exit(2);
 }
 
 int main(int argc, char *argv[]) {
-  bool verbose = 0;
+  int verbose = 0;
+  bool read_input = true;
   int ch;
-  while ((ch = getopt(argc, argv, "v")) != -1) {
+  while ((ch = getopt(argc, argv, "nv")) != -1) {
     switch (ch) {
+    case 'n':
+      read_input = false;
+      break;
     case 'v': 
-      verbose = true;
+      verbose++;
       break;
     default: 
       usage();
@@ -223,8 +240,9 @@ int main(int argc, char *argv[]) {
 
   char c;
   string s;
-  while (cin.get(c))
-    s.push_back(c);
+  if (read_input)
+    while (cin.get(c))
+      s.push_back(c);
 
   vector<symbol_t> tape;
   encode_tape(s, tape);

@@ -173,14 +173,6 @@ int tm_erase_bits(int q, int r) {
   return r;
 }
 
-int tm_write_word(int q, unsigned int x, int mode, int r) {
-  return tm_write_bits(q, x, word_size, mode, r);
-}
-
-int tm_write_byte(int q, unsigned int x, int mode, int r) {
-  return tm_write_bits(q, x, 8, mode, r);
-}
-
 /* Generate transitions to search in direction d for symbol a,
    or until the end of the used portion of the tape is reached. */
 
@@ -205,11 +197,11 @@ int tm_ffwd(int q, int r) {
 /* Generate transitions to find register reg or address addr. The head
    ends on the scratch cell to the left of the corresponding value. */
 
-int tm_find_location(int q, symbol_t type, int addr, int r_found, int r_notfound) {
+int tm_find_location(int q, symbol_t type, int addr, int width, int r_found, int r_notfound) {
   int qstart = q;
   q = tm_find(q, +1, type, new_state(), r_notfound);   // _[r]_0_1 ... _v_0_1
   q = tm_move(q, +1, new_state());                     // _r[_]0_1 ... _v_0_1
-  for (int i=word_size-1; i>=0; i--) {
+  for (int i=width-1; i>=0; i--) {
     q = tm_move(q, +1, new_state());                   // _r_[0]_1 ... _v_0_1
     symbol_t bit = (1<<i)&addr ? ONE : ZERO;
     int q_match = new_state();
@@ -225,26 +217,27 @@ int tm_find_location(int q, symbol_t type, int addr, int r_found, int r_notfound
   return r_found;
 }
 
-int tm_new_location(int q, symbol_t type, int addr, int val, int r) {
+int tm_new_location(int q, symbol_t type, int addr, int awidth, int val, int r) {
   q = tm_ffwd(q, new_state());
   q = tm_write(q, type, +1, new_state());
   q = tm_move(q, +1, new_state());
-  q = tm_write_word(q, addr, SKIP_AFTER_DST, new_state());
+  q = tm_write_bits(q, addr, awidth, SKIP_AFTER_DST, new_state());
   q = tm_write(q, VALUE, +1, new_state());
   q = tm_move(q, +1, new_state());
-  q = tm_write_word(q, val, SKIP_AFTER_DST, new_state());
+  q = tm_write_bits(q, val, word_size, SKIP_AFTER_DST, new_state());
   return tm_write(q, END, -1, r);
 }
 
 int tm_find_register(int q, Reg reg, int r) {
   q = tm_rewind(q, new_state()); // to do: can be slow if input is long
-  return tm_find_location(q, REGISTER, reg, r, q_reject);
+  return tm_find_location(q, REGISTER, reg, 3, r, q_reject);
 }
 
 int tm_find_memory(int q, int addr, int r) {
+  q = tm_rewind(q, new_state()); // to do: can be slow if input is long
   int q_append = new_state();
-  tm_find_location(q, ADDRESS, addr, r, q_append);
-  q = tm_new_location(q_append, ADDRESS, addr, 0, new_state());
+  tm_find_location(q, ADDRESS, addr, word_size, r, q_append);
+  q = tm_new_location(q_append, ADDRESS, addr, word_size, 0, new_state());
   q = tm_find(q, -1, VALUE, new_state(), q_reject);
   tm_move(q, +1, r);
   return r;
@@ -337,7 +330,7 @@ int tm_copy_value(int q, Inst *inst, int mode, int r) {
       q = tm_copy(q, intcmp(inst->dst.reg, inst->src.reg), SKIP_BEFORE_SRC|mode, r);
     }
   } else if (inst->src.type == IMM) {
-    q = tm_write_word(q, inst->src.imm, mode, r);
+    q = tm_write_bits(q, inst->src.imm, word_size, mode, r);
   } else
     error("invalid src type");
   return r;
@@ -409,7 +402,8 @@ int tm_compare(int q, Op op, int r_true, int r_false) {
   return r_true;
 }
 
-/* Similar, but doesn't erase the scratch cells. */
+/* Test whether main cells are equal to scratch cells, without erasing
+   scratch cells. */
 
 int tm_equal(int q, int r_eq, int r_ne) {
   int q_nextbit = q;
@@ -471,7 +465,7 @@ int tm_find_memory_indirect(int q, int reg, int r) {
   q = tm_copy(q, +1, SKIP_AFTER_SRC|SKIP_BEFORE_DST, new_state());
   q = tm_move(q, +1, new_state());
   q = tm_write(q, VALUE, +1, new_state());
-  q = tm_write_word(q, 0, SKIP_BEFORE_DST, new_state());
+  q = tm_write_bits(q, 0, word_size, SKIP_BEFORE_DST, new_state());
   q = tm_move(q, +1, new_state());
   q = tm_write(q, END, -1, new_state());
   q = tm_find(q, -1, VALUE, new_state(), q_reject);
@@ -503,7 +497,7 @@ void target_tm(Module* module) {
   // Initialize registers
   for (Reg reg=0; reg<6; reg++) {
     comment("register %s value 0", reg_names[reg]);
-    q = tm_new_location(q, REGISTER, reg, 0, new_state());
+    q = tm_new_location(q, REGISTER, reg, 3, 0, new_state());
   }
 
   // Initialize memory
@@ -514,7 +508,7 @@ void target_tm(Module* module) {
       comment("address %d value %d '%c'", mp, data->v, data->v);
     else
       comment("address %d value %d", mp, data->v);
-    q = tm_new_location(q, ADDRESS, mp, data->v, new_state());
+    q = tm_new_location(q, ADDRESS, mp, word_size, data->v, new_state());
     data = data->next;
     mp++;
   }
@@ -602,7 +596,7 @@ void target_tm(Module* module) {
       q = q_eof;
       q = tm_find(q, +1, DST, new_state(), q_reject);
       q = tm_write(q, BLANK, 0, new_state());
-      q = tm_write_byte(q, 0, SKIP_BEFORE_DST, q_done);
+      q = tm_write_bits(q, 0, 8, SKIP_BEFORE_DST, q_done);
 
       q = q_done;
       
@@ -618,7 +612,7 @@ void target_tm(Module* module) {
 	  q = tm_move(q, +1, new_state());
 	q = tm_copy(q, +1, SKIP_BEFORE_SRC, new_state());
       } else if (inst->src.type == IMM) {
-	q = tm_write_byte(q, inst->src.imm, 0, new_state());
+	q = tm_write_bits(q, inst->src.imm, 8, 0, new_state());
       } else
 	error("invalid src type");
       q = tm_write(q, BLANK, +1, new_state());
@@ -684,10 +678,10 @@ void target_tm(Module* module) {
       q = new_state();
       qf = tm_find(qf, -1, VALUE, new_state(), q_reject);
       qf = tm_move(qf, +1, new_state());
-      qf = tm_write_word(qf, 0, SKIP_BEFORE_DST, q);
+      qf = tm_write_bits(qf, 0, word_size, SKIP_BEFORE_DST, q);
       qt = tm_find(qt, -1, VALUE, new_state(), q_reject);
       qt = tm_move(qt, +1, new_state());
-      qt = tm_write_word(qt, 1, SKIP_BEFORE_DST, q);
+      qt = tm_write_bits(qt, 1, word_size, SKIP_BEFORE_DST, q);
       break;
 
     case DUMP:
