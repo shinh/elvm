@@ -1,7 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-#define FORTH_MEM_SIZE (1 << 24)
+#define FORTH_MEM_SIZE_STR "16777216"
 #define FORTH_ADDR_MASK UINT_MAX
 
 static const char* FORTH_REG_NAMES[] = {
@@ -15,7 +15,7 @@ static void init_state_forth(Data* data) {
     emit_line("0 %s !", reg_names[i]);
   }
   emit_line("variable mem");
-  emit_line("%d cells allocate throw mem !", FORTH_MEM_SIZE);
+  emit_line(FORTH_MEM_SIZE_STR " cells allocate throw mem !");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
       emit_line("%d mem @ %d cells + !", data->v, mp);
