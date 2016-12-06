@@ -61,7 +61,36 @@ COBJS := $(addprefix out/,$(notdir $(CSRCS:.c=.o)))
 $(COBJS): out/%.o: ir/%.c
 	$(CC) -c -I. $(CFLAGS) $< -o $@
 
-ELC_SRCS := elc.c util.c rb.c py.c js.c el.c vim.c tex.c cl.c sh.c sed.c java.c c.c cpp.c x86.c i.c ws.c piet.c pietasm.c bef.c bf.c unl.c
+ELC_SRCS := \
+	elc.c \
+	util.c \
+	bef.c \
+	bf.c \
+	c.c \
+	cl.c \
+	cpp.c \
+	cr.c \
+	el.c \
+	forth.c \
+	i.c \
+	java.c \
+	js.c \
+	php.c \
+	piet.c \
+	pietasm.c \
+	pl.c \
+	py.c \
+	rb.c \
+	sed.c \
+	sh.c \
+	swift.c \
+	tex.c \
+	tf.c \
+	unl.c \
+	vim.c \
+	ws.c \
+	x86.c \
+
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
 $(COBJS): out/%.o: target/%.c
@@ -181,8 +210,18 @@ TARGET := py
 RUNNER := python
 include target.mk
 
+ifdef TF
+TARGET := tf
+RUNNER := python
+include target.mk
+endif
+
 TARGET := js
 RUNNER := nodejs
+include target.mk
+
+TARGET := php
+RUNNER := php
 include target.mk
 
 TARGET := el
@@ -226,7 +265,19 @@ TARGET := java
 RUNNER := tools/runjava.sh
 TOOL := javac
 include target.mk
-$(OUT.eir.c.out): tools/runjava.sh
+$(OUT.eir.java.out): tools/runjava.sh
+
+TARGET := swift
+RUNNER := tools/runswift.sh
+TOOL := swiftc
+include target.mk
+$(OUT.eir.swift.out): tools/runswift.sh
+
+TARGET := cr
+RUNNER := tools/runcr.sh
+TOOL := crystal
+include target.mk
+$(OUT.eir.crystal.out): tools/runcr.sh
 
 TARGET := c
 RUNNER := tools/runc.sh
@@ -294,6 +345,14 @@ TEST_FILTER := out/eli.c.eir.unl out/dump_ir.c.eir.unl
 endif
 include target.mk
 $(OUT.eir.unl.out): tools/rununl.sh
+
+TARGET := forth
+RUNNER := gforth --dictionary-size 16M
+include target.mk
+
+TARGET := pl
+RUNNER := perl
+include target.mk
 
 test: $(TEST_RESULTS)
 
