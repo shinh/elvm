@@ -1,5 +1,3 @@
-// to do: output gets collected at ^, not true start of tape
-
 #include <assert.h>
 #include <ctype.h>
 #include <ir/ir.h>
@@ -582,31 +580,29 @@ void target_tm(Module* module) {
       break;
 
     case GETC:
+      // Mark last 8 bits of register as DST
       assert (inst->dst.type == REG);
-      q = tm_move(q, +1, new_state());
-      q = tm_move(q, +1, new_state());
-      int q_eof = new_state(), q_done = new_state();
-      q = tm_move_if(q, REGISTER, +1, q_eof, +1, new_state());
-      for (int i=0; i<6; i++)
-	q = tm_move(q, +1, new_state());
-      q = tm_insert(q, BLANK, -1, new_state());
       q = tm_find_register(q, inst->dst.reg, new_state());
       q = tm_write_bits(q, 0, word_size-8, SKIP_BEFORE_DST, new_state());
       q = tm_write(q, DST, -1, new_state());
-      q = tm_rewind(q, new_state());
-      q = tm_move(q, +1, new_state());
-      q = tm_copy(q, +1, SKIP_BEFORE_DST, new_state());
-      q = tm_rewind(q, new_state());
-      q = tm_write(q, BLANK, +1, new_state());
-      int q_writestart = new_state();
-      q = tm_move_if(q, BLANK, +1, q, 0, q_writestart);
-      q = tm_move(q, -1, new_state());
-      q = tm_move(q, -1, new_state());
-      tm_write(q, START, 0, q_done);
 
+      // Copy next 8 bits of input, if any
+      int q_eof = new_state(), q_done = new_state();
+      q = tm_rewind(q, new_state());
+      q = tm_move(q, +1, new_state()); // ^[_]...
+      q = tm_move_if(q, BLANK, +1, q, 0, new_state()); // ...[0] or ...[r]
+      q = tm_move_if(q, REGISTER, 0, q_eof, +1, new_state());
+      for (int i=0; i<6; i++)
+	q = tm_move(q, +1, new_state());
+      q = tm_insert(q, BLANK, -1, new_state());
+      q = tm_move(q, +1, new_state());
+      q = tm_copy(q, +1, SKIP_BEFORE_DST, q_done);
+
+      // Go back to DST and write zero byte indicating EOF
       q = q_eof;
-      q = tm_find_register(q, inst->dst.reg, new_state());
-      q = tm_write_word(q, 0, SKIP_BEFORE_DST, q_done);
+      q = tm_find(q, +1, DST, new_state(), q_reject);
+      q = tm_write(q, BLANK, 0, new_state());
+      q = tm_write_byte(q, 0, SKIP_BEFORE_DST, q_done);
 
       q = q_done;
       
