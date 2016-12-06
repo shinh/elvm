@@ -101,12 +101,16 @@ static int bef_num_digits(uint v, char *c);
 static int bef_num_factor_core(uint v, char *c) {
   int shortlen = 36;
   int incr = 1 + (v&1); // Skip even numbers for odd numbers
-  for (uint i = 1 + incr; i*i < v; i += incr) {
+  for (uint i = 1 + incr; i*i <= v; i += incr) {
     if (v % i == 0) {
       char ijs[74];
       uint j = v / i;
       int ijlen = bef_num_digits(i, ijs);
-      ijlen += bef_num_digits(j, ijs + ijlen);
+      if (i == j && i > 9) {
+        ijs[ijlen++] = ':';
+      } else {
+        ijlen += bef_num_digits(j, ijs + ijlen);
+      }
       if (ijlen < shortlen) {
         shortlen = ijlen;
         memcpy(c, ijs, ijlen);
