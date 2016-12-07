@@ -304,6 +304,7 @@ $(OUT.eir.unl.out): tools/rununl.sh
 
 TARGET := tm
 RUNNER := out/tm
+TEST_FILTER := out/24_cmp.c.eir.tm out/24_cmp2.c.eir.tm out/24_muldiv.c.eir.tm out/bitops.c.eir.tm out/copy_struct.c.eir.tm out/eof.c.eir.tm out/fizzbuzz.c.eir.tm out/fizzbuzz_fast.c.eir.tm out/global_struct_ref.c.eir.tm out/lisp.c.eir.tm out/printf.c.eir.tm out/qsort.c.eir.tm out/8cc.c.eir.tm out/elc.c.eir.tm out/dump_ir.c.eir.tm out/eli.c.eir.tm
 include target.mk
 
 test: $(TEST_RESULTS)

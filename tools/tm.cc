@@ -52,10 +52,10 @@
 using namespace std;
 
 typedef int state_t;
-typedef string symbol_t;
-const symbol_t BLANK = "_";
-const symbol_t ONE = "1";
-const symbol_t ZERO = "0";
+typedef char symbol_t;
+const symbol_t BLANK = '_';
+const symbol_t ONE = '1';
+const symbol_t ZERO = '0';
 
 class parse_error: public std::runtime_error { 
 public:
@@ -73,11 +73,14 @@ public:
       throw std::runtime_error("machine is not deterministic at state " + to_string(q));
     transitions.insert({make_tuple(q,a),make_tuple(r,b,d)});
   }
-  bool has_transition(state_t q, symbol_t a) const {
-    return transitions.count(make_tuple(q,a));
-  }
-  const action &get_transition(state_t q, symbol_t a) const {
-    return transitions.at(make_tuple(q,a));
+  bool find_transition(state_t q, symbol_t a, state_t &r, symbol_t &b, int &d) const {
+    auto it = transitions.find(make_tuple(q,a));
+    if (it != transitions.end()) {
+      std::tie(r, b, d) = it->second;
+      return true;
+    } else {
+      return false;
+    }
   }
 };
 
@@ -87,6 +90,12 @@ state_t convert_state(const string &s) {
   if (idx != s.size())
     throw parse_error("invalid state: " + s);
   return q;
+}
+
+symbol_t convert_symbol(const string &s) {
+  if (s.size() != 1)
+    throw parse_error("invalid symbol: " + s);
+  return s.at(0);
 }
 
 int convert_direction(const string &s) {
@@ -127,8 +136,8 @@ void read_dtm(ifstream &is, dtm &m) {
       action act;
       if (fields.size() != 5)
 	throw parse_error("could not read transition: " + line);
-      m.add_transition(convert_state(fields[0]), fields[1],
-		       convert_state(fields[2]), fields[3],
+      m.add_transition(convert_state(fields[0]), convert_symbol(fields[1]),
+		       convert_state(fields[2]), convert_symbol(fields[3]),
 		       convert_direction(fields[4]));
     } catch (parse_error e) {
       cerr << e.what() << endl;
@@ -164,11 +173,10 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, int verbose=0) {
       break;
     }
     int d;
-    if (!m.has_transition(q, tape[pos])) {
+    if (!m.find_transition(q, tape[pos], q, tape[pos], d)) {
       accept = false;
       break;
     }
-    tie(q, tape[pos], d) = m.get_transition(q, tape[pos]);
     if (d == 1)
       ++pos;
     else if (d == -1 and pos > 0)
