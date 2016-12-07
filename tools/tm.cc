@@ -44,7 +44,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <tuple>
@@ -65,8 +65,16 @@ public:
 typedef std::tuple<state_t, symbol_t> condition;
 typedef std::tuple<state_t, symbol_t, int> action;
 
+namespace std {
+  template<> struct hash<condition> {
+    std::size_t operator()(const condition &c) const {
+      return (std::get<0>(c) << 4) ^ std::get<1>(c);
+    }
+  };
+}
+
 class dtm {
-  std::map<condition, action> transitions;
+  std::unordered_map<condition, action> transitions;
 public:
   void add_transition(state_t q, symbol_t a, state_t r, symbol_t b, int d) {
     if (transitions.count(make_tuple(q,a)) > 0)
