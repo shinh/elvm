@@ -9,7 +9,7 @@ set -e
 
 TARGET=$1
 dir=out/${TARGET}
-time=time
+time=
 if [ -e /usr/bin/time ]; then
     time=/usr/bin/time
 fi
