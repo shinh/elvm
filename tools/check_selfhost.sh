@@ -9,6 +9,10 @@ set -e
 
 TARGET=$1
 dir=out/${TARGET}
+time=time
+if [ -e /usr/bin/time ]; then
+    time=/usr/bin/time
+fi
 
 make out/8cc.c.eir.${TARGET}.out out/elc.c.eir.${TARGET}.out
 
@@ -26,23 +30,23 @@ done
 if [ ${TARGET} = x86 ]; then
     run_trg() {
         chmod 755 $1
-        /usr/bin/time $1
+        ${time} $1
     }
 elif [ ${TARGET} = rb ]; then
     run_trg() {
-        /usr/bin/time ruby $1
+        ${time} ruby $1
     }
 elif [ ${TARGET} = ws ]; then
     run_trg() {
-        (cat /dev/stdin && echo -ne "\0") | /usr/bin/time ./tools/runws.sh $1
+        (cat /dev/stdin && echo -ne "\0") | ${time} ./tools/runws.sh $1
     }
 elif [ ${TARGET} = bf ]; then
     run_trg() {
-        /usr/bin/time ./tools/runbf.sh $1
+        ${time} ./tools/runbf.sh $1
     }
 elif [ ${TARGET} = bef ]; then
     run_trg() {
-        /usr/bin/time ./out/befunge -f $1
+        ${time} ./out/befunge -f $1
     }
 else
     echo "Unknown target: ${TARGET}"
