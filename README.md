@@ -1,5 +1,7 @@
 # ELVM Compiler Infrastructure
 
+[![Build Status](https://travis-ci.org/shinh/elvm.svg?branch=master)](http://travis-ci.org/shinh/elvm)
+
 ELVM is similar to LLVM but dedicated to [Esoteric
 Languages](https://esolangs.org/wiki/Main_Page). This project consists
 of two components - frontend and backend. Currently, the only frontend
