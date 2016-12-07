@@ -15,9 +15,8 @@ int q_reject;
 
    The blanks between the symbols are used as scratch space. */
 
-typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, OUTPUT, SRC, DST} symbol_t;
+typedef enum {BLANK, START, END, ZERO, ONE, REGISTER, ADDRESS, VALUE, OUTPUT, SRC, DST, NUM_SYMBOLS} symbol_t;
 const char *symbol_names[] = {"_", "^", "$", "0", "1", "r", "a", "v", "o", "s", "d"};
-const int num_symbols = 11;
 const int bit[2] = {ZERO, ONE};
 
 const int word_size = 24;
@@ -65,7 +64,7 @@ int tm_transition(int q, symbol_t a, symbol_t b, int d, int r) {
    regardless of input symbol. */
 
 int tm_write(int q, symbol_t b, int d, int r) {
-  for (symbol_t a=0; a<num_symbols; a++)
+  for (symbol_t a=0; a<NUM_SYMBOLS; a++)
     tm_transition(q, a, b, d, r);
   return r;
 }
@@ -78,7 +77,7 @@ int tm_write(int q, symbol_t b, int d, int r) {
 int tm_write_if(int q, 
 		symbol_t a, int ba, int da, int ra,
 		symbol_t b, int d, int r) {
-  for (symbol_t s=0; s<num_symbols; s++)
+  for (symbol_t s=0; s<NUM_SYMBOLS; s++)
     if (s == a) tm_transition(q, s, ba, da, ra); 
     else        tm_transition(q, s, b, d, r);
   return r;
@@ -88,7 +87,7 @@ int tm_write_if2(int q,
 		 symbol_t a1, int b1, int d1, int r1,
 		 symbol_t a2, int b2, int d2, int r2,
 		 symbol_t b, int d, int r) {
-  for (symbol_t s=0; s<num_symbols; s++)
+  for (symbol_t s=0; s<NUM_SYMBOLS; s++)
     if (s == a1)      tm_transition(q, s, b1, d1, r1); 
     else if (s == a2) tm_transition(q, s, b2, d2, r2); 
     else              tm_transition(q, s, b, d, r);
@@ -98,7 +97,7 @@ int tm_write_if2(int q,
 /* Generate transitions to move in direction d, regardless of input symbol. */
 
 int tm_move(int q, int d, int r) {
-  for (symbol_t s=0; s<num_symbols; s++)
+  for (symbol_t s=0; s<NUM_SYMBOLS; s++)
     tm_transition(q, s, s, d, r);
   return r;
 }
@@ -111,7 +110,7 @@ int tm_move(int q, int d, int r) {
 int tm_move_if(int q, 
 	       symbol_t a, int da, int ra, 
 	       int d, int r) {
-  for (symbol_t s=0; s<num_symbols; s++)
+  for (symbol_t s=0; s<NUM_SYMBOLS; s++)
     if (s == a)      tm_transition(q, s, s, da, ra);
     else             tm_transition(q, s, s, d, r);
   return r;
@@ -127,7 +126,7 @@ int tm_move_if2(int q,
 		symbol_t a, int da, int ra, 
 		symbol_t b, int db, int rb, 
 		int d, int r) {
-  for (symbol_t s=0; s<num_symbols; s++)
+  for (symbol_t s=0; s<NUM_SYMBOLS; s++)
     if (s == a)      tm_transition(q, s, s, da, ra);
     else if (s == b) tm_transition(q, s, s, db, rb);
     else             tm_transition(q, s, s, d, r);
