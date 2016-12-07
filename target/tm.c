@@ -473,16 +473,40 @@ int tm_find_memory_indirect(int q, int reg, int r) {
   return r;
 }
 
+/* Create the trie node corresponding to the first (word_size-h) bits of i.
+   Returns the trie node.
+ */
+
+int tm_make_jmpreg(int pc_max, int h, int i) {
+  if (h == 0) {
+    return i;
+  } else {
+    int q_new = new_state();
+    int q = tm_transition(q_new, BLANK, BLANK, +1, new_state());
+    int q0 = tm_make_jmpreg(pc_max, h-1, i);
+    tm_transition(q, ZERO, ZERO, +1, q0);
+    if (i+(1<<(h-1)) <= pc_max) {
+      int q1 = tm_make_jmpreg(pc_max, h-1, i + (1<<(h-1)));
+      tm_transition(q, ONE, ONE, +1, q1);
+    }
+    return q_new;
+  }
+}
+
 void target_tm(Module* module) {
   /* Every basic block's entry point is the state with the same number
      as its pc. Additional states are numbered starting after the
      highest pc. */
-  next_state = 0;
+  int pc_max = 0;
   for (Inst* inst = module->text; inst; inst = inst->next)
-    if (inst->pc >= next_state)
-      next_state = inst->pc+1;
-
+    if (inst->pc >= pc_max)
+      pc_max = inst->pc;
+  next_state = pc_max+1;
   q_reject = new_state();
+
+  comment("trie for jmp reg");
+  int q_jmpreg = tm_make_jmpreg(pc_max, word_size, 0);
+
   int q = 0; // start state (pc 0)
 
   comment("beginning-of-tape and input string");
@@ -656,12 +680,12 @@ void target_tm(Module* module) {
 
     case JMP:
       if (inst->jmp.type == REG)
-	error("jmp reg not implemented");
-      else if (inst->jmp.type == IMM) {
+	tm_find_register(q, inst->jmp.reg, q_jmpreg);
+      else if (inst->jmp.type == IMM)
 	tm_noop(q, inst->jmp.imm);
-	q = new_state();
-      } else
+      else
 	error("invalid jmp type");
+      q = new_state();
       break;
 
     case EQ:

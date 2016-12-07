@@ -141,7 +141,7 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, int verbose=0) {
   state_t q = 0;
   vector<symbol_t>::size_type pos = 0, max_pos = 0;
   bool accept;
-  int steps = 0;
+  long long int steps = 0;
   while (true) {
     while (pos+1 > tape.size())
       tape.push_back(BLANK);
@@ -174,9 +174,12 @@ bool run_dtm(const dtm &m, vector<symbol_t> &tape, int verbose=0) {
     else if (d == -1 and pos > 0)
       --pos;
     ++steps;
+    if (verbose == 1 && steps % 10000000 == 0) {
+      cerr << "running: steps=" << steps << " cells=" << max_pos+1 << endl;
+    }
   }
   if (verbose >= 1) {
-    cerr << "halt accept=" << accept << " steps=" << steps << " cells=" << max_pos+1 << endl;
+    cerr << "halt: accept=" << accept << " steps=" << steps << " cells=" << max_pos+1 << endl;
   }
   return accept;
 }
@@ -236,6 +239,10 @@ int main(int argc, char *argv[]) {
 
   ifstream is(argv[0]);
   dtm m;
+  if (!is) {
+    cerr << "could not open " << argv[0] << endl;
+    return 1;
+  }
   read_dtm(is, m);
 
   char c;
