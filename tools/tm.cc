@@ -41,13 +41,14 @@
    are neither 0 nor 1 are ignored, as are incomplete bytes.
  */
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
-#include <unordered_map>
+#include <stdexcept>
 #include <string>
-#include <vector>
 #include <tuple>
+#include <unordered_map>
+#include <vector>
 #include <unistd.h>
 using namespace std;
 
