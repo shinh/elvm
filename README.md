@@ -11,26 +11,31 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 18 backends:
+Currently, there are 24 backends:
 
-* Ruby
-* Python
-* JavaScript
-* Java
-* CommonLisp
-* Emacs Lisp
-* Vim script
 * Bash
-* C
-* C++14 (compile-time)
-* i386-linux
-* C-INTERCAL
-* Whitespace
 * Befunge
 * Brainfuck
+* C
+* C++14 (compile-time)
+* C-INTERCAL
+* CommonLisp
+* Crystal (compile-time)
+* Emacs Lisp
+* Forth
+* Java
+* JavaScript
+* PHP
 * Piet
-* Unlambda
+* Python
+* Ruby
+* Swift
 * TeX
+* TensorFlow (WIP)
+* Unlambda
+* Vim script
+* Whitespace
+* i386-linux
 * sed
 
 The above list contains languages which are known to be difficult to
@@ -224,6 +229,19 @@ This backend should support both GNU sed and BSD sed, so this backend
 is more portable than [sedlisp](https://github.com/shinh/sedlisp),
 though much slower. Also note, due to limitation of BSD sed, programs
 cannot output non-ASCII characters and NUL.
+
+### TensorFlow
+
+Thanks to control flow operations such as tf.while_loop and tf.cond,
+a TensorFlow's graph is Turing complete. This backend translates EIR
+to a Python code which constructs a graph which is equivalent to the
+source EIR. This backend is very slow and uses a huge amount of
+memory. I've never seen 8cc.c.eir.tf works, but lisp.c.eir.tf does
+work. You can test this backend by
+
+    $ TF=1 make tf
+
+TODO: Reduce the size of the graph and run 8cc
 
 ## Future works
 
