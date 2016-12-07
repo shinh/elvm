@@ -1,0 +1,8 @@
+language: cpp
+
+compiler:
+  - clang
+
+script:
+  - make -j4 rb elc-rb
+  - tools/check_selfhost.sh x86
