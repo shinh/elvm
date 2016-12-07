@@ -1,5 +1,5 @@
 COMMONFLAGS := -W -Wall -W -Werror -MMD -MP -O -g -Wno-missing-field-initializers
-CFLAGS := -std=gnu99 -m32 $(COMMONFLAGS) -Wno-missing-field-initializers
+CFLAGS := -std=gnu99 $(COMMONFLAGS) -Wno-missing-field-initializers
 CXXFLAGS := -std=c++11 $(COMMONFLAGS)
 
 uname := $(shell uname)
