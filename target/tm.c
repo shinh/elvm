@@ -527,7 +527,7 @@ void target_tm(Module* module) {
   Data *data = module->data;
   int mp = 0;
   while (data) {
-    if (isprint(data->v))
+    if (0 <= data->v && data->v < 128 && isprint(data->v))
       comment("address %d value %d '%c'", mp, data->v, data->v);
     else
       comment("address %d value %d", mp, data->v);
