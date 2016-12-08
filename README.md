@@ -19,24 +19,24 @@ Currently, there are 25 backends:
 * Befunge
 * Brainfuck
 * C
-* C++14 (compile-time) (by @kw-udon)
+* C++14 (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
 * C-INTERCAL
-* CommonLisp (by @youz)
-* Crystal (compile-time) (by @MakeNowJust)
+* CommonLisp (by [@youz](https://github.com/youz/))
+* Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
 * Emacs Lisp
-* Forth (by @dubek)
+* Forth (by [@dubek](https://github.com/dubek/))
 * Java
 * JavaScript
 * PHP
 * Piet
 * Python
 * Ruby
-* Swift (by @kwakasa)
-* TeX (by @hak7a3)
+* Swift (by [@kwakasa](https://github.com/kwakasa/))
+* TeX (by [@hak7a3](https://github.com/hak7a3/))
 * TensorFlow (WIP)
-* Turing machine (by @ND-CSE-30151)
-* Unlambda (by @irori)
-* Vim script (by @rhysd)
+* Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
+* Unlambda (by [@irori](https://github.com/irori/))
+* Vim script (by [@rhysd](https://github.com/rhysd/))
 * Whitespace
 * i386-linux
 * sed
@@ -124,7 +124,7 @@ to specify `-b' flag.
 
 ### Unlambda
 
-This backend was contributed by @irori. This backend is even slower
+This backend was contributed by [@irori](https://github.com/irori/). This backend is even slower
 than Brainfuck. See also [8cc.unl](https://github.com/irori/8cc.unl).
 
 This backend is tested with [Emil Jeřábek's
@@ -170,7 +170,7 @@ extended to make Befunge-93 Turing-complete.
 
 ### Whitespace
 
-This backend is tested with @koturn's [Whitespace
+This backend is tested with [@koturn](https://github.com/koturn/)'s [Whitespace
 implementation](https://github.com/koturn/Whitespace/).
 
 ### Emacs Lisp
@@ -189,7 +189,7 @@ backends. You can run a C compiler on Emacs:
 
 ### Vim script
 
-This backend was contributed by @rhysd. You can run a C compiler on
+This backend was contributed by [@rhysd](https://github.com/rhysd/). You can run a C compiler on
 Vim:
 
 * Open test/hello.c (or write your C code)
@@ -205,12 +205,12 @@ You can find more descriptions and released vim script in
 
 ### TeX
 
-This backend was contributed by @hak7a3. See
+This backend was contributed by [@hak7a3](https://github.com/hak7a3/). See
 also [8cc.tex](https://github.com/hak7a3/8cc.tex).
 
 ### C++14 (compile-time)
 
-This backend was contributed by @kw-udon. You can find more
+This backend was contributed by [@kw-udon](https://github.com/kw-udon/). You can find more
 descriptions in
 [constexpr-8cc](https://github.com/kw-udon/constexpr-8cc).
 
