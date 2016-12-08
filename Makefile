@@ -75,6 +75,7 @@ ELC_SRCS := \
 	cr.c \
 	el.c \
 	forth.c \
+	go.c \
 	i.c \
 	java.c \
 	js.c \
@@ -361,6 +362,10 @@ include target.mk
 
 TARGET := pl
 RUNNER := perl
+include target.mk
+
+TARGET := go
+RUNNER := go run
 include target.mk
 
 test: $(TEST_RESULTS)
