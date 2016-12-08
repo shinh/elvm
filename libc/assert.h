@@ -6,9 +6,11 @@
 void exit(int s);
 
 #define assert(x)                               \
-  if (!(x)) {                                   \
-    print_str("assertion failed: " #x "\n");    \
-    exit(1);                                    \
-  }
+  do {                                          \
+    if (!(x)) {                                 \
+      print_str("assertion failed: " #x "\n");  \
+      exit(1);                                  \
+    }                                           \
+  } while (0)
 
 #endif  // ELVM_LIBC_ASSERT_H_
