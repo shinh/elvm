@@ -87,6 +87,7 @@ ELC_SRCS := \
 	rb.c \
 	sed.c \
 	sh.c \
+	sqlite3.c \
 	swift.c \
 	tex.c \
 	tf.c \
@@ -366,6 +367,11 @@ include target.mk
 
 TARGET := go
 RUNNER := go run
+include target.mk
+
+TARGET := sqlite3
+RUNNER := tools/runsqlite3.sh
+TOOL := sqlite3
 include target.mk
 
 test: $(TEST_RESULTS)
