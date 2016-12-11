@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 26 backends:
+Currently, there are 27 backends:
 
 * Bash
 * Befunge
@@ -32,6 +32,7 @@ Currently, there are 26 backends:
 * Piet
 * Python
 * Ruby
+* SQLite3 (by [@youz](https://github.com/youz/))
 * Swift (by [@kwakasa](https://github.com/kwakasa/))
 * TeX (by [@hak7a3](https://github.com/hak7a3/))
 * TensorFlow (WIP)
