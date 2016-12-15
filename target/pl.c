@@ -108,7 +108,7 @@ void target_pl(Module* module) {
   int prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
-      if (prev_pc >= 0) {
+      if (prev_pc != -1) {
         emit_line("goto $codes[++$pc];");
         dec_indent();
         emit_line("},");
