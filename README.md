@@ -29,7 +29,7 @@ Currently, there are 28 backends:
 * Java
 * JavaScript
 * Perl5 (by [@mackee](https://github.com/mackee/))
-* PHP
+* PHP (by [@zonuexe](https://github.com/zonuexe/))
 * Piet
 * Python
 * Ruby
