@@ -39,6 +39,7 @@ char* strcpy(char* d, const char* s) {
   char* r = d;
   for (; *s; s++, d++)
     *d = *s;
+  *d = 0;
   return r;
 }
 
