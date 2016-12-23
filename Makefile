@@ -224,7 +224,8 @@ DEPS := $(wildcard libc/*.h)
 OUT.c.ll := $(SRCS:%=%.$(EXT))
 include build.mk
 
-$(LLC):
+$(LLC): llc
+llc:
 	ninja -C llvm-build bin/llc
 
 include clear_vars.mk
