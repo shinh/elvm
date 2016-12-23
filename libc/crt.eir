@@ -1,0 +1,11 @@
+.text
+
+putchar:
+ mov A, SP
+ add A, 1
+ load A, A
+ putc A
+ ret
+
+exit:
+ exit

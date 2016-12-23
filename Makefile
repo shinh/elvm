@@ -230,7 +230,7 @@ $(LLC):
 include clear_vars.mk
 SRCS := $(OUT.c.ll)
 EXT := eir
-CMD = $(LLC) -march=elvm $2 -o $1.tmp && mv $1.tmp $1
+CMD = $(LLC) -march=elvm $2 -o $1.tmp && cat $1.tmp libc/crt.eir > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
 DEPS := $(LLC)
 OUT.c.ll.eir := $(SRCS:%=%.$(EXT))
 include build.mk

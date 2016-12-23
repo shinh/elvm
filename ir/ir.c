@@ -10,6 +10,7 @@
 #include <ir/table.h>
 
 static bool g_split_basic_block_by_mem = false;
+static bool g_handle_call_ret = false;
 
 typedef struct DataPrivate_ {
   int v;
@@ -224,6 +225,10 @@ static Op get_op(Parser* p, const char* buf) {
     return LE;
   } else if (!strcmp(buf, "ge")) {
     return GE;
+  } else if (!strcmp(buf, "call")) {
+    return CALL;
+  } else if (!strcmp(buf, "ret")) {
+    return RET;
   } else if (!strcmp(buf, ".text")) {
     return TEXT;
   } else if (!strcmp(buf, ".data")) {
@@ -241,6 +246,14 @@ static Op get_op(Parser* p, const char* buf) {
     return SKIP;
   }
   return OP_UNSET;
+}
+
+static void alloc_inst(Parser* p, Op op) {
+  p->text->next = calloc(1, sizeof(Inst));
+  p->text = p->text->next;
+  p->text->op = op;
+  p->text->pc = p->pc;
+  p->text->lineno = p->lineno;
 }
 
 static void parse_line(Parser* p, int c) {
@@ -345,6 +358,10 @@ static void parse_line(Parser* p, int c) {
     argc = 1;
   else if (op <= GE)
     argc = 2;
+  else if (op == CALL)
+    argc = 1;
+  else if (op == RET)
+    argc = 0;
   else if (op == DUMP)
     argc = 0;
   else if (op == (Op)LONG)
@@ -416,11 +433,7 @@ static void parse_line(Parser* p, int c) {
     return;
   }
 
-  p->text->next = calloc(1, sizeof(Inst));
-  p->text = p->text->next;
-  p->text->op = op;
-  p->text->pc = p->pc;
-  p->text->lineno = p->lineno;
+  alloc_inst(p, op);
   p->prev_boundary = false;
   switch (op) {
     case LOAD:
@@ -447,6 +460,20 @@ static void parse_line(Parser* p, int c) {
     case EXIT:
     case DUMP:
       break;
+    case RET:
+      if (!g_handle_call_ret) {
+        p->text->op = LOAD;
+        p->text->dst = (Value){ .type = REG, .reg = D };
+        p->text->src = (Value){ .type = REG, .imm = SP };
+        alloc_inst(p, ADD);
+        p->text->dst = (Value){ .type = REG, .reg = SP };
+        p->text->src = (Value){ .type = IMM, .imm = 1 };
+        alloc_inst(p, JMP);
+        p->text->jmp = (Value){ .type = REG, .reg = D };
+      }
+      p->pc++;
+      p->prev_boundary = true;
+      break;
     case JEQ:
     case JNE:
     case JLT:
@@ -456,6 +483,23 @@ static void parse_line(Parser* p, int c) {
       p->text->dst = args[1];
       p->text->src = args[2];
     case JMP:
+      p->text->jmp = args[0];
+      p->pc++;
+      p->prev_boundary = true;
+      break;
+    case CALL:
+      if (!g_handle_call_ret) {
+        p->text->op = SUB;
+        p->text->dst = (Value){ .type = REG, .reg = SP };
+        p->text->src = (Value){ .type = IMM, .imm = 1 };
+        alloc_inst(p, MOV);
+        p->text->dst = (Value){ .type = REG, .reg = D };
+        p->text->src = (Value){ .type = IMM, .imm = p->pc + 1 };
+        alloc_inst(p, STORE);
+        p->text->dst = (Value){ .type = REG, .reg = D };
+        p->text->src = (Value){ .type = REG, .reg = SP };
+        alloc_inst(p, JMP);
+      }
       p->text->jmp = args[0];
       p->pc++;
       p->prev_boundary = true;
@@ -481,10 +525,8 @@ static void parse_eir(Parser* p) {
   p->pc = 0;
   p->prev_boundary = true;
 
-  p->text->next = calloc(1, sizeof(Inst));
-  p->text = p->text->next;
-  p->text->op = JMP;
-  p->text->pc = p->pc++;
+  alloc_inst(p, JMP);
+  p->pc++;
   p->text->lineno = -1;
   p->text->jmp.type = (ValueType)REF;
   p->text->jmp.tmp = "main";
@@ -569,6 +611,10 @@ Module* load_eir_from_file(const char* filename) {
 
 void split_basic_block_by_mem() {
   g_split_basic_block_by_mem = true;
+}
+
+void handle_call_ret() {
+  g_handle_call_ret = true;
 }
 
 void dump_op(Op op, FILE* fp) {

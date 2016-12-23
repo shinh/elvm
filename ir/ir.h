@@ -24,7 +24,8 @@ typedef enum {
   MOV = 0, ADD, SUB, LOAD, STORE, PUTC, GETC, EXIT,
   JEQ = 8, JNE, JLT, JGT, JLE, JGE, JMP,
   // Optional operations follow.
-  EQ = 16, NE, LT, GT, LE, GE, DUMP,
+  EQ = 16, NE, LT, GT, LE, GE,
+  CALL, RET, DUMP,
   LAST_OP
 } Op;
 
@@ -62,6 +63,7 @@ Module* load_eir(FILE* fp);
 Module* load_eir_from_file(const char* filename);
 
 void split_basic_block_by_mem();
+void handle_call_ret();
 
 void dump_inst(Inst* inst);
 void dump_inst_fp(Inst* inst, FILE* fp);
