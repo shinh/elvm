@@ -214,3 +214,39 @@ int emit_chunked_main_loop(Inst* inst,
   emit_func_epilogue();
   return prev_func_id + 1;
 }
+
+#define PACK2(x) ((x) % 256), ((x) / 256)
+#define PACK4(x) ((x) % 256), ((x) / 256 % 256), ((x) / 65536), 0
+
+void emit_elf_header(uint16_t machine, uint32_t filesz) {
+  const char ehdr[52] = {
+    // e_ident
+    0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    PACK2(2),  // e_type
+    PACK2(machine),  // e_machine
+    PACK4(1),  // e_version
+    PACK4(ELF_TEXT_START + ELF_HEADER_SIZE),  // e_entry
+    PACK4(52),  // e_phoff
+    PACK4(0),  // e_shoff
+    PACK4(0),  // e_flags
+    PACK2(52),  // e_ehsize
+    PACK2(32),  // e_phentsize
+    PACK2(1),  // e_phnum
+    PACK2(40),  // e_shentsize
+    PACK2(0),  // e_shnum
+    PACK2(0),  // e_shstrndx
+  };
+  const char phdr[32] = {
+    PACK4(1),  // p_type
+    PACK4(0),  // p_offset
+    PACK4(ELF_TEXT_START),  // p_vaddr
+    PACK4(ELF_TEXT_START),  // p_paddr
+    PACK4(filesz + ELF_HEADER_SIZE),  // p_filesz
+    PACK4(filesz + ELF_HEADER_SIZE),  // p_memsz
+    PACK4(5),  // p_flags
+    PACK4(0x1000),  // p_align
+  };
+  fwrite(ehdr, 52, 1, stdout);
+  fwrite(phdr, 32, 1, stdout);
+}

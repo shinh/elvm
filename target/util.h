@@ -10,6 +10,9 @@
 typedef uint32_t uint;
 typedef uint8_t byte;
 
+static const int ELF_TEXT_START = 0x100000;
+static const int ELF_HEADER_SIZE = 84;
+
 char* vformat(const char* fmt, va_list ap);
 char* format(const char* fmt, ...);
 
@@ -47,5 +50,7 @@ int emit_chunked_main_loop(Inst* inst,
                            void (*emit_func_epilogue)(void),
                            void (*emit_pc_change)(int pc),
                            void (*emit_inst)(Inst* inst));
+
+void emit_elf_header(uint16_t machine, uint32_t filesz);
 
 #endif  // ELVM_UTIL_H_

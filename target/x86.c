@@ -19,45 +19,6 @@ static int REGNO[] = {
 #define ESI ((Reg)6)
 #define ESP ((Reg)7)
 
-static const int TEXT_START = 0x100000;
-static const int HEADER_SIZE = 84;
-
-#define PACK2(x) ((x) % 256), ((x) / 256)
-#define PACK4(x) ((x) % 256), ((x) / 256 % 256), ((x) / 65536), 0
-
-static void emit_header(uint32_t filesz) {
-  const char ehdr[52] = {
-    // e_ident
-    0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    PACK2(2),  // e_type
-    PACK2(3),  // e_machine
-    PACK4(1),  // e_version
-    PACK4(TEXT_START + HEADER_SIZE),  // e_entry
-    PACK4(52),  // e_phoff
-    PACK4(0),  // e_shoff
-    PACK4(0),  // e_flags
-    PACK2(52),  // e_ehsize
-    PACK2(32),  // e_phentsize
-    PACK2(1),  // e_phnum
-    PACK2(40),  // e_shentsize
-    PACK2(0),  // e_shnum
-    PACK2(0),  // e_shstrndx
-  };
-  const char phdr[32] = {
-    PACK4(1),  // p_type
-    PACK4(0),  // p_offset
-    PACK4(TEXT_START),  // p_vaddr
-    PACK4(TEXT_START),  // p_paddr
-    PACK4(filesz + HEADER_SIZE),  // p_filesz
-    PACK4(filesz + HEADER_SIZE),  // p_memsz
-    PACK4(5),  // p_flags
-    PACK4(0x1000),  // p_align
-  };
-  fwrite(ehdr, 52, 1, stdout);
-  fwrite(phdr, 32, 1, stdout);
-}
-
 static void emit_int80() {
   emit_2(0xcd, 0x80);
 }
@@ -330,9 +291,9 @@ void target_x86(Module* module) {
     x86_emit_inst(inst, pc2addr, 0);
   }
 
-  int rodata_addr = TEXT_START + emit_cnt() + HEADER_SIZE;
+  int rodata_addr = ELF_TEXT_START + emit_cnt() + ELF_HEADER_SIZE;
 
-  emit_header(emit_cnt() + pc_cnt * 4);
+  emit_elf_header(3, emit_cnt() + pc_cnt * 4);
 
   emit_reset();
   emit_start();
@@ -343,6 +304,6 @@ void target_x86(Module* module) {
   }
 
   for (int i = 0; i < pc_cnt; i++) {
-    emit_le(TEXT_START + pc2addr[i] + HEADER_SIZE);
+    emit_le(ELF_TEXT_START + pc2addr[i] + ELF_HEADER_SIZE);
   }
 }

@@ -3,6 +3,11 @@ CFLAGS := -std=gnu99 $(COMMONFLAGS) -Wno-missing-field-initializers
 CXXFLAGS := -std=c++11 $(COMMONFLAGS)
 
 uname := $(shell uname)
+ifneq (,$(findstring arm,$(shell uname -m)))
+ARCH := arm
+else
+ARCH := x86
+endif
 
 ELI := out/eli
 ELC := out/elc
@@ -67,6 +72,7 @@ $(COBJS): out/%.o: ir/%.c
 ELC_SRCS := \
 	elc.c \
 	util.c \
+	arm.c \
 	bef.c \
 	bf.c \
 	c.c \
@@ -297,7 +303,7 @@ include target.mk
 $(OUT.eir.cpp.out): tools/runcpp.sh
 
 ifeq ($(uname),Linux)
-TARGET := x86
+TARGET := $(ARCH)
 RUNNER :=
 include target.mk
 endif
