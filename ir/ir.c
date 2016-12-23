@@ -33,7 +33,7 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC
+  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC, SKIP
 };
 
 enum {
@@ -236,6 +236,9 @@ static Op get_op(Parser* p, const char* buf) {
     return FILENAME;
   } else if (!strcmp(buf, ".loc")) {
     return LOC;
+  } else if (!strcmp(buf, ".globl")) {
+    // TODO: Probably we can remove this in LLVM
+    return SKIP;
   }
   return OP_UNSET;
 }
@@ -301,6 +304,9 @@ static void parse_line(Parser* p, int c) {
     skip_until_ret(p);
     return;
   } else if (op == (Op)LOC) {
+    skip_until_ret(p);
+    return;
+  } else if (op == (Op)SKIP) {
     skip_until_ret(p);
     return;
   } else if (op == OP_UNSET) {

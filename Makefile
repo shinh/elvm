@@ -28,6 +28,7 @@ ELC := out/elc
 	8cc/path.c \
 	8cc/set.c \
 	8cc/vector.c
+LLC := llvm-build/bin/llc
 
 BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/tm tinycc/tcc
 LIB_IR_SRCS := ir/ir.c ir/table.c
@@ -212,6 +213,42 @@ OUT.c.eir.out := $(OUT.c.exe.out:%.c.exe.out=%.c.eir.out)
 EXPECT := c.exe.out
 ACTUAL := c.eir.out
 include diff.mk
+
+ifdef LLVM
+
+include clear_vars.mk
+SRCS := $(OUT.c)
+EXT := ll
+CMD = clang -m32 -target mips-unknown-linux-gnu -emit-llvm -S -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
+DEPS := $(wildcard libc/*.h)
+OUT.c.ll := $(SRCS:%=%.$(EXT))
+include build.mk
+
+$(LLC):
+	ninja -C llvm-build bin/llc
+
+include clear_vars.mk
+SRCS := $(OUT.c.ll)
+EXT := eir
+CMD = $(LLC) -march=elvm $2 -o $1.tmp && mv $1.tmp $1
+DEPS := $(LLC)
+OUT.c.ll.eir := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+SRCS := $(OUT.c.ll.eir)
+EXT := out
+DEPS := $(TEST_INS) runtest.sh
+CMD = ./runtest.sh $1 $(ELI) $2
+OUT.c.ll.eir.out := $(SRCS:%=%.$(EXT))
+include build.mk
+
+include clear_vars.mk
+EXPECT := c.exe.out
+ACTUAL := c.ll.eir.out
+include diff.mk
+
+endif
 
 build: $(TEST_RESULTS)
 
