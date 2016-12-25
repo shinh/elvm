@@ -219,20 +219,21 @@ ifdef LLVM
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := ll
-CMD = clang -m32 -target mips-unknown-linux-gnu -emit-llvm -S -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
+CMD = llvm-build/bin/clang -m32 -target elvm-unknown-linux-gnu -emit-llvm -S -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.c.ll := $(SRCS:%=%.$(EXT))
 include build.mk
 
 $(LLC): llc
+	@
 llc:
 	ninja -C llvm-build bin/llc
 
 include clear_vars.mk
 SRCS := $(OUT.c.ll)
 EXT := eir
-CMD = $(LLC) -march=elvm $2 -o $1.tmp && cat $1.tmp libc/crt.eir > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
-DEPS := $(LLC)
+CMD = $(LLC) -march=elvm $2 -o $1.tmp && cat libc/crt.eir $1.tmp > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
+DEPS := $(LLC) libc/crt.eir
 OUT.c.ll.eir := $(SRCS:%=%.$(EXT))
 include build.mk
 

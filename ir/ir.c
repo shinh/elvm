@@ -551,6 +551,12 @@ static void parse_eir(Parser* p) {
   serialize_data(p, &data_root);
   p->text = text_root.next;
   p->data = data_root.next;
+
+  // For new ABI which uses _start as the entry point.
+  const void* unused;
+  if (table_get(p->symtab, "_start", &unused)) {
+    p->text->jmp.tmp = "_start";
+  }
 }
 
 static void resolve(Value* v, Table* symtab) {

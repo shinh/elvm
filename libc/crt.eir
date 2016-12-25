@@ -1,5 +1,9 @@
 .text
 
+_start:
+ call main
+ exit
+
 putchar:
  mov A, SP
  add A, 1
