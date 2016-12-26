@@ -254,6 +254,9 @@ endif
 
 build: $(TEST_RESULTS)
 
+# They are tests for compiler, not useful for backends.
+OUT.eir:=$(filter-out out/0%.c.eir,$(OUT.eir))
+
 # Targets
 
 TARGET := rb
