@@ -78,7 +78,7 @@ struct hash_coord {
 	}
 };
 
-std::stack<int32_t> st;
+std::stack<int32_t, std::vector<int32_t>> st;
 std::vector<uint8_t> code;
 std::unordered_map<coord, cell, hash_coord> ps;
 int32_t mnx, mny, mxx, mxy; // all coords of ps fall within these
