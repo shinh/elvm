@@ -64,17 +64,27 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
   
   int step = 0;
   int prev_pc = -1;
-  int prev_step = -1;
   SQLite3Col col_idx = 0;
   const char* expr = NULL;
+  int updcols = 0;
 
   for (; inst; inst = inst->next) {
     if (prev_pc != inst-> pc) {
-      if (prev_step != -1) {
+      if (prev_pc != -1) {
+        step++;
         cols[SQLITE3_PC] = sqlite3_add_expr(cols[SQLITE3_PC], prev_pc, step, "pc+1");
         cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], prev_pc, step, "0");
       }
+      updcols = 0;
       step = 0;
+    }
+
+    int usecol = ((inst->src.type == REG) ? (1 << inst->src.reg) : 0) |
+                 ((inst->dst.type == REG) ? (1 << inst->dst.reg) : 0);
+
+    if ((usecol & updcols) != 0) {
+      step++;
+      updcols = 0;
     }
 
     switch (inst->op) {
@@ -150,10 +160,9 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
                     sqlite3_cmp_str(inst), value_str(&inst->jmp));
       break;
     case JMP:
+      cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], inst->pc, step, "0");
       col_idx = SQLITE3_PC;
       expr = value_str(&inst->jmp);
-      cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP],
-                                            inst->pc, step, "0");
       break;
 
     default:
@@ -162,10 +171,15 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
 
     cols[col_idx] = sqlite3_add_expr(cols[col_idx], inst->pc, step, expr);
 
+    if (inst->op == GETC || inst->op == PUTC || inst->op == STORE) {
+      step++;
+      updcols = 0;
+    } else {
+      updcols |= (1 << col_idx);
+    }
+
   next_inst:
     prev_pc = inst->pc;
-    prev_step = step;
-    step++;
   }
   cols[SQLITE3_PC] = sqlite3_add_expr(cols[SQLITE3_PC], prev_pc, step, "pc+1");
   cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], prev_pc, step, "0");
