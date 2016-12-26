@@ -78,7 +78,7 @@ struct hash_coord {
 	}
 };
 
-std::stack<int> st;
+std::stack<int32_t> st;
 std::vector<uint8_t> code;
 std::unordered_map<coord, cell, hash_coord> ps;
 int32_t mnx, mny, mxx, mxy; // all coords of ps fall within these
@@ -139,7 +139,7 @@ struct cursor {
 
 	void readcurse(size_t offs){
 		xy = readcoord(offs);
-		dir = code[offs+9];
+		dir = code[offs+8];
 	}
 
 	void pushcurse(){
@@ -244,7 +244,7 @@ struct cursor {
 					if(!st.empty())st.pop();
 					if (peep.size()>1 && code[peep[peep.size()-2].code]==OP_INT) {
 						*peep[peep.size()-1].joff = -1;
-						*peep[peep.size()-2].joff = -1;
+						if(peep[peep.size()-2].joff) *peep[peep.size()-2].joff = -1;
 						peep.resize(peep.size()-2);
 						code.resize(code.size()-6);
 					}
@@ -307,8 +307,7 @@ struct cursor {
 				dir = rand()&3;
 				code.push_back(OP_RNG);
 				pushcoord(xy);
-				code.resize(code.size() + 4*sizeof(size_t));
-				memset(&code[code.size() - 4*sizeof(size_t)], -1, 4*sizeof(size_t));
+				code.resize(code.size() + 4*sizeof(size_t), -1);
 				writesize(code.size() - dir*sizeof(size_t), code.size());
 			}
 			case(27 ... 28){
@@ -380,7 +379,6 @@ int main(int,char**argv){
 	};
 	size_t pc = curse.compile();
 	while (true) {
-		//printf("%ld %d\n", pc, code[pc]);
 		switch (code[pc++]) {
 		default:__builtin_unreachable();
 		case(OP_INT){
@@ -461,10 +459,7 @@ int main(int,char**argv){
 				curse.readcurse(pc);
 				code.clear();
 				for (auto& kv : ps) {
-					kv.second.joff[0] = (size_t)-1;
-					kv.second.joff[1] = (size_t)-1;
-					kv.second.joff[2] = (size_t)-1;
-					kv.second.joff[3] = (size_t)-1;
+					memset(kv.second.joff, -1, sizeof(kv.second.joff));
 					kv.second.exec = false;
 				}
 				curse.mv();
