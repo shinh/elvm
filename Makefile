@@ -141,7 +141,7 @@ OUT.eir += $(DSTS)
 $(DSTS): out/%.eir: test/%.eir.rb
 	ruby $< > $@.tmp && mv $@.tmp $@
 
-SRCS := $(wildcard test/*.c)
+SRCS := $(sort $(wildcard test/*.c))
 DSTS := $(SRCS:test/%.c=out/%.c)
 $(DSTS): out/%.c: test/%.c
 	cp $< $@.tmp && mv $@.tmp $@
@@ -232,7 +232,7 @@ llc:
 include clear_vars.mk
 SRCS := $(OUT.c.ll)
 EXT := eir
-CMD = $(LLC) -march=elvm $2 -o $1.tmp && cat libc/crt.eir $1.tmp > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
+CMD = $(LLC) -march=elvm -regalloc=basic $2 -o $1.tmp && cat libc/crt.eir $1.tmp > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
 DEPS := $(LLC) libc/crt.eir
 OUT.c.ll.eir := $(SRCS:%=%.$(EXT))
 include build.mk
