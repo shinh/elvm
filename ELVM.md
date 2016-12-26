@@ -55,7 +55,7 @@ GETC dst
 EXIT
 - exit the program
 
-JEQ/JNE/JLT/JGT/JLE/JGE dst, src, jmp
+JEQ/JNE/JLT/JGT/JLE/JGE jmp, dst, src
 - compare dst and src and, if true, jump to jmp
 - src: immediate or register
 - dst: register

@@ -624,12 +624,13 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
     case JLE:
     case JGE:
       fprintf(fp, " ");
+      dump_val(&inst->jmp, fp);
+      fprintf(fp, " ");
       dump_val(&inst->dst, fp);
       fprintf(fp, " ");
       dump_val(&inst->src, fp);
+      break;
     case JMP:
-      fprintf(fp, " ");
-      dump_val(&inst->jmp, fp);
       break;
     default:
       fprintf(fp, "oops op=%d\n", inst->op);
