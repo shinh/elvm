@@ -5,7 +5,6 @@ set -e
 dir=$(mktemp -d)
 mkdir -p $dir
 infile=${dir}/input.txt
-#infile=input.txt
 cat > $infile
 
 cp $1 ${dir}/

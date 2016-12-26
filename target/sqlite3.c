@@ -267,8 +267,6 @@ void target_sqlite3(Module* module) {
   sqlite3_emit_stdin();
   sqlite3_emit_data(module->data);
 
-  emit_line("-- .stats on");
-
   emit_line("WITH");
   inc_indent();
   emit_line("elvm AS (");
