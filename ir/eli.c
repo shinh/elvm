@@ -31,7 +31,7 @@ static inline void dump_regs(Inst* inst) {
   static const char* REG_NAMES[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
-  fprintf(stderr, "PC=%d ", inst->lineno);
+  fprintf(stderr, "PC=%d(%s) ", inst->lineno, inst->func);
   for (int i = 0; i < 6; i++) {
     if (regs[i] < 0)
       had_negative = true;

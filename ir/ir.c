@@ -30,6 +30,7 @@ typedef struct {
   int pc;
   int subsection;
   DataPrivate* data;
+  const char* func;
   bool prev_boundary;
 } Parser;
 
@@ -254,6 +255,7 @@ static void alloc_inst(Parser* p, Op op) {
   p->text->op = op;
   p->text->pc = p->pc;
   p->text->lineno = p->lineno;
+  p->text->func = p->func;
 }
 
 static void parse_line(Parser* p, int c) {
@@ -331,7 +333,8 @@ static void parse_line(Parser* p, int c) {
           p->pc++;
         value = p->pc;
         p->prev_boundary = true;
-        p->symtab = table_add(p->symtab, strdup(buf), (void*)value);
+        p->func = strdup(buf);
+        p->symtab = table_add(p->symtab, p->func, (void*)value);
       } else {
         DataPrivate* d = add_data(p);
         d->val.type = LABEL;
@@ -589,7 +592,8 @@ static void resolve_syms(Parser* p) {
 Module* load_eir_impl(const char* filename, FILE* fp) {
   Parser parser = {
     .filename = filename,
-    .fp = fp
+    .fp = fp,
+    .func = "???",
   };
   parse_eir(&parser);
   resolve_syms(&parser);
