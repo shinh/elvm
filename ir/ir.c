@@ -631,6 +631,8 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
       dump_val(&inst->src, fp);
       break;
     case JMP:
+      fprintf(fp, " ");
+      dump_val(&inst->jmp, fp);
       break;
     default:
       fprintf(fp, "oops op=%d\n", inst->op);
