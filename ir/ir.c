@@ -243,7 +243,8 @@ static Op get_op(Parser* p, const char* buf) {
     return FILENAME;
   } else if (!strcmp(buf, ".loc")) {
     return LOC;
-  } else if (!strcmp(buf, ".globl")) {
+  } else if (!strcmp(buf, ".globl") ||
+             !strcmp(buf, ".section")) {
     // TODO: Probably we can remove this in LLVM
     return SKIP;
   }
