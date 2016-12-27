@@ -333,8 +333,10 @@ static void parse_line(Parser* p, int c) {
           p->pc++;
         value = p->pc;
         p->prev_boundary = true;
-        p->func = strdup(buf);
-        p->symtab = table_add(p->symtab, p->func, (void*)value);
+        const char* func = strdup(buf);
+        if (func[0] != 'L' && func[0] != '.')
+          p->func = func;
+        p->symtab = table_add(p->symtab, func, (void*)value);
       } else {
         DataPrivate* d = add_data(p);
         d->val.type = LABEL;
