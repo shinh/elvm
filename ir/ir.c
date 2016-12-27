@@ -234,7 +234,8 @@ static Op get_op(Parser* p, const char* buf) {
     return TEXT;
   } else if (!strcmp(buf, ".data")) {
     return DATA;
-  } else if (!strcmp(buf, ".long")) {
+  } else if (!strcmp(buf, ".long") ||
+             !strcmp(buf, ".byte")) {
     return LONG;
   } else if (!strcmp(buf, ".string")) {
     return STRING;
