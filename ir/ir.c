@@ -335,6 +335,9 @@ static void parse_line(Parser* p, int c) {
     buf[6] = 0;
     if (!strcmp(buf, ".debug")) {
       while (ir_getc(p) != EOF) {}
+    } else if (!strcmp(buf, ".rodat")) {
+      p->in_text = false;
+      skip_until_ret(p);
     } else {
       skip_until_ret(p);
     }
