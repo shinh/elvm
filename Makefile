@@ -219,7 +219,7 @@ ifdef LLVM
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := ll
-CMD = llvm-build/bin/clang -std=c99 -m32 -target elvm-unknown-linux-gnu -emit-llvm -S -include libc/_builtin.h -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
+CMD = llvm-build/bin/clang -g -std=c99 -m32 -target elvm-unknown-linux-gnu -emit-llvm -S -include libc/_builtin.h -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
 OUT.c.ll := $(SRCS:%=%.$(EXT))
 include build.mk
@@ -232,7 +232,7 @@ llc:
 include clear_vars.mk
 SRCS := $(OUT.c.ll)
 EXT := eir
-CMD = $(LLC) -march=elvm -regalloc=basic $2 -o $1.tmp && cat libc/crt.eir $1.tmp > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
+CMD = $(LLC) -march=elvm -asm-verbose -regalloc=basic $2 -o $1.tmp && cat libc/crt.eir $1.tmp > $1.tmp2 && rm $1.tmp && mv $1.tmp2 $1
 DEPS := $(LLC) libc/crt.eir
 OUT.c.ll.eir := $(SRCS:%=%.$(EXT))
 include build.mk

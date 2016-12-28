@@ -35,7 +35,7 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC, SKIP
+  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC, SECTION, SKIP
 };
 
 enum {
@@ -243,8 +243,12 @@ static Op get_op(Parser* p, const char* buf) {
     return FILENAME;
   } else if (!strcmp(buf, ".loc")) {
     return LOC;
+  } else if (!strcmp(buf, ".section")) {
+    return SECTION;
   } else if (!strcmp(buf, ".globl") ||
-             !strcmp(buf, ".section")) {
+             !strcmp(buf, ".section") ||
+             !strcmp(buf, ".cfi_startproc") ||
+             !strcmp(buf, ".cfi_endproc")) {
     // TODO: Probably we can remove this in LLVM
     return SKIP;
   }
@@ -322,6 +326,18 @@ static void parse_line(Parser* p, int c) {
     return;
   } else if (op == (Op)LOC) {
     skip_until_ret(p);
+    return;
+  } else if (op == (Op)SECTION) {
+    skip_ws(p);
+    read_while_ident(p, buf, 63);
+    // Stop parsing after finding a debug section.
+    // TODO: Implement strncmp.
+    buf[6] = 0;
+    if (!strcmp(buf, ".debug")) {
+      while (ir_getc(p) != EOF) {}
+    } else {
+      skip_until_ret(p);
+    }
     return;
   } else if (op == (Op)SKIP) {
     skip_until_ret(p);
