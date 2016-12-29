@@ -192,18 +192,6 @@ void sqlite3_emit_stdin() {
   emit_line("INSERT INTO stdin(i) VALUES(readfile('input.txt'));");
 }
 
-void sqlite3_emit_data(Data* data) {
-  emit_line("DROP TABLE IF EXISTS data;");
-  emit_line("CREATE TABLE data(i INT PRIMARY KEY, v INT);");
-  emit_line("INSERT INTO data VALUES");
-  for (int mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      emit_line(" %c(%d,%d)", mp ? ',' : ' ', mp, data->v);
-    }
-  }
-  emit_line(";");
-}
-
 static void sqlite3_emit_column(SQLite3CaseExpr* ce, SQLite3Col col) {
   if (ce == NULL) {
     emit_line(COL_NAMES[col]);
@@ -279,7 +267,6 @@ void target_sqlite3(Module* module) {
   }
   
   sqlite3_emit_stdin();
-  sqlite3_emit_data(module->data);
 
   emit_line("WITH");
   inc_indent();
@@ -292,7 +279,14 @@ void target_sqlite3(Module* module) {
   }
   emit_line("0 step,");
   emit_line("1 running,");
-  emit_line("(SELECT json_group_object(i, v) FROM data) mem,");
+  emit_line("json('{");
+  int mp = 0;
+  for (Data* data = module->data; data; data = data->next, mp++) {
+    if (data->v) {
+      emit_line(" %c\"%d\":%d", mp ? ',' : ' ', mp, data->v);
+    }
+  }
+  emit_line("}') mem,");
   emit_line("(SELECT i FROM stdin) stdin,");
   emit_line("'' stdout,");
   emit_line("0 cycle");
