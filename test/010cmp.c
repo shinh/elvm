@@ -1,0 +1,32 @@
+int putchar(int c);
+int main() {
+  int b = 48;
+  int a = 42;
+  int h = 43;
+  int e = 42;
+  int l = 41;
+  putchar(b);
+  putchar(a);
+  putchar(h);
+  putchar(e);
+  putchar(l);
+  putchar(10);
+  putchar(b + (a == h));
+  putchar(b + (a == e));
+  putchar(b + (a == l));
+  putchar(b + (a != h));
+  putchar(b + (a != e));
+  putchar(b + (a != l));
+  putchar(b + (a > h));
+  putchar(b + (a > e));
+  putchar(b + (a > l));
+  putchar(b + (a < h));
+  putchar(b + (a < e));
+  putchar(b + (a < l));
+  putchar(b + (a >= h));
+  putchar(b + (a >= e));
+  putchar(b + (a >= l));
+  putchar(b + (a <= h));
+  putchar(b + (a <= e));
+  putchar(b + (a <= l));
+}
