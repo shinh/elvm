@@ -11,6 +11,7 @@
 
 static bool g_split_basic_block_by_mem = false;
 static bool g_handle_call_ret = false;
+static bool g_handle_logic_ops = false;
 
 typedef struct DataPrivate_ {
   int v;
@@ -230,6 +231,12 @@ static Op get_op(Parser* p, const char* buf) {
     return CALL;
   } else if (!strcmp(buf, "ret")) {
     return RET;
+  } else if (!strcmp(buf, "and")) {
+    return AND;
+  } else if (!strcmp(buf, "or")) {
+    return OR;
+  } else if (!strcmp(buf, "xor")) {
+    return XOR;
   } else if (!strcmp(buf, ".text")) {
     return TEXT;
   } else if (!strcmp(buf, ".data")) {
@@ -262,6 +269,37 @@ static void alloc_inst(Parser* p, Op op) {
   p->text->pc = p->pc;
   p->text->lineno = p->lineno;
   p->text->func = p->func;
+}
+
+static void emit_inst_ri(Parser* p, Op op, Reg r, int i) {
+  alloc_inst(p, op);
+  p->text->dst = (Value){ .type = REG, .reg = r };
+  p->text->src = (Value){ .type = IMM, .imm = i };
+}
+
+static void emit_inst_rr(Parser* p, Op op, Reg r, Reg r2) {
+  alloc_inst(p, op);
+  p->text->dst = (Value){ .type = REG, .reg = r };
+  p->text->src = (Value){ .type = REG, .reg = r2 };
+}
+
+static void emit_push(Parser* p, Reg r) {
+  emit_inst_ri(p, SUB, SP, 1);
+  emit_inst_rr(p, STORE, r, SP);
+}
+
+static void emit_pop(Parser* p, Reg r) {
+  emit_inst_rr(p, LOAD, r, SP);
+  emit_inst_ri(p, ADD, SP, 1);
+}
+
+static void emit_call(Parser* p, const char* fname) {
+  emit_inst_ri(p, SUB, SP, 1);
+  emit_inst_ri(p, MOV, D, p->pc + 1);
+  emit_inst_rr(p, STORE, D, SP);
+  alloc_inst(p, JMP);
+  p->text->jmp = (Value){ .type = REF, .tmp = (void*)fname };
+  p->pc++;
 }
 
 static void parse_line(Parser* p, int c) {
@@ -388,6 +426,8 @@ static void parse_line(Parser* p, int c) {
     argc = 1;
   else if (op == RET)
     argc = 0;
+  else if (op <= XOR)
+    argc = 2;
   else if (op == DUMP)
     argc = 0;
   else if (op == (Op)LONG)
@@ -459,6 +499,7 @@ static void parse_line(Parser* p, int c) {
     return;
   }
 
+  Inst* orig_text_head = p->text;
   alloc_inst(p, op);
   p->prev_boundary = false;
   switch (op) {
@@ -530,7 +571,56 @@ static void parse_line(Parser* p, int c) {
       p->pc++;
       p->prev_boundary = true;
       break;
-    default:
+
+  case AND:
+  case OR:
+  case XOR:
+    if (g_handle_logic_ops) {
+      p->text->src = args[1];
+      p->text->dst = args[0];
+    } else {
+      p->text = orig_text_head;
+      Reg reg = args[0].reg;
+      Reg tmp = -1;
+      for (int i = 0; i < 4; i++) {
+        Reg r = (Reg)i;
+        if (r != reg) {
+          tmp = r;
+          emit_push(p, r);
+        }
+      }
+
+      // Push arguments.
+      emit_inst_ri(p, MOV, tmp, 0);
+      p->text->src = args[1];
+      emit_inst_ri(p, SUB, SP, 1);
+      emit_inst_rr(p, STORE, tmp, SP);
+      emit_push(p, reg);
+
+      const char* fname = NULL;
+      if (op == AND)
+        fname = "__elvm_builtin_and";
+      else if (op == OR)
+        fname = "__elvm_builtin_or";
+      else if (op == XOR)
+        fname = "__elvm_builtin_xor";
+      else
+        abort();
+      emit_call(p, fname);
+
+      emit_inst_ri(p, ADD, SP, 2);
+      if (reg != A)
+        emit_inst_rr(p, MOV, reg, A);
+      for (int i = 4; i > 0;) {
+        i--;
+        Reg r = (Reg)i;
+        if (r != reg)
+          emit_pop(p, r);
+      }
+    }
+    break;
+
+  default:
       ir_error(p, "oops");
   }
 
