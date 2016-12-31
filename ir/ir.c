@@ -237,6 +237,10 @@ static Op get_op(Parser* p, const char* buf) {
     return OR;
   } else if (!strcmp(buf, "xor")) {
     return XOR;
+  } else if (!strcmp(buf, "sll")) {
+    return SLL;
+  } else if (!strcmp(buf, "srl")) {
+    return SRL;
   } else if (!strcmp(buf, ".text")) {
     return TEXT;
   } else if (!strcmp(buf, ".data")) {
@@ -426,7 +430,7 @@ static void parse_line(Parser* p, int c) {
     argc = 1;
   else if (op == RET)
     argc = 0;
-  else if (op <= XOR)
+  else if (op <= SRL)
     argc = 2;
   else if (op == DUMP)
     argc = 0;
@@ -575,6 +579,8 @@ static void parse_line(Parser* p, int c) {
   case AND:
   case OR:
   case XOR:
+  case SLL:
+  case SRL:
     if (g_handle_logic_ops) {
       p->text->src = args[1];
       p->text->dst = args[0];
@@ -604,6 +610,10 @@ static void parse_line(Parser* p, int c) {
         fname = "__elvm_builtin_or";
       else if (op == XOR)
         fname = "__elvm_builtin_xor";
+      else if (op == SLL)
+        fname = "__elvm_builtin_shl";
+      else if (op == SRL)
+        fname = "__elvm_builtin_shr";
       else
         abort();
       emit_call(p, fname);
