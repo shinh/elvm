@@ -36,7 +36,7 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, TEXT, LONG, STRING, FILENAME, LOC, SECTION, SKIP
+  DATA = LAST_OP + 1, TEXT, LONG, COMM, STRING, FILENAME, LOC, SECTION, SKIP
 };
 
 enum {
@@ -248,6 +248,8 @@ static Op get_op(Parser* p, const char* buf) {
   } else if (!strcmp(buf, ".long") ||
              !strcmp(buf, ".byte")) {
     return LONG;
+  } else if (!strcmp(buf, ".comm")) {
+    return COMM;
   } else if (!strcmp(buf, ".string")) {
     return STRING;
   } else if (!strcmp(buf, ".file")) {
@@ -257,6 +259,7 @@ static Op get_op(Parser* p, const char* buf) {
   } else if (!strcmp(buf, ".section")) {
     return SECTION;
   } else if (!strcmp(buf, ".globl") ||
+             !strcmp(buf, ".local") ||
              !strcmp(buf, ".section") ||
              !strcmp(buf, ".cfi_startproc") ||
              !strcmp(buf, ".cfi_endproc")) {
@@ -436,6 +439,8 @@ static void parse_line(Parser* p, int c) {
     argc = 0;
   else if (op == (Op)LONG)
     argc = 1;
+  else if (op == (Op)COMM)
+    argc = 3;
   else if (op == (Op)DATA) {
     skip_ws(p);
     c = peek(p);
@@ -491,6 +496,22 @@ static void parse_line(Parser* p, int c) {
       d->val.tmp = args[0].tmp;
     } else {
       ir_error(p, "number expected");
+    }
+    return;
+  } else if (op == (Op)COMM) {
+    if (args[0].type != (ValueType)REF) {
+      ir_error(p, "identifier expected");
+    }
+    DataPrivate* d = add_data(p);
+    d->val.type = LABEL;
+    d->val.tmp = strdup(args[0].tmp);
+
+    if (args[1].type != IMM || args[2].type != IMM) {
+      ir_error(p, "number expected");
+    }
+    int n = args[1].imm * args[2].imm;
+    for (int i = 0; i < n; i++) {
+      add_imm_data(p, 0);
     }
     return;
   } else if (op == (Op)DATA) {
