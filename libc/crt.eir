@@ -11,5 +11,9 @@ putchar:
  putc A
  ret
 
+getchar:
+ getc A
+ ret
+
 exit:
  exit
