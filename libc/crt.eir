@@ -13,6 +13,9 @@ putchar:
 
 getchar:
  getc A
+ jne .getchar.end, A, 0
+ mov A, -1
+.getchar.end:
  ret
 
 exit:
