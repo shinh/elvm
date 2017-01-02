@@ -148,7 +148,7 @@ static void ps_emit_inst(Inst* inst) {
             break;
     }
     if(!jumped && inst->next && inst->pc!=inst->next->pc){
-        emit_line(" /pc %d def", inst->next->pc);
+        emit_line("/pc %d def", inst->next->pc);
     }
 }
 
