@@ -10,8 +10,9 @@ static void ps_init_state(int max_pc) {
         emit_line("/%s 0 def", reg_names[i]);
     }
 
-    int ps_array_size=32768;
-    emit_line("/mem %d array def", (1<<24)/ps_array_size);
+    int ps_array_size_shift=15;
+    int ps_array_size=1<<ps_array_size_shift;
+    emit_line("/mem %d array def", 1 << (24 - ps_array_size_shift));
     emit_line("/zeros{");
     emit_line(" %d array dup", ps_array_size);
     emit_line(" 0 1 %d{", ps_array_size-1);
@@ -62,12 +63,12 @@ static void ps_emit_pc_change(int pc) {
     inc_indent();
 }
 
-static char* ps_value_str(Value value) {
-    switch(value.type){
+static char* ps_value_str(Value* value) {
+    switch(value->type){
         case REG:
-            return format("%s", reg_names[value.reg]);
+            return format("%s", reg_names[value->reg]);
         case IMM:
-            return format("%d", value.imm);
+            return format("%d", value->imm);
         default:
             error("invalid value");
             break;
@@ -81,25 +82,25 @@ static void ps_emit_inst(Inst* inst) {
     switch(inst->op){
         case MOV:
             emit_line("/%s %s def",
-                    reg_names[inst->dst.reg], ps_value_str(inst->src));
+                    reg_names[inst->dst.reg], ps_value_str(&inst->src));
             break;
         case ADD:
             reg_name=reg_names[inst->dst.reg];
             emit_line("/%s %s %s add 16#FFFFFF and def",
-                    reg_name, reg_name, ps_value_str(inst->src));
+                    reg_name, reg_name, ps_value_str(&inst->src));
             break;
         case SUB:
             reg_name=reg_names[inst->dst.reg];
             emit_line("/%s %s %s sub 16#FFFFFF and def",
-                    reg_name, reg_name, ps_value_str(inst->src));
+                    reg_name, reg_name, ps_value_str(&inst->src));
             break;
         case LOAD:
             emit_line("/%s %s mem_addr get def",
-                    reg_names[inst->dst.reg], ps_value_str(inst->src));
+                    reg_names[inst->dst.reg], ps_value_str(&inst->src));
             break;
         case STORE:
             emit_line("%s mem_addr %s put",
-                    ps_value_str(inst->src), reg_names[inst->dst.reg]);
+                    ps_value_str(&inst->src), reg_names[inst->dst.reg]);
             break;
         case EXIT:
             emit_line("quit");
@@ -111,20 +112,20 @@ static void ps_emit_inst(Inst* inst) {
         case JLE:
         case JGE:
             emit_line("%s %s %s{",
-                    reg_names[inst->dst.reg], ps_value_str(inst->src),
+                    reg_names[inst->dst.reg], ps_value_str(&inst->src),
                     ps_op_names[inst->op-JEQ]);
-            emit_line(" /pc %s def", ps_value_str(inst->jmp));
+            emit_line(" /pc %s def", ps_value_str(&inst->jmp));
             emit_line("}{");
             if(inst->next) emit_line(" /pc %d def", inst->next->pc);
             emit_line("}ifelse");
             jumped=1;
             break;
         case JMP:
-            emit_line("/pc %s def", ps_value_str(inst->jmp));
+            emit_line("/pc %s def", ps_value_str(&inst->jmp));
             jumped=1;
             break;
         case PUTC:
-            emit_line("stdout %s write", ps_value_str(inst->src));
+            emit_line("stdout %s write", ps_value_str(&inst->src));
             break;
         case GETC:
             emit_line("/%s stdin read not{0}if def", reg_names[inst->dst.reg]);
@@ -137,7 +138,7 @@ static void ps_emit_inst(Inst* inst) {
         case GE:
             reg_name=reg_names[inst->dst.reg];
             emit_line("/%s %s %s %s{1}{0}ifelse def",
-                    reg_name, reg_name, ps_value_str(inst->src),
+                    reg_name, reg_name, ps_value_str(&inst->src),
                     ps_op_names[inst->op-EQ]);
             break;
         case DUMP:
@@ -152,7 +153,7 @@ static void ps_emit_inst(Inst* inst) {
 }
 
 static int ps_max_pc(Inst* inst){
-    int n=-1;
+    int n=0;
     while(inst){
         if(inst->pc>n){
             n=inst->pc;
