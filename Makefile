@@ -218,7 +218,7 @@ ifdef LLVM
 
 include clear_vars.mk
 SRCS := $(OUT.c)
-SRCS := $(filter-out out/8cc.c out/qsort.c out/elc.c out/copy_struct.c out/printf.c out/dump_ir.c out/eli.c,$(SRCS))
+SRCS := $(filter-out out/8cc.c out/qsort.c out/elc.c out/copy_struct.c out/dump_ir.c out/eli.c,$(SRCS))
 EXT := ll
 CMD = llvm-build/bin/clang -g -std=c99 -m32 -target elvm-unknown-linux-gnu -emit-llvm -S -include libc/_builtin.h -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
