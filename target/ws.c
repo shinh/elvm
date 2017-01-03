@@ -81,7 +81,17 @@ static void ws_emit_num(int v) {
   buf[i--] = 0;
   buf[i--] = '\n';
   do {
+#ifdef __clang__
+    // TODO: Not sure why clang doesn't accept the latter.
+    // Probably the change for Expr.cpp might be the cause:
+    //
+    // +  if (llvm::IsELVM)
+    // +    CharByteWidth = 1;
+    const char* TBL = " \t";
+    buf[i--] = TBL[v % 2];
+#else
     buf[i--] = " \t"[v % 2];
+#endif
     v /= 2;
   } while (v);
   buf[i] = ' ';
