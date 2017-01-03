@@ -36,7 +36,8 @@ typedef struct {
 } Parser;
 
 enum {
-  DATA = LAST_OP + 1, TEXT, LONG, COMM, STRING, FILENAME, LOC, SECTION, SKIP
+  DATA = LAST_OP + 1, TEXT, LONG, COMM, ZERO, STRING,
+  FILENAME, LOC, SECTION, SKIP
 };
 
 enum {
@@ -250,6 +251,8 @@ static Op get_op(Parser* p, const char* buf) {
     return LONG;
   } else if (!strcmp(buf, ".comm")) {
     return COMM;
+  } else if (!strcmp(buf, ".zero")) {
+    return ZERO;
   } else if (!strcmp(buf, ".string")) {
     return STRING;
   } else if (!strcmp(buf, ".file")) {
@@ -441,6 +444,8 @@ static void parse_line(Parser* p, int c) {
     argc = 1;
   else if (op == (Op)COMM)
     argc = 3;
+  else if (op == (Op)ZERO)
+    argc = 1;
   else if (op == (Op)DATA) {
     skip_ws(p);
     c = peek(p);
@@ -510,6 +515,15 @@ static void parse_line(Parser* p, int c) {
       ir_error(p, "number expected");
     }
     int n = args[1].imm * args[2].imm;
+    for (int i = 0; i < n; i++) {
+      add_imm_data(p, 0);
+    }
+    return;
+  } else if (op == (Op)ZERO) {
+    if (args[0].type != IMM) {
+      ir_error(p, "number expected");
+    }
+    int n = args[0].imm;
     for (int i = 0; i < n; i++) {
       add_imm_data(p, 0);
     }
