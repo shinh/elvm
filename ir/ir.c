@@ -253,7 +253,9 @@ static Op get_op(Parser* p, const char* buf) {
     return COMM;
   } else if (!strcmp(buf, ".zero")) {
     return ZERO;
-  } else if (!strcmp(buf, ".string")) {
+  } else if (!strcmp(buf, ".string") ||
+             !strcmp(buf, ".asciz") ||
+             !strcmp(buf, ".ascii")) {
     return STRING;
   } else if (!strcmp(buf, ".file")) {
     return FILENAME;
@@ -263,7 +265,6 @@ static Op get_op(Parser* p, const char* buf) {
     return SECTION;
   } else if (!strcmp(buf, ".globl") ||
              !strcmp(buf, ".local") ||
-             !strcmp(buf, ".section") ||
              !strcmp(buf, ".cfi_startproc") ||
              !strcmp(buf, ".cfi_endproc")) {
     // TODO: Probably we can remove this in LLVM
@@ -358,6 +359,13 @@ static void parse_line(Parser* p, int c) {
           b[1] = c;
           b[2] = 0;
           c = strtoul(b, NULL, 16);
+        } else if (isdigit(c)) {
+          char b[4];
+          b[0] = c;
+          b[1] = ir_getc(p);
+          b[2] = ir_getc(p);
+          b[3] = 0;
+          c = strtoul(b, NULL, 8);
         } else {
           ir_error(p, "unknown escape");
         }
