@@ -1,6 +1,11 @@
 #ifndef ELVM_LIBC_BUILTIN_H_
 #define ELVM_LIBC_BUILTIN_H_
 
+#ifdef __clang__
+#define float int
+#define double int
+#endif
+
 typedef struct {
   int quot, rem;
 } _my_div_t;
