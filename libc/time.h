@@ -1,6 +1,8 @@
 #ifndef ELVM_LIBC_TIME_H_
 #define ELVM_LIBC_TIME_H_
 
-typedef int time_t;
+typedef long time_t;
+
+struct tm {};
 
 #endif  // ELVM_LIBC_TIME_H_

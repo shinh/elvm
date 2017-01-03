@@ -11,6 +11,5 @@ typedef short int16_t;
 typedef int int32_t;
 typedef long int64_t;
 typedef long intptr_t;
-typedef long time_t;
 
 #endif  // ELVM_LIBC_STDINT_H_
