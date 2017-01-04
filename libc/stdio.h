@@ -23,12 +23,12 @@ int puts(const char* p) {
 int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
   const char* inp;
   size_t off = 0;
-  int is_overlow = 0;
+  int is_overflow = 0;
   for (inp = fmt; *inp; inp++) {
     if (*inp != '%') {
-      if (!is_overlow) {
+      if (!is_overflow) {
         if (off + 1 >= size) {
-          is_overlow = 1;
+          is_overflow = 1;
           buf[off] = 0;
         } else {
           buf[off] = *inp;
@@ -73,9 +73,9 @@ int vsnprintf(char* buf, size_t size, const char* fmt, va_list ap) {
     }
 
     size_t len = strlen(cur_p);
-    if (!is_overlow) {
+    if (!is_overflow) {
       if (off + len >= size) {
-        is_overlow = 1;
+        is_overflow = 1;
         buf[off] = 0;
       } else {
         strcpy(buf + off, cur_p);
