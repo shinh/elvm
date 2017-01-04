@@ -6,40 +6,6 @@
 #define double int
 #endif
 
-typedef struct {
-  int quot, rem;
-} _my_div_t;
-
-// Our 8cc doesn't support returning a structure value.
-// TODO: update 8cc.
-void my_div(unsigned int a, unsigned int b, _my_div_t* o) {
-  unsigned int d[24];
-  unsigned int r[24];
-  unsigned int i;
-  r[0] = 1;
-  for (i = 0;; i++) {
-    d[i] = b;
-    unsigned int nb = b + b;
-    if (nb > a || nb < b)
-      break;
-    r[i+1] = r[i] + r[i];
-    b = nb;
-  }
-
-  unsigned int q = 0;
-  for (;; i--) {
-    unsigned int v = d[i];
-    if (a >= v) {
-      q += r[i];
-      a -= v;
-    }
-    if (i == 0)
-      break;
-  }
-  o->quot = q;
-  o->rem = a;
-}
-
 int __elvm_builtin_mul(int a, int b) {
   int i, e, v;
   if (a < b) {
@@ -75,18 +41,47 @@ int __elvm_builtin_mul(int a, int b) {
   return x;
 }
 
+unsigned int __elvm_builtin_divmod(unsigned int a,
+                                   unsigned int b,
+                                   unsigned int* rem) {
+  unsigned int d[24];
+  unsigned int r[24];
+  unsigned int i;
+  r[0] = 1;
+  for (i = 0;; i++) {
+    d[i] = b;
+    unsigned int nb = b + b;
+    if (nb > a || nb < b)
+      break;
+    r[i+1] = r[i] + r[i];
+    b = nb;
+  }
+
+  unsigned int q = 0;
+  for (;; i--) {
+    unsigned int v = d[i];
+    if (a >= v) {
+      q += r[i];
+      a -= v;
+    }
+    if (i == 0)
+      break;
+  }
+  *rem = a;
+  return q;
+}
+
 unsigned int __elvm_builtin_div(unsigned int a, unsigned int b) {
   if (b == 1)
     return a;
-  _my_div_t r;
-  my_div(a, b, &r);
-  return r.quot;
+  unsigned int r;
+  return __elvm_builtin_divmod(a, b, &r);
 }
 
 unsigned int __elvm_builtin_mod(unsigned int a, unsigned int b) {
-  _my_div_t r;
-  my_div(a, b, &r);
-  return r.rem;
+  unsigned int r;
+  __elvm_builtin_divmod(a, b, &r);
+  return r;
 }
 
 const int __elvm_builtin_bits_table[] = {
