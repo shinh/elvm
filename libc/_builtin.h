@@ -84,7 +84,7 @@ unsigned int __elvm_builtin_mod(unsigned int a, unsigned int b) {
   return r;
 }
 
-const int __elvm_builtin_bits_table[] = {
+const unsigned int __elvm_builtin_bits_table[] = {
   0x800000, 0x400000, 0x200000, 0x100000,
   0x80000, 0x40000, 0x20000, 0x10000,
   0x8000, 0x4000, 0x2000, 0x1000,
@@ -96,11 +96,11 @@ const int __elvm_builtin_bits_table[] = {
 #define __ELVM_BUILTIN_TO_BIT(v, t) (v >= t ? (v -= t, 1) : 0)
 
 unsigned int __elvm_builtin_and(unsigned int a, unsigned int b) {
-  int r = 0;
+  unsigned int r = 0;
   for (int i = 0; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
-    int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
     if (a1 && b1)
       r += t;
   }
@@ -108,11 +108,11 @@ unsigned int __elvm_builtin_and(unsigned int a, unsigned int b) {
 }
 
 unsigned int __elvm_builtin_or(unsigned int a, unsigned int b) {
-  int r = 0;
+  unsigned int r = 0;
   for (int i = 0; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
-    int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
     if (a1 || b1)
       r += t;
   }
@@ -120,11 +120,11 @@ unsigned int __elvm_builtin_or(unsigned int a, unsigned int b) {
 }
 
 unsigned int __elvm_builtin_xor(unsigned int a, unsigned int b) {
-  int r = 0;
+  unsigned int r = 0;
   for (int i = 0; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
-    int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int b1 = __ELVM_BUILTIN_TO_BIT(b, t);
     if (a1 != b1)
       r += t;
   }
@@ -132,10 +132,10 @@ unsigned int __elvm_builtin_xor(unsigned int a, unsigned int b) {
 }
 
 unsigned int __elvm_builtin_not(unsigned int a) {
-  int r = 0;
+  unsigned int r = 0;
   for (int i = 0; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
     if (!a1)
       r += t;
   }
@@ -143,10 +143,14 @@ unsigned int __elvm_builtin_not(unsigned int a) {
 }
 
 unsigned int __elvm_builtin_shl(unsigned int a, unsigned int b) {
-  int r = 0;
+  unsigned int r = 0;
+  for (int i = 0; i < b; i++) {
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+  }
   for (int i = b; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int t = __elvm_builtin_bits_table[i];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
     if (a1)
       r += __elvm_builtin_bits_table[i-b];
   }
@@ -154,10 +158,10 @@ unsigned int __elvm_builtin_shl(unsigned int a, unsigned int b) {
 }
 
 unsigned int __elvm_builtin_shr(unsigned int a, unsigned int b) {
-  int r = 0;
+  unsigned int r = 0;
   for (int i = b; i < 24; i++) {
-    int t = __elvm_builtin_bits_table[i-b];
-    int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
+    unsigned int t = __elvm_builtin_bits_table[i-b];
+    unsigned int a1 = __ELVM_BUILTIN_TO_BIT(a, t);
     if (a1)
       r += __elvm_builtin_bits_table[i];
   }
