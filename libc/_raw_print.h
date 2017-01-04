@@ -10,7 +10,7 @@ static void print_str(const char* p) {
     putchar(*p);
 }
 
-static char* stringify_int(long v, char* p) {
+static char* stringify_int(unsigned int v, char* p) {
   *p = '\0';
   do {
     --p;
@@ -20,12 +20,12 @@ static char* stringify_int(long v, char* p) {
   return p;
 }
 
-static void print_int(long v) {
+static void print_int(unsigned int v) {
   char buf[32];
   print_str(stringify_int(v, buf + sizeof(buf) - 1));
 }
 
-static char* stringify_hex(long v, char* p) {
+static char* stringify_hex(unsigned int v, char* p) {
   int is_negative = 0;
   int c;
   *p = '\0';
