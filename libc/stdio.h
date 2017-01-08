@@ -151,12 +151,24 @@ int fclose(FILE* fp) {
   return 0;
 }
 
+size_t fread(void* ptr, size_t s, size_t n, FILE* fp) {
+  char* str = ptr;
+  size_t l = s * n;
+  for (size_t i = 0; i < l; i++)
+    str[i] = getchar();
+  return l;
+}
+
 size_t fwrite(void* ptr, size_t s, size_t n, FILE* fp) {
   char* str = ptr;
   size_t l = (int)s * (int)n;
   for (size_t i = 0; i < l; i++)
     putchar(str[i]);
   return l;
+}
+
+int putc(int c, FILE* fp) {
+  putchar(c);
 }
 
 int fputs(const char* s, FILE* fp) {
@@ -203,6 +215,10 @@ int ungetc(int c, FILE* fp) {
   if (g_ungot == EOF)
     return g_ungot = c;
   return EOF;
+}
+
+int feof(FILE* fp) {
+  return eof_seen;
 }
 
 #endif  // ELVM_LIBC_STDIO_H_

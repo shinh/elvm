@@ -30,4 +30,10 @@ int isprint(int c) {
   return isspace(c) || (c >= 32 && c < 127);
 }
 
+int tolower(int c) {
+  if ('A' <= c && c <= 'Z')
+    return c + 32;
+  return c;
+}
+
 #endif  // ELVM_LIBC_CTYPE_H_

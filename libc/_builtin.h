@@ -2,8 +2,31 @@
 #define ELVM_LIBC_BUILTIN_H_
 
 #ifdef __clang__
+
 #define float int
 #define double int
+
+void exit(int c);
+int putchar(int c);
+
+#define DEFINE_STUB(fn) void fn() {             \
+    for (int i = 0; #fn[i]; i++)                \
+      putchar(#fn[i]);                          \
+    putchar('\n');                              \
+    exit(1);                                    \
+  }
+
+DEFINE_STUB(__addsf3)
+DEFINE_STUB(__fixsfsi)
+DEFINE_STUB(__fixunssfsi)
+DEFINE_STUB(__floatsisf)
+DEFINE_STUB(__floatunsisf)
+DEFINE_STUB(__gesf2)
+DEFINE_STUB(__gtsf2)
+DEFINE_STUB(__ltsf2)
+DEFINE_STUB(__mulsf3)
+DEFINE_STUB(__nesf2)
+
 #endif
 
 int __elvm_builtin_mul(int a, int b) {

@@ -5,6 +5,7 @@
 #include "_raw_print.h"
 #include <ctype.h>
 
+#define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
 static void print_str(const char* p);
@@ -21,18 +22,28 @@ void abort(void) {
   exit(1);
 }
 
-void* malloc(int n) {
+void* malloc(size_t n) {
   int* r = _edata;
-  _edata += n;
+  *r = n;
+  _edata += n + 1;
   if (r > _edata) {
     print_str("no memory!\n");
     exit(1);
   }
-  return r;
+  return r + 1;
 }
 
-int* calloc(int n, int s) {
+void* calloc(size_t n, size_t s) {
   return malloc(n * s);
+}
+
+void* realloc(void* p, size_t s) {
+  char* r = malloc(s);
+  size_t n = ((int*)p)[-1];
+  for (size_t i = 0; i < n; i++) {
+    r[i] = ((char*)p)[i];
+  }
+  return r;
 }
 
 void free(void* p) {

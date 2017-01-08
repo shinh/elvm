@@ -14,11 +14,38 @@ void* memset(void* d, int c, size_t n) {
 }
 
 void* memcpy(void* d, const void* s, size_t n) {
-  size_t i;
-  for (i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     ((char*)d)[i] = ((char*)s)[i];
   }
   return d;
+}
+
+void* memmove(void* d, const void* s, size_t n) {
+  // TODO: Do not use heap.
+  char* tmp = malloc(n);
+  memcpy(tmp, s, n);
+  memcpy(d, tmp, n);
+  return d;
+}
+
+void* memchr(const void* s, int c, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    if (((char*)s)[i] == c)
+      return s + i;
+  }
+  return NULL;
+}
+
+void* memcmp(void* d, const void* s, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    char l = ((char*)d)[i];
+    char r = ((char*)s)[i];
+    if (l < r)
+      return -1;
+    if (l > r)
+      return 1;
+  }
+  return 0;
 }
 
 size_t strlen(const char* s) {
@@ -45,6 +72,16 @@ char* strcpy(char* d, const char* s) {
 
 int strcmp(const char* a, const char* b) {
   for (;*a || *b; a++, b++) {
+    if (*a < *b)
+      return -1;
+    if (*a > *b)
+      return 1;
+  }
+  return 0;
+}
+
+int strncmp(const char* a, const char* b, size_t n) {
+  for (size_t i = 0; i < n && (*a || *b) ; a++, b++, i++) {
     if (*a < *b)
       return -1;
     if (*a > *b)
