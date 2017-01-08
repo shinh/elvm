@@ -3,4 +3,6 @@
 
 int errno;
 
+#define ERANGE 34
+
 #endif  // ELVM_LIBC_ERRNO_H_
