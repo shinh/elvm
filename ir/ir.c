@@ -728,31 +728,35 @@ static void parse_eir(Parser* p) {
   }
 }
 
-static void resolve(Value* v, Table* symtab) {
+static bool resolve(Value* v, Table* symtab) {
   if (v->type != (ValueType)REF)
-    return;
+    return true;
   const char* name = (const char*)v->tmp;
   if (!table_get(symtab, name, (void*)&v->imm)) {
     fprintf(stderr, "undefined sym: %s\n", name);
-    exit(1);
+    return false;
   }
   //fprintf(stderr, "resolved: %s %d\n", name, v->imm);
   v->type = IMM;
+  return true;
 }
 
 static void resolve_syms(Parser* p) {
+  bool ok = true;
   for (DataPrivate* data = p->data; data; data = data->next) {
     if (data->val.type == (ValueType)REF) {
-      resolve(&data->val, p->symtab);
+      ok &= resolve(&data->val, p->symtab);
     }
     data->v = MOD24(data->val.imm);
   }
 
   for (Inst* inst = p->text; inst; inst = inst->next) {
-    resolve(&inst->dst, p->symtab);
-    resolve(&inst->src, p->symtab);
-    resolve(&inst->jmp, p->symtab);
+    ok &= resolve(&inst->dst, p->symtab);
+    ok &= resolve(&inst->src, p->symtab);
+    ok &= resolve(&inst->jmp, p->symtab);
   }
+  if (!ok)
+    exit(1);
 }
 
 Module* load_eir_impl(const char* filename, FILE* fp) {
