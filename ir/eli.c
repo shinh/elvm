@@ -16,6 +16,7 @@ int pc;
 Inst* prog[65536];
 int mem[MEMSZ];
 int regs[6];
+bool trace;
 bool verbose;
 
 #ifdef __GNUC__
@@ -93,6 +94,11 @@ int main(int argc, char* argv[]) {
     argc--;
     argv++;
   }
+  if (argc >= 2 && !strcmp(argv[1], "-t")) {
+    trace = true;
+    argc--;
+    argv++;
+  }
 
   if (argc < 2) {
     fprintf(stderr, "no input file\n");
@@ -114,10 +120,16 @@ int main(int argc, char* argv[]) {
   }
 
   pc = m->text->pc;
+  const char* prev_func = 0;
   for (;;) {
     Inst* inst = prog[pc];
     for (; inst; inst = inst->next) {
       if (verbose) {
+        dump_regs(inst);
+        dump_inst(inst);
+      }
+      if (trace && prev_func != inst->func) {
+        prev_func = inst->func;
         dump_regs(inst);
         dump_inst(inst);
       }
