@@ -193,6 +193,8 @@ include build.mk
 
 include clear_vars.mk
 SRCS := $(OUT.c)
+# 8cc doesn't support function call with structs.
+SRCS := $(filter-out out/024pass_struct.c out/025ret_struct.c,$(SRCS))
 EXT := eir
 CMD = $(8CC) -S -I. -Ilibc -Iout -o $1.tmp $2 && mv $1.tmp $1
 DEPS := $(wildcard libc/*.h)
@@ -208,8 +210,8 @@ OUT.eir.out := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-OUT.c.exe.out := $(OUT.c.exe:%=%.out)
-OUT.c.eir.out := $(OUT.c.exe.out:%.c.exe.out=%.c.eir.out)
+OUT.c.eir.out := $(OUT.c.eir:%=%.out)
+OUT.c.exe.out := $(OUT.c.eir.out:%.c.eir.out=%.c.exe.out)
 EXPECT := c.exe.out
 ACTUAL := c.eir.out
 include diff.mk
