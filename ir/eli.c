@@ -16,6 +16,7 @@ int pc;
 Inst* prog[65536];
 int mem[MEMSZ];
 int regs[6];
+bool fast;
 bool trace;
 bool verbose;
 
@@ -32,7 +33,8 @@ static inline void dump_regs(Inst* inst) {
   static const char* REG_NAMES[] = {
     "A", "B", "C", "D", "BP", "SP"
   };
-  fprintf(stderr, "PC=%d(%s) ", inst->lineno, inst->func);
+  if (inst)
+    fprintf(stderr, "PC=%d(%s) ", inst->lineno, inst->func);
   for (int i = 0; i < 6; i++) {
     if (regs[i] < 0)
       had_negative = true;
@@ -89,15 +91,28 @@ int main(int argc, char* argv[]) {
 #if defined(NOFILE) || defined(__eir__)
   Module* m = load_eir(stdin);
 #else
-  if (argc >= 2 && !strcmp(argv[1], "-v")) {
-    verbose = true;
-    argc--;
-    argv++;
-  }
-  if (argc >= 2 && !strcmp(argv[1], "-t")) {
-    trace = true;
-    argc--;
-    argv++;
+  while (1) {
+    if (argc >= 2 && !strcmp(argv[1], "-v")) {
+      verbose = true;
+      argc--;
+      argv++;
+      continue;
+    }
+    if (argc >= 2 && !strcmp(argv[1], "-t")) {
+      trace = true;
+      argc--;
+      argv++;
+      continue;
+    }
+    if (argc >= 2 && !strcmp(argv[1], "-f")) {
+      handle_call_ret();
+      handle_logic_ops();
+      fast = true;
+      argc--;
+      argv++;
+      continue;
+    }
+    break;
   }
 
   if (argc < 2) {
@@ -119,9 +134,14 @@ int main(int argc, char* argv[]) {
     for (; inst && pc == inst->pc; inst = inst->next) {}
   }
 
+  int max_pc = pc;
   pc = m->text->pc;
   const char* prev_func = 0;
   for (;;) {
+    if (pc > max_pc) {
+      dump_regs(NULL);
+      error("PC overflow");
+    }
     Inst* inst = prog[pc];
     for (; inst; inst = inst->next) {
       if (verbose) {
@@ -152,6 +172,36 @@ int main(int argc, char* argv[]) {
           regs[inst->dst.reg] -= src(inst);
           regs[inst->dst.reg] += MEMSZ;
           regs[inst->dst.reg] %= MEMSZ;
+          break;
+
+        case AND:
+          assert(fast);
+          assert(inst->dst.type == REG);
+          regs[inst->dst.reg] &= src(inst);
+          break;
+
+        case OR:
+          assert(fast);
+          assert(inst->dst.type == REG);
+          regs[inst->dst.reg] |= src(inst);
+          break;
+
+        case XOR:
+          assert(fast);
+          assert(inst->dst.type == REG);
+          regs[inst->dst.reg] ^= src(inst);
+          break;
+
+        case SLL:
+          assert(fast);
+          assert(inst->dst.type == REG);
+          regs[inst->dst.reg] <<= src(inst);
+          break;
+
+        case SRL:
+          assert(fast);
+          assert(inst->dst.type == REG);
+          regs[inst->dst.reg] >>= src(inst);
           break;
 
         case LOAD: {
@@ -209,6 +259,31 @@ int main(int argc, char* argv[]) {
           if (cmp(inst)) {
             npc = value(&inst->jmp);
           }
+          break;
+
+        case CALL: {
+          npc = value(&inst->jmp);
+          const char* fname = prog[npc]->func;
+          int sp = regs[SP];
+          if (!strcmp(fname, "__elvm_builtin_mul")) {
+            regs[A] = mem[sp] * mem[sp + 1];
+            npc = inst->pc + 1;
+          } else if (!strcmp(fname, "__elvm_builtin_div")) {
+            regs[A] = mem[sp] / mem[sp + 1];
+            npc = inst->pc + 1;
+          } else if (!strcmp(fname, "__elvm_builtin_mod")) {
+            regs[A] = mem[sp] % mem[sp + 1];
+            npc = inst->pc + 1;
+          } else {
+            regs[SP] = (regs[SP] + MEMSZ - 1) % MEMSZ;
+            mem[regs[SP]] = inst->pc + 1;
+          }
+          break;
+        }
+
+        case RET:
+          npc = mem[regs[SP]];
+          regs[SP] = (regs[SP] + 1) % MEMSZ;
           break;
 
         default:

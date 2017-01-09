@@ -797,6 +797,10 @@ void handle_call_ret() {
   g_handle_call_ret = true;
 }
 
+void handle_logic_ops() {
+  g_handle_logic_ops = true;
+}
+
 void dump_op(Op op, FILE* fp) {
   static const char* op_strs[] = {
     "mov", "add", "sub", "load", "store", "putc", "getc", "exit",
@@ -835,6 +839,11 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
     case GT:
     case LE:
     case GE:
+    case AND:
+    case OR:
+    case XOR:
+    case SLL:
+    case SRL:
       fprintf(fp, " ");
       dump_val(&inst->dst, fp);
       fprintf(fp, " ");
@@ -850,6 +859,7 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
       break;
     case EXIT:
     case DUMP:
+    case RET:
       break;
     case JEQ:
     case JNE:
@@ -865,6 +875,7 @@ void dump_inst_fp(Inst* inst, FILE* fp) {
       dump_val(&inst->src, fp);
       break;
     case JMP:
+    case CALL:
       fprintf(fp, " ");
       dump_val(&inst->jmp, fp);
       break;
