@@ -210,8 +210,8 @@ OUT.eir.out := $(SRCS:%=%.$(EXT))
 include build.mk
 
 include clear_vars.mk
-OUT.c.eir.out := $(OUT.c.eir:%=%.out)
-OUT.c.exe.out := $(OUT.c.eir.out:%.c.eir.out=%.c.exe.out)
+OUT.c.exe.out := $(OUT.c.exe:%=%.out)
+OUT.c.eir.out := $(filter $(OUT.eir:%=%.out),$(OUT.c.exe.out:%.c.exe.out=%.c.eir.out))
 EXPECT := c.exe.out
 ACTUAL := c.eir.out
 include diff.mk
