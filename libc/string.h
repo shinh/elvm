@@ -90,10 +90,21 @@ int strncmp(const char* a, const char* b, size_t n) {
   return 0;
 }
 
-char* strchr(char* s, int c) {
+char* strchr(const char* s, int c) {
   for (; *s; s++) {
     if (*s == c)
-      return s;
+      return (char*)s;
+  }
+  return NULL;
+}
+
+char* strrchr(const char* s, int c) {
+  char* o = s;
+  for (; *s; s++) {}
+  for (; s != o;) {
+    s--;
+    if (*s == c)
+      return (char*)s;
   }
   return NULL;
 }
