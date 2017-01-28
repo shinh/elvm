@@ -12,6 +12,7 @@ void target_c(Module* module);
 void target_cl(Module* module);
 void target_cpp(Module* module);
 void target_cr(Module* module);
+void target_cs(Module* module);
 void target_el(Module* module);
 void target_forth(Module* module);
 void target_go(Module* module);
@@ -50,6 +51,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "cl")) return target_cl;
   if (!strcmp(ext, "cpp")) return target_cpp;
   if (!strcmp(ext, "cr")) return target_cr;
+  if (!strcmp(ext, "cs")) return target_cs;
   if (!strcmp(ext, "el")) return target_el;
   if (!strcmp(ext, "forth")) return target_forth;
   if (!strcmp(ext, "go")) return target_go;
