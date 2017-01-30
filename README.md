@@ -13,13 +13,14 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 29 backends:
+Currently, there are 30 backends:
 
 * Bash
 * Befunge
 * Brainfuck
 * C
 * C++14 (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+* C# (by [@masaedw](https://github.com/masaedw/))
 * C-INTERCAL
 * CommonLisp (by [@youz](https://github.com/youz/))
 * Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
