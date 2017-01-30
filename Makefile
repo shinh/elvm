@@ -79,6 +79,7 @@ ELC_SRCS := \
 	cl.c \
 	cpp.c \
 	cr.c \
+	cs.c \
 	el.c \
 	forth.c \
 	go.c \
@@ -291,6 +292,12 @@ RUNNER := tools/runcr.sh
 TOOL := crystal
 include target.mk
 $(OUT.eir.crystal.out): tools/runcr.sh
+
+TARGET := cs
+RUNNER := tools/runcs.sh
+TOOL := dotnet
+include target.mk
+$(OUT.eir.cs.out): tools/runcs.sh
 
 TARGET := c
 RUNNER := tools/runc.sh
