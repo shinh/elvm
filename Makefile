@@ -295,7 +295,7 @@ $(OUT.eir.crystal.out): tools/runcr.sh
 
 TARGET := cs
 RUNNER := tools/runcs.sh
-TOOL := dotnet
+CAN_BUILD := $(if $(or $(shell which dotnet),$(and $(shell which mono),$(shell which gmcs))),1,0)
 include target.mk
 $(OUT.eir.cs.out): tools/runcs.sh
 

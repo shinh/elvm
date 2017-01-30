@@ -6,14 +6,14 @@ TOOL := $(firstword $(RUNNER))
 endif
 endif
 
-can_build :=
-ifeq ($(TOOL),)
-can_build := 1
+ifneq ($(CAN_BUILD),)
+else ifeq ($(TOOL),)
+CAN_BUILD := 1
 else ifneq ($(shell which $(TOOL)),)
-can_build := 1
+CAN_BUILD := 1
 endif
 
-ifeq ($(can_build),1)
+ifeq ($(CAN_BUILD),1)
 
 include clear_vars.mk
 SRCS := $(OUT.eir)
@@ -62,7 +62,8 @@ $(info Skip building $(TARGET) due to lack of $(TOOL))
 $(TARGET) elc-$(TARGET):
 	@echo "*** Skip building $@ ***"
 
-endif  # can_build
+endif  # CAN_BUILD
 
 TEST_FILTER :=
 TOOL :=
+CAN_BUILD :=
