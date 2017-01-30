@@ -81,6 +81,7 @@ ELC_SRCS := \
 	cr.c \
 	el.c \
 	forth.c \
+	fs.c \
 	go.c \
 	i.c \
 	java.c \
@@ -367,6 +368,12 @@ include target.mk
 TARGET := forth
 RUNNER := gforth --dictionary-size 16M
 include target.mk
+
+TARGET := fs
+RUNNER := tools/runfs.sh
+TOOL := dotnet
+include target.mk
+$(OUT.eir.fs.out): tools/runfs.sh
 
 TARGET := pl
 RUNNER := perl
