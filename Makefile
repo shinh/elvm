@@ -378,7 +378,7 @@ include target.mk
 
 TARGET := fs
 RUNNER := tools/runfs.sh
-TOOL := dotnet
+CAN_BUILD := $(if $(or $(shell which dotnet),$(and $(shell which mono),$(shell which fsharpc))),1,0)
 include target.mk
 $(OUT.eir.fs.out): tools/runfs.sh
 
