@@ -19,7 +19,8 @@ Currently, there are 31 backends:
 * Befunge
 * Brainfuck
 * C
-* C++14 (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+* C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+* C++ Template Metaprogramming (compile-time) (by [@kw-udon](https://github.com/kw-udon/)) (WIP)
 * C# (by [@masaedw](https://github.com/masaedw/))
 * C-INTERCAL
 * CommonLisp (by [@youz](https://github.com/youz/))
@@ -214,7 +215,7 @@ You can find more descriptions and released vim script in
 This backend was contributed by [@hak7a3](https://github.com/hak7a3/). See
 also [8cc.tex](https://github.com/hak7a3/8cc.tex).
 
-### C++14 (compile-time)
+### C++14 constexpr (compile-time)
 
 This backend was contributed by [@kw-udon](https://github.com/kw-udon/). You can find more
 descriptions in
