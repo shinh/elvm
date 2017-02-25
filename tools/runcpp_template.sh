@@ -4,8 +4,7 @@ set -e
 
 dir=$(mktemp -d)
 mkdir -p $dir
-cp $1 $dir/test.cpp
-cp ./target/cpp_templ_lib.hpp $dir
+cp $1 $dir/$(basename $1).cpp
 infile=${dir}/input.txt
 
 cat > $infile
@@ -17,6 +16,6 @@ else
   echo ')"' >> $infile
 fi
 
-g++-6 ${dir}/test.cpp -o $1.exe -ftemplate-depth=2147483647
+g++ -std=c++11 ${dir}/$(basename $1).cpp -o $1.exe -ftemplate-depth=2147483647
 rm -fr $dir
 ./$1.exe

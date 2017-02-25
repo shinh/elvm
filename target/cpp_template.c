@@ -1,14 +1,16 @@
 #include <ir/ir.h>
 #include <target/util.h>
+#include <target/cpp_template_lib.h>
 
-static void cpp_templ_emit_file_prologue(void) {
+static void cpp_template_emit_file_prologue(void) {
   emit_line("#include <cstdio>");
-  emit_line("#include \"cpp_templ_lib.hpp\"");
+  emit_line("");
+  emit_line(cpp_template_lib);
   emit_line("");
   emit_line("typedef enum { a, b, c, d, bp, sp } Reg_Name;");
 }
 
-static const char* cpp_templ_op_str(Inst* inst) {
+static const char* cpp_template_op_str(Inst* inst) {
   const char * op_str;
   const char * src_str = inst->src.type == REG ? "reg" : "imm";
   switch (inst->op) {
@@ -50,35 +52,34 @@ int mem_id = 0;
 int buf_id = 0;
 int exit_flag = 0;
 
-static void cpp_templ_emit_inst(Inst* inst) {
-
+static void cpp_template_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
   case ADD:
   case SUB:
     emit_line("typedef %s<r%d, %s, %s> r%d;",
-              cpp_templ_op_str(inst),
+              cpp_template_op_str(inst),
               reg_id, reg_names[inst->dst.reg], src_str(inst), reg_id + 1);
     reg_id++;
     break;
 
   case LOAD:
     emit_line("typedef %s<r%d, m%d, %s, %s> r%d;",
-              cpp_templ_op_str(inst),
+              cpp_template_op_str(inst),
               reg_id, mem_id, reg_names[inst->dst.reg], src_str(inst), reg_id + 1);
     reg_id++;
     break;
 
   case STORE:
     emit_line("typedef %s<r%d, m%d, %s, %s> m%d;",
-              cpp_templ_op_str(inst),
+              cpp_template_op_str(inst),
               reg_id, mem_id, reg_names[inst->dst.reg], src_str(inst), mem_id + 1);
     mem_id++;
     break;
 
   case PUTC:
     emit_line("typedef %s<r%d, b%d,%s> b%d;",
-              cpp_templ_op_str(inst),
+              cpp_template_op_str(inst),
               reg_id, buf_id, src_str(inst), buf_id + 1);
     buf_id++;
     break;
@@ -106,7 +107,7 @@ static void cpp_templ_emit_inst(Inst* inst) {
   case LE:
   case GE:
     emit_line("typedef %s<r%d, %s, %s, %d> r%d;",
-              cpp_templ_op_str(inst),
+              cpp_template_op_str(inst),
               reg_id,
               reg_names[inst->dst.reg],
               src_str(inst),
@@ -122,8 +123,12 @@ static void cpp_templ_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
     emit_line("typedef %s<r%d, %s - 1, %s, %s, %d> r%d;",
-              cpp_templ_op_str(inst),
-              reg_id, value_str(&inst->jmp), reg_names[inst->dst.reg], src_str(inst), inst->op - JEQ,
+              cpp_template_op_str(inst),
+              reg_id,
+              value_str(&inst->jmp),
+              reg_names[inst->dst.reg],
+              src_str(inst),
+              inst->op - JEQ,
               reg_id + 1);
     reg_id++;
     break;
@@ -141,7 +146,7 @@ static void cpp_templ_emit_inst(Inst* inst) {
   return;
 }
 
-static void cpp_templ_emit_pc_change(int pc) {
+static void cpp_template_emit_pc_change(int pc) {
   emit_line("typedef inc_pc<r%d, m%d, b%d> result;", reg_id, mem_id, buf_id);
   dec_indent();
   emit_line("};");
@@ -151,7 +156,7 @@ static void cpp_templ_emit_pc_change(int pc) {
   inc_indent();
 }
 
-static void cpp_templ_emit_func_epilogue() {
+static void cpp_template_emit_func_epilogue() {
   emit_line("typedef inc_pc<r%d, m%d, b%d> result;", reg_id, mem_id, buf_id);
   dec_indent();
   emit_line("};");
@@ -162,7 +167,7 @@ static void cpp_templ_emit_func_epilogue() {
             "typename env::buf, pc>::result {};");
 }
 
-void cpp_templ_emit_func_switch_impl(Inst* inst) {
+void cpp_template_emit_func_switch_impl(Inst* inst) {
   int prev_pc = 0;
   emit_line("template <typename r0, typename m0, typename b0, int pc>");
   emit_line("struct func_switch_impl { typedef inc_pc<r0, m0, b0> result; };");
@@ -172,7 +177,7 @@ void cpp_templ_emit_func_switch_impl(Inst* inst) {
   inc_indent();
   for (; inst; inst = inst->next) {
     if (prev_pc != inst->pc) {
-      cpp_templ_emit_pc_change(inst->pc);
+      cpp_template_emit_pc_change(inst->pc);
       reg_id = 0;
       mem_id = 0;
       buf_id = 0;
@@ -180,12 +185,12 @@ void cpp_templ_emit_func_switch_impl(Inst* inst) {
     }
     prev_pc = inst->pc;
 
-    cpp_templ_emit_inst(inst);
+    cpp_template_emit_inst(inst);
   }
-  cpp_templ_emit_func_epilogue();
+  cpp_template_emit_func_epilogue();
 }
 
-static void cpp_templ_emit_main_loop(void) {
+static void cpp_template_emit_main_loop(void) {
   emit_line("template <typename env, bool, int>");
   emit_line("struct main_loop { typedef env result; };");
   emit_line("template <typename env, int pc>");
@@ -197,7 +202,7 @@ static void cpp_templ_emit_main_loop(void) {
   emit_line("};");
 }
 
-static void cpp_templ_emit_calc_main(Data* data) {
+static void cpp_template_emit_calc_main(Data* data) {
   emit_line("struct calc_main {");
   inc_indent();
   emit_line("typedef init_memory<MEM_SIZE> mem0;");
@@ -216,18 +221,17 @@ static void cpp_templ_emit_calc_main(Data* data) {
   emit_line("};");
 }
 
-void target_cpp_templ(Module* module) {
-
-  cpp_templ_emit_file_prologue();
+void target_cpp_template(Module* module) {
+  cpp_template_emit_file_prologue();
   emit_line("");
 
-  cpp_templ_emit_func_switch_impl(module->text);
+  cpp_template_emit_func_switch_impl(module->text);
   emit_line("");
 
-  cpp_templ_emit_main_loop();
+  cpp_template_emit_main_loop();
   emit_line("");
 
-  cpp_templ_emit_calc_main(module->data);
+  cpp_template_emit_calc_main(module->data);
   emit_line("");
 
   emit_line("int main() {");

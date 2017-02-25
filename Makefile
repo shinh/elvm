@@ -78,7 +78,7 @@ ELC_SRCS := \
 	c.c \
 	cl.c \
 	cpp.c \
-	cpp_templ.c \
+	cpp_template.c \
 	cr.c \
 	cs.c \
 	el.c \
@@ -312,12 +312,12 @@ TOOL := g++-6
 include target.mk
 $(OUT.eir.cpp.out): tools/runcpp.sh
 
-ifdef CPP_TEMPL
-TARGET := cpp_templ
-RUNNER := tools/runcpp_templ.sh
+ifdef CPP_TEMPLATE
+TARGET := cpp_template
+RUNNER := tools/runcpp_template.sh
 TOOL := g++
 include target.mk
-$(OUT.eir.cpp_templ.out): tools/runcpp_templ.sh
+$(OUT.eir.cpp_template.out): tools/runcpp_template.sh
 endif
 
 ifeq ($(uname),Linux)
