@@ -88,6 +88,7 @@ ELC_SRCS := \
 	i.c \
 	java.c \
 	js.c \
+	ll.c \
 	php.c \
 	piet.c \
 	pietasm.c \
@@ -406,6 +407,10 @@ include target.mk
 
 TARGET := ps
 RUNNER := gsnd -q -dBATCH --
+include target.mk
+
+TARGET := ll
+RUNNER := lli
 include target.mk
 
 test: $(TEST_RESULTS)
