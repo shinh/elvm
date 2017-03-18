@@ -127,16 +127,17 @@ static void ll_emit_inst(Inst* inst) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = add i32 %%%d, %%%d", func_idx+2, func_idx, func_idx+1);
-      emit_line("%%%d = and i32 %%%d, 16777215", func_idx+3, func_idx+2);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+3, reg_names[inst->dst.reg]);
-      func_idx += 4;
+      func_idx += 3;
     } else if (inst->src.type == IMM) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = add i32 %%%d, %s", func_idx+1, func_idx, src_str(inst));
-      emit_line("%%%d = and i32 %%%d, 16777215", func_idx+2, func_idx+1);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+2, reg_names[inst->dst.reg]);
-      func_idx += 3;
+      func_idx += 2;
+    } else {
+      error("invalid value");
     }
+    emit_line("%%%d = and i32 %%%d, 16777215", func_idx, func_idx-1);
+    emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    func_idx += 1;
     break;
 
   case SUB:
@@ -144,16 +145,17 @@ static void ll_emit_inst(Inst* inst) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = sub i32 %%%d, %%%d", func_idx+2, func_idx, func_idx+1);
-      emit_line("%%%d = and i32 %%%d, 16777215", func_idx+3, func_idx+2);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+3, reg_names[inst->dst.reg]);
-      func_idx += 4;
+      func_idx += 3;
     } else if (inst->src.type == IMM) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = sub i32 %%%d, %s", func_idx+1, func_idx, src_str(inst));
-      emit_line("%%%d = and i32 %%%d, 16777215", func_idx+2, func_idx+1);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+2, reg_names[inst->dst.reg]);
-      func_idx += 3;
+      func_idx += 2;
+    } else {
+      error("invalid value");
     }
+    emit_line("%%%d = and i32 %%%d, 16777215", func_idx, func_idx-1);
+    emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    func_idx += 1;
     break;
 
   case LOAD:
@@ -248,17 +250,18 @@ static void ll_emit_inst(Inst* inst) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = icmp %s i32 %%%d, %%%d",
                 func_idx+2, ll_cmp_str(inst), func_idx, func_idx+1);
-      emit_line("%%%d = zext i1 %%%d to i32", func_idx+3, func_idx+2);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+3, reg_names[inst->dst.reg]);
-      func_idx += 4;
+      func_idx += 3;
     } else if (inst->src.type == IMM) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = icmp %s i32 %%%d, %s",
                 func_idx+1, ll_cmp_str(inst), func_idx, src_str(inst));
-      emit_line("%%%d = zext i1 %%%d to i32", func_idx+2, func_idx+1);
-      emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+2, reg_names[inst->dst.reg]);
-      func_idx += 3;
+      func_idx += 2;
+    } else {
+      error("invalid value");
     }
+    emit_line("%%%d = zext i1 %%%d to i32", func_idx, func_idx-1);
+    emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    func_idx += 1;
     break;
 
   case JEQ:
@@ -273,59 +276,38 @@ static void ll_emit_inst(Inst* inst) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = icmp %s i32 %%%d, %%%d",
                 func_idx+2, ll_cmp_str(inst), func_idx, func_idx+1);
-      if (inst->jmp.type == REG) {
-        emit_line("br i1 %%%d, label %%%d, label %%%d",
-                  func_idx+2, func_idx+3, func_idx+6);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+3);
-        emit_line("%%%d = load i32* @%s, align 4", func_idx+4, value_str(&inst->jmp));
-        emit_line("%%%d = sub i32 %%%d, 1", func_idx+5, func_idx+4);
-        emit_line("store i32 %d, i32* @pc, align 4", func_idx+5);
-        emit_line("br label %%%d", func_idx+6);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+6);
-        func_idx += 7;
-      } else if (inst->jmp.type == IMM) {
-        emit_line("br i1 %%%d, label %%%d, label %%%d",
-                  func_idx+2, func_idx+3, func_idx+4);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+3);
-        int var = inst->jmp.imm - 1;
-        emit_line("store i32 %d, i32* @pc, align 4", var);
-        emit_line("br label %%%d", func_idx+4);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+4);
-        func_idx += 5;
-      }
+      func_idx += 3;
     } else if (inst->src.type == IMM) {
       emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = icmp %s i32 %%%d, %s",
                 func_idx+1, ll_cmp_str(inst), func_idx, src_str(inst));
-      if (inst->jmp.type == REG) {
-        emit_line("br i1 %%%d, label %%%d, label %%%d",
-                  func_idx+1, func_idx+2, func_idx+5);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+2);
-        emit_line("%%%d = load i32* @%s, align 4", func_idx+3, value_str(&inst->jmp));
-        emit_line("%%%d = sub i32 %%%d, 1", func_idx+4, func_idx+3);
-        emit_line("store i32 %d, i32* @pc, align 4", func_idx+4);
-        emit_line("br label %%%d", func_idx+5);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+5);
-        func_idx += 6;
-      } else if (inst->jmp.type == IMM) {
-        emit_line("br i1 %%%d, label %%%d, label %%%d",
-                  func_idx+1, func_idx+2, func_idx+3);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+2);
-        int var = inst->jmp.imm - 1;
-        emit_line("store i32 %d, i32* @pc, align 4", var);
-        emit_line("br label %%%d", func_idx+3);
-        emit_line("");
-        emit_line("; <label>:%%%d", func_idx+3);
-        func_idx += 4;
-      }
+      func_idx += 2;
+    } else {
+      error("invalid value");
     }
+    if (inst->jmp.type == REG) {
+      emit_line("br i1 %%%d, label %%%d, label %%%d",
+                func_idx-1, func_idx, func_idx+3);
+      emit_line("");
+      emit_line("; <label>:%%%d", func_idx);
+      emit_line("%%%d = load i32* @%s, align 4", func_idx+1, value_str(&inst->jmp));
+      emit_line("%%%d = sub i32 %%%d, 1", func_idx+2, func_idx+1);
+      emit_line("store i32 %d, i32* @pc, align 4", func_idx+2);
+      func_idx += 3;
+    } else if (inst->jmp.type == IMM) {
+      emit_line("br i1 %%%d, label %%%d, label %%%d",
+                func_idx-1, func_idx, func_idx+1);
+      emit_line("");
+      emit_line("; <label>:%%%d", func_idx);
+      emit_line("store i32 %d, i32* @pc, align 4", inst->jmp.imm-1);
+      func_idx += 1;
+    } else {
+      error("invalid value");
+    }
+    emit_line("br label %%%d", func_idx);
+    emit_line("");
+    emit_line("; <label>:%%%d", func_idx);
+    func_idx += 1;
     break;
 
   case JMP:
