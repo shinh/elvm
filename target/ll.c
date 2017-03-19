@@ -26,13 +26,13 @@ static void ll_emit_func_prologue(int func_id) {
 
   emit_line("");
   emit_line("; <label>:1");
-  emit_line("%%2 = load i32* @pc, align 4");
+  emit_line("%%2 = load i32, i32* @pc, align 4");
   emit_line("%%3 = icmp ule i32 %d, %%2", func_id * CHUNKED_FUNC_SIZE);
   emit_line("br i1 %%3, label %4, label %7");
 
   emit_line("");
   emit_line("; <label>:4");
-  emit_line("%%5 = load i32* @pc, align 4");
+  emit_line("%%5 = load i32, i32* @pc, align 4");
   emit_line("%%6 = icmp ule i32 %%5, %d", (func_id + 1) * CHUNKED_FUNC_SIZE);
   emit_line("br label %%7");
 
@@ -51,7 +51,7 @@ static void ll_emit_func_epilogue(void) {
   emit_line("br label %%case_bottom");
   emit_line("");
   emit_line("switch_top:");
-  emit_line("%%%d = load i32* @pc, align 4", func_idx);
+  emit_line("%%%d = load i32, i32* @pc, align 4", func_idx);
   emit_line("switch i32 %%%d, label %%case_bottom [", func_idx);
   inc_indent();
   emit_line("i32 -1, label %%9");
@@ -63,7 +63,7 @@ static void ll_emit_func_epilogue(void) {
 
   emit_line("");
   emit_line("case_bottom:");
-  emit_line("%%%d = load i32* @pc, align 4", func_idx+1);
+  emit_line("%%%d = load i32, i32* @pc, align 4", func_idx+1);
   emit_line("%%%d = add i32 %%%d, 1", func_idx+2, func_idx+1);
   emit_line("store i32 %%%d, i32* @pc, align 4", func_idx+2);
   emit_line("br label %%1");
@@ -112,13 +112,13 @@ const char* ll_cmp_str(Inst* inst) {
 
 static void ll_emit_cmp(Inst* inst) {
   if (inst->src.type == REG) {
-    emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-    emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, src_str(inst));
     emit_line("%%%d = icmp %s i32 %%%d, %%%d",
               func_idx+2, ll_cmp_str(inst), func_idx, func_idx+1);
     func_idx += 3;
   } else if (inst->src.type == IMM) {
-    emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
     emit_line("%%%d = icmp %s i32 %%%d, %s",
               func_idx+1, ll_cmp_str(inst), func_idx, src_str(inst));
     func_idx += 2;
@@ -129,12 +129,12 @@ static void ll_emit_cmp(Inst* inst) {
 
 const char* ll_emit_load(Inst* inst) {
   if (inst->src.type == REG) {
-    emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-    emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, src_str(inst));
     func_idx += 2;
     return format("%d", func_idx);
   } else if (inst->src.type == IMM) {
-    emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+    emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
     func_idx += 1;
     return format("@%s", reg_names[inst->dst.reg]);
   } else {
@@ -146,7 +146,7 @@ static void ll_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, src_str(inst));
       emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       func_idx += 1;
     } else if (inst->src.type == IMM) {
@@ -156,12 +156,12 @@ static void ll_emit_inst(Inst* inst) {
 
   case ADD:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-      emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = add i32 %%%d, %%%d", func_idx+2, func_idx, func_idx+1);
       func_idx += 3;
     } else if (inst->src.type == IMM) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = add i32 %%%d, %s", func_idx+1, func_idx, src_str(inst));
       func_idx += 2;
     } else {
@@ -174,12 +174,12 @@ static void ll_emit_inst(Inst* inst) {
 
   case SUB:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-      emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = sub i32 %%%d, %%%d", func_idx+2, func_idx, func_idx+1);
       func_idx += 3;
     } else if (inst->src.type == IMM) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       emit_line("%%%d = sub i32 %%%d, %s", func_idx+1, func_idx, src_str(inst));
       func_idx += 2;
     } else {
@@ -192,14 +192,14 @@ static void ll_emit_inst(Inst* inst) {
 
   case LOAD:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, src_str(inst));
       emit_line("%%%d = zext i32 %%%d to i64", func_idx+1, func_idx);
-      emit_line("%%%d = getelementptr inbounds [16777216 x i32]* @mem, i32 0, i64 %%%d", func_idx+2, func_idx+1);
-      emit_line("%%%d = load i32* %%%d, align 4", func_idx+3, func_idx+2);
+      emit_line("%%%d = getelementptr inbounds [16777216 x i32], [16777216 x i32]* @mem, i32 0, i64 %%%d", func_idx+2, func_idx+1);
+      emit_line("%%%d = load i32, i32* %%%d, align 4", func_idx+3, func_idx+2);
       emit_line("store i32 %%%d, i32* @%s, align 4", func_idx+3, reg_names[inst->dst.reg]);
       func_idx += 4;
     } else if (inst->src.type == IMM) {
-      emit_line("%%%d = load i32* getelementptr inbounds ([16777216 x i32]* @mem, i32 0, i64 %s)", func_idx, src_str(inst));
+      emit_line("%%%d = load i32, i32* getelementptr inbounds ([16777216 x i32], [16777216 x i32]* @mem, i32 0, i64 %s)", func_idx, src_str(inst));
       emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
       func_idx += 1;
     } else {
@@ -209,15 +209,15 @@ static void ll_emit_inst(Inst* inst) {
 
   case STORE:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-      emit_line("%%%d = load i32* @%s, align 4", func_idx+1, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, src_str(inst));
       emit_line("%%%d = zext i32 %%%d to i64", func_idx+2, func_idx+1);
-      emit_line("%%%d = getelementptr inbounds [16777216 x i32]* @mem, i32 0, i64 %%%d", func_idx+3, func_idx+2);
+      emit_line("%%%d = getelementptr inbounds [16777216 x i32], [16777216 x i32]* @mem, i32 0, i64 %%%d", func_idx+3, func_idx+2);
       emit_line("store i32 %%%d, i32* %%%d, align 4", func_idx, func_idx+3);
       func_idx += 4;
     } else if (inst->src.type == IMM) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
-      emit_line("store i32 %%%d, i32* getelementptr inbounds ([16777216 x i32]* @mem, i32 0, i64 %s)", func_idx, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
+      emit_line("store i32 %%%d, i32* getelementptr inbounds ([16777216 x i32], [16777216 x i32]* @mem, i32 0, i64 %s)", func_idx, src_str(inst));
       func_idx += 1;
     } else {
       error("invalid value");
@@ -226,7 +226,7 @@ static void ll_emit_inst(Inst* inst) {
 
   case PUTC:
     if (inst->src.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, src_str(inst));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, src_str(inst));
       emit_line("%%%d = call i32 @putchar(i32 %%%d)", func_idx+1, func_idx);
       func_idx += 2;
     } else if (inst->src.type == IMM) {
@@ -241,13 +241,13 @@ static void ll_emit_inst(Inst* inst) {
     emit_line("%_%d = alloca i32, align 4", putc_idx);
     emit_line("%%%d = call i32 @getchar()", func_idx);
     emit_line("store i32 %%%d, i32* %_%d, align 4", func_idx, putc_idx);
-    emit_line("%%%d = load i32* %_%d, align 4", func_idx+1, putc_idx);
+    emit_line("%%%d = load i32, i32* %_%d, align 4", func_idx+1, putc_idx);
     emit_line("%%%d = icmp ne i32 %%%d, -1", func_idx+2, func_idx+1);
     emit_line("br i1 %%%d, label %%%d, label %%%d", func_idx+2, func_idx+3, func_idx+5);
 
     emit_line("");
     emit_line("; <label>:%%%d", func_idx+3);
-    emit_line("%%%d = load i32* %_%d, align 4", func_idx+4, putc_idx);
+    emit_line("%%%d = load i32, i32* %_%d, align 4", func_idx+4, putc_idx);
     emit_line("br label %%%d", func_idx+6);
 
     emit_line("");
@@ -296,7 +296,7 @@ static void ll_emit_inst(Inst* inst) {
                 func_idx-1, func_idx, func_idx+3);
       emit_line("");
       emit_line("; <label>:%%%d", func_idx);
-      emit_line("%%%d = load i32* @%s, align 4", func_idx+1, value_str(&inst->jmp));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx+1, value_str(&inst->jmp));
       emit_line("%%%d = sub i32 %%%d, 1", func_idx+2, func_idx+1);
       emit_line("store i32 %d, i32* @pc, align 4", func_idx+2);
       func_idx += 3;
@@ -319,7 +319,7 @@ static void ll_emit_inst(Inst* inst) {
   case JMP:
     emit_line("; jmp");
     if (inst->jmp.type == REG) {
-      emit_line("%%%d = load i32* @%s, align 4", func_idx, value_str(&inst->jmp));
+      emit_line("%%%d = load i32, i32* @%s, align 4", func_idx, value_str(&inst->jmp));
       emit_line("%%%d = sub i32 %%%d, 1", func_idx+1, func_idx);
       emit_line("store i32 %%%d, i32* @pc, align 4", func_idx+1);
       func_idx += 2;
@@ -357,14 +357,14 @@ void target_ll(Module* module) {
   Data* data = module->data;
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      emit_line("store i32 %d, i32* getelementptr inbounds ([16777216 x i32]* @mem, i32 0, i64 %d), align 4", data->v, mp);
+      emit_line("store i32 %d, i32* getelementptr inbounds ([16777216 x i32], [16777216 x i32]* @mem, i32 0, i64 %d), align 4", data->v, mp);
     }
   }
   emit_line("br label %%2");
 
   emit_line("");
   emit_line("; <label>:2");
-  emit_line("%%3 = load i32* @pc, align 4");
+  emit_line("%%3 = load i32, i32* @pc, align 4");
   emit_line("%%4 = udiv i32 %%3, %d", CHUNKED_FUNC_SIZE);
 
   int label_offset = 5;
@@ -390,7 +390,7 @@ void target_ll(Module* module) {
   emit_line("br label %%2");
 
   emit_line("");
-  emit_line("%%%d = load i32* %%1", while_bottom+2);
+  emit_line("%%%d = load i32, i32* %%1", while_bottom+2);
   emit_line("ret i32 %%%d", while_bottom+2);
   dec_indent();
   emit_line("}");
