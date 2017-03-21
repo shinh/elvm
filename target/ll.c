@@ -276,7 +276,6 @@ static void ll_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("; cmp %s", ll_cmp_str(inst));
     ll_emit_cmp(inst);
     emit_line("%%%d = zext i1 %%%d to i32", func_idx, func_idx-1);
     emit_line("store i32 %%%d, i32* @%s, align 4", func_idx, reg_names[inst->dst.reg]);
@@ -324,8 +323,7 @@ static void ll_emit_inst(Inst* inst) {
       emit_line("store i32 %%%d, i32* @pc, align 4", func_idx+1);
       func_idx += 2;
     } else if (inst->jmp.type == IMM) {
-      int var = inst->jmp.imm - 1;
-      emit_line("store i32 %d, i32* @pc, align 4", var);
+      emit_line("store i32 %d, i32* @pc, align 4", inst->jmp.imm-1);
     }
     break;
 
