@@ -33,7 +33,7 @@ static void ll_emit_func_prologue(int func_id) {
   emit_line("");
   emit_line("; <label>:4");
   emit_line("%%5 = load i32, i32* @pc, align 4");
-  emit_line("%%6 = icmp ule i32 %%5, %d", (func_id + 1) * CHUNKED_FUNC_SIZE);
+  emit_line("%%6 = icmp ult i32 %%5, %d", (func_id + 1) * CHUNKED_FUNC_SIZE);
   emit_line("br label %%7");
 
   emit_line("");
@@ -390,7 +390,7 @@ void target_ll(Module* module) {
   emit_line("br label %%2");
 
   emit_line("");
-  emit_line("%%%d = load i32, i32* %%1", while_bottom+2);
+  emit_line("%%%d = load i32, i32* %%1, align 4", while_bottom+2);
   emit_line("ret i32 %%%d", while_bottom+2);
   dec_indent();
   emit_line("}");
