@@ -13,22 +13,26 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 27 backends:
+Currently, there are 31 backends:
 
 * Bash
 * Befunge
 * Brainfuck
 * C
-* C++14 (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+* C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+* C++ Template Metaprogramming (compile-time) (by [@kw-udon](https://github.com/kw-udon/)) (WIP)
+* C# (by [@masaedw](https://github.com/masaedw/))
 * C-INTERCAL
 * CommonLisp (by [@youz](https://github.com/youz/))
 * Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
 * Emacs Lisp
+* F# (by [@masaedw](https://github.com/masaedw/))
 * Forth (by [@dubek](https://github.com/dubek/))
 * Go (by [@shogo82148](https://github.com/shogo82148/))
 * Java
 * JavaScript
-* PHP
+* Perl5 (by [@mackee](https://github.com/mackee/))
+* PHP (by [@zonuexe](https://github.com/zonuexe/))
 * Piet
 * Python
 * Ruby
@@ -40,6 +44,7 @@ Currently, there are 27 backends:
 * Unlambda (by [@irori](https://github.com/irori/))
 * Vim script (by [@rhysd](https://github.com/rhysd/))
 * Whitespace
+* arm-linux (by [@irori](https://github.com/irori/))
 * i386-linux
 * sed
 
@@ -210,7 +215,7 @@ You can find more descriptions and released vim script in
 This backend was contributed by [@hak7a3](https://github.com/hak7a3/). See
 also [8cc.tex](https://github.com/hak7a3/8cc.tex).
 
-### C++14 (compile-time)
+### C++14 constexpr (compile-time)
 
 This backend was contributed by [@kw-udon](https://github.com/kw-udon/). You can find more
 descriptions in

@@ -32,6 +32,11 @@ if [ ${TARGET} = x86 ]; then
         chmod 755 $1
         ${time} $1
     }
+elif [ ${TARGET} = arm ]; then
+    run_trg() {
+        chmod 755 $1
+        ${time} $1
+    }
 elif [ ${TARGET} = rb ]; then
     run_trg() {
         ${time} ruby $1
@@ -68,5 +73,5 @@ for stage in 1 2; do
     done
 done
 
-diff -ur out/x86/stage2 out/x86/stage3
+diff -ur ${dir}/stage2 ${dir}/stage3
 echo "OK (${TARGET})"

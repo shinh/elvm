@@ -3,6 +3,11 @@ CFLAGS := -std=gnu99 $(COMMONFLAGS) -Wno-missing-field-initializers
 CXXFLAGS := -std=c++11 $(COMMONFLAGS)
 
 uname := $(shell uname)
+ifneq (,$(findstring arm,$(shell uname -m)))
+ARCH := arm
+else
+ARCH := x86
+endif
 
 ELI := out/eli
 ELC := out/elc
@@ -67,14 +72,18 @@ $(COBJS): out/%.o: ir/%.c
 ELC_SRCS := \
 	elc.c \
 	util.c \
+	arm.c \
 	bef.c \
 	bf.c \
 	c.c \
 	cl.c \
 	cpp.c \
+	cpp_template.c \
 	cr.c \
+	cs.c \
 	el.c \
 	forth.c \
+	fs.c \
 	go.c \
 	i.c \
 	java.c \
@@ -85,6 +94,7 @@ ELC_SRCS := \
 	pietasm.c \
 	pl.c \
 	py.c \
+	ps.c \
 	rb.c \
 	sed.c \
 	sh.c \
@@ -286,6 +296,12 @@ TOOL := crystal
 include target.mk
 $(OUT.eir.crystal.out): tools/runcr.sh
 
+TARGET := cs
+RUNNER := tools/runcs.sh
+CAN_BUILD := $(if $(or $(shell which dotnet),$(and $(shell which mono),$(shell which gmcs))),1,0)
+include target.mk
+$(OUT.eir.cs.out): tools/runcs.sh
+
 TARGET := c
 RUNNER := tools/runc.sh
 include target.mk
@@ -297,8 +313,16 @@ TOOL := g++-6
 include target.mk
 $(OUT.eir.cpp.out): tools/runcpp.sh
 
+ifdef CPP_TEMPLATE
+TARGET := cpp_template
+RUNNER := tools/runcpp_template.sh
+TOOL := g++
+include target.mk
+$(OUT.eir.cpp_template.out): tools/runcpp_template.sh
+endif
+
 ifeq ($(uname),Linux)
-TARGET := x86
+TARGET := $(ARCH)
 RUNNER :=
 include target.mk
 endif
@@ -362,6 +386,12 @@ TARGET := forth
 RUNNER := gforth --dictionary-size 16M
 include target.mk
 
+TARGET := fs
+RUNNER := tools/runfs.sh
+CAN_BUILD := $(if $(or $(shell which dotnet),$(and $(shell which mono),$(shell which fsharpc))),1,0)
+include target.mk
+$(OUT.eir.fs.out): tools/runfs.sh
+
 TARGET := pl
 RUNNER := perl
 include target.mk
@@ -373,6 +403,10 @@ include target.mk
 TARGET := sqlite3
 RUNNER := tools/runsqlite3.sh
 TOOL := sqlite3
+include target.mk
+
+TARGET := ps
+RUNNER := gsnd -q -dBATCH --
 include target.mk
 
 TARGET := lua

@@ -64,17 +64,27 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
   
   int step = 0;
   int prev_pc = -1;
-  int prev_step = -1;
   SQLite3Col col_idx = 0;
   const char* expr = NULL;
+  int updcols = 0;
 
   for (; inst; inst = inst->next) {
     if (prev_pc != inst-> pc) {
-      if (prev_step != -1) {
+      if (prev_pc != -1) {
+        step++;
         cols[SQLITE3_PC] = sqlite3_add_expr(cols[SQLITE3_PC], prev_pc, step, "pc+1");
         cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], prev_pc, step, "0");
       }
+      updcols = 0;
       step = 0;
+    }
+
+    int usecol = ((inst->src.type == REG) ? (1 << inst->src.reg) : 0) |
+                 ((inst->dst.type == REG) ? (1 << inst->dst.reg) : 0);
+
+    if ((usecol & updcols) != 0) {
+      step++;
+      updcols = 0;
     }
 
     switch (inst->op) {
@@ -150,10 +160,9 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
                     sqlite3_cmp_str(inst), value_str(&inst->jmp));
       break;
     case JMP:
+      cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], inst->pc, step, "0");
       col_idx = SQLITE3_PC;
       expr = value_str(&inst->jmp);
-      cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP],
-                                            inst->pc, step, "0");
       break;
 
     default:
@@ -162,10 +171,15 @@ static void sqlite3_transpose_insts(Inst* inst, SQLite3CaseExpr* cols[]) {
 
     cols[col_idx] = sqlite3_add_expr(cols[col_idx], inst->pc, step, expr);
 
+    if (inst->op == GETC || inst->op == PUTC || inst->op == STORE) {
+      step++;
+      updcols = 0;
+    } else {
+      updcols |= (1 << col_idx);
+    }
+
   next_inst:
     prev_pc = inst->pc;
-    prev_step = step;
-    step++;
   }
   cols[SQLITE3_PC] = sqlite3_add_expr(cols[SQLITE3_PC], prev_pc, step, "pc+1");
   cols[SQLITE3_STEP] = sqlite3_add_expr(cols[SQLITE3_STEP], prev_pc, step, "0");
@@ -176,18 +190,6 @@ void sqlite3_emit_stdin() {
   emit_line("DROP TABLE IF EXISTS stdin;");
   emit_line("CREATE TABLE stdin(i BLOB);");
   emit_line("INSERT INTO stdin(i) VALUES(readfile('input.txt'));");
-}
-
-void sqlite3_emit_data(Data* data) {
-  emit_line("DROP TABLE IF EXISTS data;");
-  emit_line("CREATE TABLE data(i INT PRIMARY KEY, v INT);");
-  emit_line("INSERT INTO data VALUES");
-  for (int mp = 0; data; data = data->next, mp++) {
-    if (data->v) {
-      emit_line(" %c(%d,%d)", mp ? ',' : ' ', mp, data->v);
-    }
-  }
-  emit_line(";");
 }
 
 static void sqlite3_emit_column(SQLite3CaseExpr* ce, SQLite3Col col) {
@@ -265,9 +267,6 @@ void target_sqlite3(Module* module) {
   }
   
   sqlite3_emit_stdin();
-  sqlite3_emit_data(module->data);
-
-  emit_line("-- .stats on");
 
   emit_line("WITH");
   inc_indent();
@@ -280,7 +279,14 @@ void target_sqlite3(Module* module) {
   }
   emit_line("0 step,");
   emit_line("1 running,");
-  emit_line("(SELECT json_group_object(i, v) FROM data) mem,");
+  emit_line("json('{");
+  int mp = 0;
+  for (Data* data = module->data; data; data = data->next, mp++) {
+    if (data->v) {
+      emit_line(" %c\"%d\":%d", mp ? ',' : ' ', mp, data->v);
+    }
+  }
+  emit_line("}') mem,");
   emit_line("(SELECT i FROM stdin) stdin,");
   emit_line("'' stdout,");
   emit_line("0 cycle");

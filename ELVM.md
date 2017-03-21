@@ -55,11 +55,15 @@ GETC dst
 EXIT
 - exit the program
 
-JEQ/JNE/JLT/JGT/JLE/JGE dst, src, jmp
+JEQ/JNE/JLT/JGT/JLE/JGE jmp, dst, src
 - compare dst and src and, if true, jump to jmp
+- src: immediate or register
+- dst: register
+- jmp: immediate or register
 
 JMP jmp
 - unconditionally jump to jmp
+- jmp: immediate or register
 
 EQ/NE/LT/GT/LE/GE dst, src
 - compare dst and src and place result (0 or 1) into dst
@@ -68,3 +72,11 @@ EQ/NE/LT/GT/LE/GE dst, src
 
 DUMP
 - no-op
+
+## Text format (aka .eir file)
+
+The syntax of the text format is borrowed from GNU assembler. Please
+check its manual if you are not familiar with it. [Pseudo
+ops](https://sourceware.org/binutils/docs/as/Pseudo-Ops.html#Pseudo-Ops)
+are especially important. Currently, .text, .data, .long, and .string
+are used. And others may be ignored or cause an error.

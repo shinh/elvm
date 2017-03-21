@@ -5,14 +5,18 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+void target_arm(Module* module);
 void target_bef(Module* module);
 void target_bf(Module* module);
 void target_c(Module* module);
 void target_cl(Module* module);
 void target_cpp(Module* module);
+void target_cpp_template(Module* module);
 void target_cr(Module* module);
+void target_cs(Module* module);
 void target_el(Module* module);
 void target_forth(Module* module);
+void target_fs(Module* module);
 void target_go(Module* module);
 void target_i(Module* module);
 void target_java(Module* module);
@@ -23,6 +27,7 @@ void target_piet(Module* module);
 void target_pietasm(Module* module);
 void target_pl(Module* module);
 void target_py(Module* module);
+void target_ps(Module* module);
 void target_rb(Module* module);
 void target_sed(Module* module);
 void target_sh(Module* module);
@@ -39,6 +44,7 @@ void target_x86(Module* module);
 typedef void (*target_func_t)(Module*);
 
 static target_func_t get_target_func(const char* ext) {
+  if (!strcmp(ext, "arm")) return target_arm;
   if (!strcmp(ext, "bef")) return target_bef;
   if (!strcmp(ext, "bf")) {
     split_basic_block_by_mem();
@@ -47,9 +53,12 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "c")) return target_c;
   if (!strcmp(ext, "cl")) return target_cl;
   if (!strcmp(ext, "cpp")) return target_cpp;
+  if (!strcmp(ext, "cpp_template")) return target_cpp_template;
   if (!strcmp(ext, "cr")) return target_cr;
+  if (!strcmp(ext, "cs")) return target_cs;
   if (!strcmp(ext, "el")) return target_el;
   if (!strcmp(ext, "forth")) return target_forth;
+  if (!strcmp(ext, "fs")) return target_fs;
   if (!strcmp(ext, "go")) return target_go;
   if (!strcmp(ext, "i")) return target_i;
   if (!strcmp(ext, "java")) return target_java;
@@ -60,6 +69,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "pietasm")) return target_pietasm;
   if (!strcmp(ext, "pl")) return target_pl;
   if (!strcmp(ext, "py")) return target_py;
+  if (!strcmp(ext, "ps")) return target_ps;
   if (!strcmp(ext, "rb")) return target_rb;
   if (!strcmp(ext, "sed")) return target_sed;
   if (!strcmp(ext, "sh")) return target_sh;
