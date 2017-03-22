@@ -89,6 +89,7 @@ ELC_SRCS := \
 	java.c \
 	js.c \
 	lua.c \
+	ll.c \
 	php.c \
 	piet.c \
 	pietasm.c \
@@ -411,6 +412,10 @@ include target.mk
 
 TARGET := lua
 RUNNER := lua
+include target.mk
+
+TARGET := ll
+RUNNER := lli
 include target.mk
 
 test: $(TEST_RESULTS)
