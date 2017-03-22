@@ -412,6 +412,7 @@ include target.mk
 
 TARGET := lua
 RUNNER := lua
+CAN_BUILD := $(shell lua -v 2>&1 | perl -ne 'print /^Lua (\d+)\.(\d+)/ && ($$1 >= 5 && $$2 >= 3) ? 1 : 0')
 include target.mk
 
 TARGET := ll
