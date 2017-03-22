@@ -28,7 +28,7 @@ static void ll_emit_func_prologue(int func_id) {
   emit_line("; <label>:1");
   emit_line("%%2 = load i32, i32* @pc, align 4");
   emit_line("%%3 = icmp ule i32 %d, %%2", func_id * CHUNKED_FUNC_SIZE);
-  emit_line("br i1 %%3, label %4, label %7");
+  emit_line("br i1 %%3, label %%4, label %%7");
 
   emit_line("");
   emit_line("; <label>:4");
@@ -238,16 +238,16 @@ static void ll_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("%_%d = alloca i32, align 4", putc_idx);
+    emit_line("%%_%d = alloca i32, align 4", putc_idx);
     emit_line("%%%d = call i32 @getchar()", func_idx);
-    emit_line("store i32 %%%d, i32* %_%d, align 4", func_idx, putc_idx);
-    emit_line("%%%d = load i32, i32* %_%d, align 4", func_idx+1, putc_idx);
+    emit_line("store i32 %%%d, i32* %%_%d, align 4", func_idx, putc_idx);
+    emit_line("%%%d = load i32, i32* %%_%d, align 4", func_idx+1, putc_idx);
     emit_line("%%%d = icmp ne i32 %%%d, -1", func_idx+2, func_idx+1);
     emit_line("br i1 %%%d, label %%%d, label %%%d", func_idx+2, func_idx+3, func_idx+5);
 
     emit_line("");
     emit_line("; <label>:%%%d", func_idx+3);
-    emit_line("%%%d = load i32, i32* %_%d, align 4", func_idx+4, putc_idx);
+    emit_line("%%%d = load i32, i32* %%_%d, align 4", func_idx+4, putc_idx);
     emit_line("br label %%%d", func_idx+6);
 
     emit_line("");
