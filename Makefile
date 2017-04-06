@@ -29,7 +29,7 @@ ELC := out/elc
 	8cc/set.c \
 	8cc/vector.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/tm tinycc/tcc
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -306,7 +306,7 @@ $(OUT.eir.cs.out): tools/runcs.sh
 TARGET := c
 RUNNER := tools/runc.sh
 include target.mk
-$(OUT.eir.c.out): tools/runc.sh
+$(OUT.eir.c.out): tools/runc.sh tinycc/tcc
 
 TARGET := cpp
 RUNNER := tools/runcpp.sh
@@ -334,13 +334,13 @@ TOOL := ick
 # INTERCAL backend is 16bit.
 TEST_FILTER := $(addsuffix .i,$(filter out/24_%.eir,$(OUT.eir))) out/eof.c.eir.i out/neg.c.eir.i
 include target.mk
-$(OUT.eir.i.out): tools/runi.sh
+$(OUT.eir.i.out): tools/runi.sh tinycc/tcc
 
 TARGET := ws
 RUNNER := tools/runws.sh
 TEST_FILTER := out/eli.c.eir.ws
 include target.mk
-$(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out
+$(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out tinycc/tcc
 
 TARGET := bef
 RUNNER := out/befunge
@@ -352,7 +352,7 @@ ifndef FULL
 TEST_FILTER := out/eli.c.eir.bf out/dump_ir.c.eir.bf
 endif
 include target.mk
-$(OUT.eir.bf.out): tools/runbf.sh
+$(OUT.eir.bf.out): tools/runbf.sh tinycc/tcc
 
 ifdef PIETASM
 TARGET := pietasm
@@ -382,6 +382,7 @@ TARGET := tm
 RUNNER := out/tm
 TEST_FILTER := out/24_cmp.c.eir.tm out/24_cmp2.c.eir.tm out/24_muldiv.c.eir.tm out/bitops.c.eir.tm out/copy_struct.c.eir.tm out/eof.c.eir.tm out/fizzbuzz.c.eir.tm out/fizzbuzz_fast.c.eir.tm out/global_struct_ref.c.eir.tm out/lisp.c.eir.tm out/printf.c.eir.tm out/qsort.c.eir.tm out/8cc.c.eir.tm out/elc.c.eir.tm out/dump_ir.c.eir.tm out/eli.c.eir.tm
 include target.mk
+$(OUT.eir.tm.out): out/tm
 
 TARGET := forth
 RUNNER := gforth --dictionary-size 16M
