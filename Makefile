@@ -72,6 +72,7 @@ $(COBJS): out/%.o: ir/%.c
 ELC_SRCS := \
 	elc.c \
 	util.c \
+	asmjs.c \
 	arm.c \
 	bef.c \
 	bf.c \
@@ -235,6 +236,10 @@ include target.mk
 endif
 
 TARGET := js
+RUNNER := nodejs
+include target.mk
+
+TARGET := asmjs
 RUNNER := nodejs
 include target.mk
 
