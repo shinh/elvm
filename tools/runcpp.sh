@@ -16,6 +16,6 @@ else
   echo ')"' >> $infile
 fi
 
-g++- -fconstexpr-loop-limit=1000000 ${dir}/$(basename $1) -o $1.exe
+g++ -fconstexpr-loop-limit=1000000 ${dir}/$(basename $1) -o $1.exe
 rm -fr $dir
 ./$1.exe
