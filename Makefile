@@ -315,7 +315,7 @@ $(OUT.eir.c.out): tools/runc.sh tinycc/tcc
 
 TARGET := cpp
 RUNNER := tools/runcpp.sh
-TOOL := g++-6
+TOOL := g++
 include target.mk
 $(OUT.eir.cpp.out): tools/runcpp.sh
 

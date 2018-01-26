@@ -62,8 +62,8 @@ static void java_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("try { int _ = System.in.read(); "
-              "  %s = _ == -1 ? 0 : _; }"
+    emit_line("try { int __ = System.in.read(); "
+              "  %s = __ == -1 ? 0 : __; }"
               "catch (Exception e) {}",
               reg_names[inst->dst.reg]);
     break;
