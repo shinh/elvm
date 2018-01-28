@@ -70,4 +70,14 @@ void handle_logic_ops();
 void dump_inst(Inst* inst);
 void dump_inst_fp(Inst* inst, FILE* fp);
 
+#ifdef __GNUC__
+#if __has_attribute(fallthrough)
+#define FALLTHROUGH __attribute__((fallthrough))
+#else
+#define FALLTHROUGH
+#endif
+#else
+#define FALLTHROUGH
+#endif
+
 #endif  // ELVM_IR_H_
