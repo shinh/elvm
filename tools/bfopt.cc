@@ -139,8 +139,8 @@ void parse(const char* code, vector<Op*>* ops) {
       case '@':
         if (g_verbose) {
           op->op = c;
-          break;
         }
+        break;
 
       default:
         delete op;
