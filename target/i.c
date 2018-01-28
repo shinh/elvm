@@ -214,6 +214,7 @@ static void i_emit_cmp(Inst* inst, int add_fn) {
 
     case JGE:
       i_emit_xor(8, ":8", "#32768");
+      FALLTHROUGH;
 
     case JLT:
       i_emit_and(8, ":8", "#32768");
