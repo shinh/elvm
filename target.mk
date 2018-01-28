@@ -21,6 +21,7 @@ EXT := $(TARGET)
 $(eval CMD = $$(ELC) -$(TARGET) $$2 > $$1.tmp && chmod 755 $$1.tmp && mv $$1.tmp $$1)
 OUT.eir.$(TARGET) := $(SRCS:%=%.$(EXT))
 include build.mk
+build-$(TARGET): $(OUT.eir.$(TARGET))
 
 include clear_vars.mk
 
@@ -36,7 +37,8 @@ EXPECT := eir.out
 ACTUAL := eir.$(TARGET).out
 include diff.mk
 
-$(TARGET): $(DIFFS)
+test-$(TARGET): $(DIFFS)
+$(TARGET): test-$(TARGET)
 
 # Make sure elc.c.eir can create the same target.
 
@@ -54,6 +56,7 @@ ACTUAL := eir.elc.$(TARGET)
 include diff.mk
 
 elc-$(TARGET): $(DIFFS)
+test-full-$(TARGET): elc-$(TARGET)
 
 else
 
