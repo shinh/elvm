@@ -8,6 +8,16 @@
 #include <string>
 #include <vector>
 
+#ifdef __GNUC__
+#if __has_attribute(fallthrough)
+#define FALLTHROUGH __attribute__((fallthrough))
+#else
+#define FALLTHROUGH
+#endif
+#else
+#define FALLTHROUGH
+#endif
+
 typedef unsigned char byte;
 
 using namespace std;
@@ -141,6 +151,7 @@ void parse(const char* code, vector<Op*>* ops) {
           op->op = c;
           break;
         }
+        FALLTHROUGH;
 
       default:
         delete op;
