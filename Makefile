@@ -35,24 +35,21 @@ LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
 ELC_EIR := out/elc.c.eir.c.gcc.exe
 
-help:
+all: build
 	@echo ''
-	@echo '*** Building/testing everything is not recommneded ***'
+	@echo 'Now you have tools such as out/8cc and out/elc'
 	@echo ''
-	@echo 'Instead, you can use following targets for target xxx:'
+	@echo 'Use following targets to build/run tests for backend xxx:'
 	@echo ''
 	@echo '- `make build-xxx`: Compile all tests to xxx backend'
 	@echo '   (e.g., out/lisp.c.eir.xxx will be built from test/lisp.c)'
 	@echo '- `make test-xxx` or `make xxx`: Run tests for xxx backend'
 	@echo '   (e.g., out/lisp.c.eir.xxx.out.diff will be output)'
-	@echo '- `make test-full-xxx`: Run target/xxx.c on ELVM'
+	@echo '- `make test-xxx-full`: Run target/xxx.c on ELVM'
 	@echo '   (this checks if the target xxx can self-host)'
+	@echo '- `make test`: Build and run all tests'
+	@echo '   (WARNING: will take a lot of time/disk)'
 	@echo ''
-	@echo 'Running all tests by `make test`, will take a lot of time/disk'
-	@echo ''
-	@exit 1
-
-all: test
 
 out/git_submodule.stamp: .git/index
 	git submodule update --init

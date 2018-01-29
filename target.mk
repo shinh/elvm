@@ -56,7 +56,7 @@ ACTUAL := eir.elc.$(TARGET)
 include diff.mk
 
 elc-$(TARGET): $(DIFFS)
-test-full-$(TARGET): elc-$(TARGET)
+test-$(TARGET)-full: elc-$(TARGET)
 
 else
 
