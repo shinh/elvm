@@ -115,6 +115,7 @@ ELC_SRCS := \
 	sed.c \
 	sh.c \
 	sqlite3.c \
+	scala.c \
 	scm_sr.c \
 	swift.c \
 	tex.c \
@@ -304,6 +305,12 @@ RUNNER := tools/runjava.sh
 TOOL := javac
 include target.mk
 $(OUT.eir.java.out): tools/runjava.sh
+
+TARGET := scala
+RUNNER := tools/runscala.sh
+TOOL := scalac
+include target.mk
+$(OUT.eir.scala.out): tools/runscala.sh
 
 TARGET := swift
 RUNNER := tools/runswift.sh
