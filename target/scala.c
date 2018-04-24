@@ -1,75 +1,76 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-static void java_emit_func_prologue(int func_id) {
+static void scala_emit_func_prologue(int func_id) {
   emit_line("");
-  emit_line("private static void func%d() {", func_id);
+  emit_line("private def func%d(): Unit = {", func_id);
   inc_indent();
   emit_line("while (%d <= pc && pc < %d) {",
             func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
-  emit_line("switch (pc) {");
-  emit_line("case -1:  /* dummy */");
+  emit_line("pc match {");
+  inc_indent();
+  emit_line("case -1 => () /* dummy */");
+  dec_indent();
   inc_indent();
 }
 
-static void java_emit_func_epilogue(void) {
+static void scala_emit_func_epilogue(void) {
   dec_indent();
   emit_line("}");
-  emit_line("pc++;");
+  emit_line("pc += 1");
   dec_indent();
   emit_line("}");
   dec_indent();
   emit_line("}");
 }
 
-static void java_emit_pc_change(int pc) {
-  emit_line("break;");
+static void scala_emit_pc_change(int pc) {
   emit_line("");
   dec_indent();
-  emit_line("case %d:", pc);
+  emit_line("case %d => ", pc);
   inc_indent();
 }
 
-static void java_emit_inst(Inst* inst) {
+static void scala_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
     emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
+    emit_line("%s = (%s + %s) & " UINT_MAX_STR,
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
+    emit_line("%s = (%s - %s) & " UINT_MAX_STR,
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s = mem(%s)", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("mem(%s) = %s", src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    emit_line("System.out.print(String.valueOf((char)%s));", src_str(inst));
+    emit_line("print(%s.toChar)", src_str(inst));
     break;
 
   case GETC:
     emit_line("try { int __ = System.in.read(); "
-              "  %s = __ == -1 ? 0 : __; }"
-              "catch (Exception e) {}",
+              "  %s = if (__ == -1)  0 else __; }"
+              "catch {case _ => ()}",
               reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
-    emit_line("System.exit(0);");
+    emit_line("sys.exit(0)");
     break;
 
   case DUMP:
@@ -81,7 +82,7 @@ static void java_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("%s = %s ? 1 : 0;",
+    emit_line("if (%s = %s) 1 else 0;",
               reg_names[inst->dst.reg], cmp_str(inst, "true"));
     break;
 
@@ -101,7 +102,7 @@ static void java_emit_inst(Inst* inst) {
   }
 }
 
-static int java_init_state(Data* data) {
+static int scala_init_state(Data* data) {
   int prev_mc = -1;
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
@@ -112,10 +113,10 @@ static int java_init_state(Data* data) {
           emit_line("}");
         }
         prev_mc++;
-        emit_line("static void init%d() {", prev_mc);
+        emit_line("def init%d(): Unit = {", prev_mc);
         inc_indent();
       }
-      emit_line("mem[%d] = %d;", mp, data->v);
+      emit_line("mem(%d) = %d", mp, data->v);
     }
   }
 
@@ -127,40 +128,39 @@ static int java_init_state(Data* data) {
   return prev_mc + 1;
 }
 
-void target_java(Module* module) {
-  emit_line("public class Main {");
+void target_scala(Module* module) {
+  emit_line("object Main {");
   inc_indent();
   for (int i = 0; i < 7; i++) {
-    emit_line("static int %s;", reg_names[i]);
+    emit_line("var %s: Int = _", reg_names[i]);
   }
-  emit_line("static int[] mem;");
+  emit_line("var mem: Array[Int] = new Array(1 << 24)");
 
-  int num_inits = java_init_state(module->data);
+  int num_inits = scala_init_state(module->data);
 
   CHUNKED_FUNC_SIZE = 256;
   int num_funcs = emit_chunked_main_loop(module->text,
-                                         java_emit_func_prologue,
-                                         java_emit_func_epilogue,
-                                         java_emit_pc_change,
-                                         java_emit_inst);
+                                         scala_emit_func_prologue,
+                                         scala_emit_func_epilogue,
+                                         scala_emit_pc_change,
+                                         scala_emit_inst);
 
-  emit_line("public static void main(String[] args) {");
+  emit_line("def main(args: Array[String]): Unit = {");
   inc_indent();
 
-  emit_line("mem = new int[1<<24];");
   for (int i = 0; i < num_inits; i++) {
-    emit_line("init%d();", i);
+    emit_line("init%d()", i);
   }
 
   emit_line("");
   emit_line("while (true) {");
   inc_indent();
-  emit_line("switch (pc / %d | 0) {", CHUNKED_FUNC_SIZE);
+  emit_line("(pc / %d | 0) match {", CHUNKED_FUNC_SIZE);
+  inc_indent();
   for (int i = 0; i < num_funcs; i++) {
-    emit_line("case %d:", i);
-    emit_line(" func%d();", i);
-    emit_line(" break;");
+    emit_line("case %d => func%d()", i, i);
   }
+  dec_indent();
   emit_line("}");
   dec_indent();
   emit_line("}");
