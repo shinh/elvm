@@ -63,9 +63,9 @@ static void scala_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("try { int __ = System.in.read(); "
+    emit_line("try { val __ = System.in.read(); "
               "  %s = if (__ == -1)  0 else __; }"
-              "catch {case _ => ()}",
+              "catch {case _: Exception => ()}",
               reg_names[inst->dst.reg]);
     break;
 
@@ -82,7 +82,7 @@ static void scala_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("if (%s = %s) 1 else 0;",
+    emit_line("%s = if (%s) 1 else 0;",
               reg_names[inst->dst.reg], cmp_str(inst, "true"));
     break;
 
@@ -138,7 +138,7 @@ void target_scala(Module* module) {
 
   int num_inits = scala_init_state(module->data);
 
-  CHUNKED_FUNC_SIZE = 256;
+  CHUNKED_FUNC_SIZE = 128;
   int num_funcs = emit_chunked_main_loop(module->text,
                                          scala_emit_func_prologue,
                                          scala_emit_func_epilogue,
