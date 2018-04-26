@@ -144,10 +144,17 @@ static void hs_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("!%s <- fmap ord getChar",
+    emit_line("catch (do");
+    n_inc_indent(5);
+    emit_line("%s <- fmap ord getChar",
               reg_names[inst->dst.reg]);
     emit_line("writeIORef %sRef %s",
               reg_names[inst->dst.reg], reg_names[inst->dst.reg]);
+    n_dec_indent(5);
+    n_inc_indent(2);
+    emit_line(")");
+    emit_line("(\\(SomeException e) -> writeIORef %sRef 0)", reg_names[inst->dst.reg]);
+    n_dec_indent(2);
     break;
 
   case EXIT:
@@ -211,13 +218,12 @@ static int hs_init_state(Data* data) {
 }
 
 void target_hs(Module* module) {
-  emit_line("{-# LANGUAGE BangPatterns #-}");
-  emit_line("");
   emit_line("import Data.Array.IO");
   emit_line("import Data.IORef");
   emit_line("import Data.Char");
   emit_line("import Data.Bits");
   emit_line("import System.Exit");
+  emit_line("import Control.Exception");
   emit_line("");  
   emit_line("main :: IO ()");
   emit_line("main = do");  
