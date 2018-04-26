@@ -60,10 +60,12 @@ static void n_dec_indent(int n_times) {
 static void hs_emit_func_prologue(int func_id) {
   emit_line("");
   n_inc_indent(2);
-  emit_line("let func%d = do", func_id);
+  emit_line("let func%d :: IO ()", func_id);
+  emit_line("    func%d = do", func_id);
   n_inc_indent(5);
   
-  emit_line("let whileLoop = do");
+  emit_line("let whileLoop :: IO ()");  
+  emit_line("    whileLoop = do");
   n_inc_indent(5);
   emit_line("pc <- readIORef pcRef");
   emit_line("if %d <= pc && pc < %d",
@@ -89,7 +91,7 @@ static void hs_emit_func_epilogue(void) {
   emit_line("else return ()");
   dec_indent();
   n_dec_indent(5);
-  emit_line("whileLoop :: IO ()");
+  emit_line("whileLoop");
   n_dec_indent(5);
   n_dec_indent(2);
 }
@@ -205,13 +207,14 @@ static int hs_init_state(Data* data) {
         //   emit_line("}");
         }
         prev_mc++;
-        emit_line("let init%d = do", prev_mc);
+        emit_line("let init%d :: IO ()", prev_mc);
+        emit_line("    init%d = do", prev_mc);
         n_inc_indent(5);
       }
       emit_line("writeArray mem %d %d", mp, data->v);
     }
   }
-  emit_line("return () :: IO ()");
+  emit_line("return ()");
 
   if (prev_mc != -1) {
     n_dec_indent(7);
@@ -258,7 +261,8 @@ void target_hs(Module* module) {
 
 
   emit_line("");
-  emit_line("let mainLoop = do");
+  emit_line("let mainLoop :: IO ()");
+  emit_line("    mainLoop = do");
   n_inc_indent(5);
   emit_line("pc <- readIORef pcRef");
   emit_line("case pc `div` %d .|. 0 of", CHUNKED_FUNC_SIZE);
