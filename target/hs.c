@@ -59,6 +59,7 @@ static void n_dec_indent(int n_times) {
 
 static void hs_emit_func_prologue(int func_id) {
   emit_line("");
+  n_inc_indent(2);
   emit_line("let func%d = do", func_id);
   n_inc_indent(5);
   
@@ -90,6 +91,7 @@ static void hs_emit_func_epilogue(void) {
   n_dec_indent(5);
   emit_line("whileLoop :: IO ()");
   n_dec_indent(5);
+  n_dec_indent(2);
 }
 
 static void hs_emit_pc_change(int pc) {
@@ -197,7 +199,9 @@ static int hs_init_state(Data* data) {
       int mc = mp / 1000;
       while (prev_mc != mc) {
         if (prev_mc != -1) {
-          dec_indent();
+          // dec_indent();
+          emit_line("return ()");
+          n_dec_indent(5);
         //   emit_line("}");
         }
         prev_mc++;
@@ -210,7 +214,7 @@ static int hs_init_state(Data* data) {
   emit_line("return () :: IO ()");
 
   if (prev_mc != -1) {
-    n_dec_indent(5);
+    n_dec_indent(7);
   //   emit_line("}");
   }
 
@@ -243,7 +247,8 @@ void target_hs(Module* module) {
                                          hs_emit_inst);
 
   // emit_line("def main(args: Array[String]): Unit = {");
-  // inc_indent();
+  inc_indent();
+  inc_indent();  
   
   
 
