@@ -2,7 +2,8 @@
 #include <target/util.h>
 
 // (NOTE: Has side effect)
-const char* hs_value_str(Value* v) {
+// (from: https://github.com/shinh/elvm/blob/3eddd7e16f67fed6092bebffe3476d2e523a1588/target/util.c#L61)
+static const char* hs_value_str(Value* v) {
   if (v->type == REG) {
     // NOTE: Emit line (Side effect)
     emit_line("%s <- readIORef %sRef", reg_names[v->reg], reg_names[v->reg]);
@@ -15,13 +16,13 @@ const char* hs_value_str(Value* v) {
 }
 
 // (NOTE: Has side effect)
-const char* hs_src_str(Inst* inst) {
+static const char* hs_src_str(Inst* inst) {
   return hs_value_str(&inst->src);
 }
 
 // (NOTE: Has side effect)
 // (from: https://github.com/shinh/elvm/blob/3eddd7e16f67fed6092bebffe3476d2e523a1588/target/util.c#L87)
-const char* hs_cmp_str(Inst* inst, const char* true_str) {
+static const char* hs_cmp_str(Inst* inst, const char* true_str) {
   int op = normalize_cond(inst->op, 0);
   const char* op_str;
   switch (op) {
@@ -76,14 +77,11 @@ static void hs_emit_func_prologue(int func_id) {
   emit_line("case pc of");
   inc_indent();
   emit_line("-1 -> return () -- dummy");
-  // dec_indent();
   inc_indent();
 }
 
 static void hs_emit_func_epilogue(void) {
   dec_indent();
-  
-  // emit_line("}");
   dec_indent();
   emit_line("modifyIORef pcRef (+1)");
   emit_line("whileLoop");
@@ -104,14 +102,8 @@ static void hs_emit_pc_change(int pc) {
 }
 
 static void hs_emit_inst(Inst* inst) {
-  // const char *src;
   switch (inst->op) {
   case MOV:
-    // src = src_str(inst);
-
-    // if(!('0' <= src[0] && src[0] <= '9')) {
-    //   emit_line("%s <- readIORef %sRef", src_str(inst), src_str(inst));
-    // }
     emit_line("writeIORef %sRef %s;", reg_names[inst->dst.reg], hs_src_str(inst));
     break;
 
@@ -130,20 +122,16 @@ static void hs_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    // emit_line("%s <- readIORef %sRef", src_str(inst), src_str(inst));
-    // emit_line("%s <- %sRef", reg_names[inst->dst.reg], reg_names[inst->dst.reg]);
     emit_line("%s <- readArray mem %s", reg_names[inst->dst.reg], hs_src_str(inst));
     emit_line("writeIORef %sRef %s", reg_names[inst->dst.reg], reg_names[inst->dst.reg]);
     break;
 
   case STORE:
-    // emit_line("%s <- readIORef %sRef", src_str(inst), src_str(inst));
     emit_line("%s <- readIORef %sRef", reg_names[inst->dst.reg], reg_names[inst->dst.reg]);
     emit_line("writeArray mem %s %s", hs_src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    // emit_line("%s <- readIORef %sRef", hs_src_str(inst), hs_src_str(inst));
     emit_line("putChar(chr %s)", hs_src_str(inst));
     break;
 
@@ -201,10 +189,8 @@ static int hs_init_state(Data* data) {
       int mc = mp / 1000;
       while (prev_mc != mc) {
         if (prev_mc != -1) {
-          // dec_indent();
           emit_line("return ()");
           n_dec_indent(5);
-        //   emit_line("}");
         }
         prev_mc++;
         emit_line("let init%d :: IO ()", prev_mc);
@@ -218,7 +204,6 @@ static int hs_init_state(Data* data) {
 
   if (prev_mc != -1) {
     n_dec_indent(7);
-  //   emit_line("}");
   }
 
   return prev_mc + 1;
@@ -249,16 +234,12 @@ void target_hs(Module* module) {
                                          hs_emit_pc_change,
                                          hs_emit_inst);
 
-  // emit_line("def main(args: Array[String]): Unit = {");
   inc_indent();
   inc_indent();  
   
-  
-
   for (int i = 0; i < num_inits; i++) {
     emit_line("init%d", i);
   }
-
 
   emit_line("");
   emit_line("let mainLoop :: IO ()");
