@@ -100,6 +100,7 @@ ELC_SRCS := \
 	forth.c \
 	fs.c \
 	go.c \
+	hs.c \
 	i.c \
 	java.c \
 	js.c \
@@ -451,6 +452,12 @@ TARGET := scm_sr
 RUNNER := tools/runscm_sr.sh
 TOOL := gosh
 include target.mk
+
+TARGET := hs
+RUNNER := tools/runhs.sh
+TOOL := ghc
+include target.mk
+$(OUT.eir.hs.out): tools/runhs.sh
 
 test: $(TEST_RESULTS)
 
