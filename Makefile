@@ -106,6 +106,7 @@ ELC_SRCS := \
 	js.c \
 	lua.c \
 	ll.c \
+	oct.c \
 	php.c \
 	piet.c \
 	pietasm.c \
@@ -458,6 +459,10 @@ RUNNER := tools/runhs.sh
 TOOL := ghc
 include target.mk
 $(OUT.eir.hs.out): tools/runhs.sh
+
+TARGET := oct
+RUNNER := octave -q
+include target.mk
 
 test: $(TEST_RESULTS)
 
