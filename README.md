@@ -135,11 +135,11 @@ to specify `-b' flag.
 
 ### Unlambda
 
-This backend was contributed by [@irori](https://github.com/irori/). This backend is even slower
-than Brainfuck. See also [8cc.unl](https://github.com/irori/8cc.unl).
+This backend was contributed by [@irori](https://github.com/irori/).
+See also [8cc.unl](https://github.com/irori/8cc.unl).
 
-This backend is tested with [Emil Jeřábek's
-interpreter](http://users.math.cas.cz/~jerabek/unlambda/unl.c). tools/rununl.sh
+This backend is tested with [@irori's
+interpreter](https://github.com/irori/unlambda). tools/rununl.sh
 automatically downloads it.
 
 ### C-INTERCAL
