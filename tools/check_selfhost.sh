@@ -53,6 +53,10 @@ elif [ ${TARGET} = bef ]; then
     run_trg() {
         ${time} ./out/befunge -f $1
     }
+elif [ ${TARGET} = unl ]; then
+    run_trg() {
+        ${time} ./tools/rununl.sh $1
+    }
 else
     echo "Unknown target: ${TARGET}"
     exit 1

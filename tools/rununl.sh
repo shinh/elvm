@@ -7,8 +7,8 @@ if [ ! -e out/unlambda ]; then
     dir=$(mktemp -d)
     cd $dir
 
-    wget http://users.math.cas.cz/~jerabek/unlambda/unl.c
-    gcc -O -g unl.c -o unlambda
+    wget https://cdn.rawgit.com/irori/unlambda/844fa552/unlambda.c
+    gcc -O2 unlambda.c -o unlambda
 
     mv unlambda ${orig_dir}/out
     cd $orig_dir
