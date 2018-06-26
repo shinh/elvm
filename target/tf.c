@@ -6,6 +6,7 @@ static void init_state_tf(Data* data) {
   emit_line("import tensorflow as tf");
   emit_line("from tensorflow.python.framework import function");
   emit_line("from tensorflow.python.framework import tensor_shape");
+  emit_line("from tensorflow.python.ops import inplace_ops");
   emit_line("");
 
   for (int i = 0; i < 7; i++) {
@@ -48,10 +49,6 @@ static void init_state_tf(Data* data) {
   emit_line("@function.Defun(tf.int32, tf.int32)");
   emit_line("def elvm_sub(x, y):");
   emit_line("  return (x - y + 16777216) %% 16777216");
-  emit_line("");
-  emit_line("@function.Defun(tf.int32, tf.int32, tf.int32)");
-  emit_line("def elvm_store(mem, x, y):");
-  emit_line("  return tf.concat([mem[:y], [x], mem[y+1:]], 0)");
 }
 
 static const char* tf_value_str(Value* v) {
@@ -105,8 +102,8 @@ static void tf_emit_inst(Inst* inst) {
     break;
 
   case STORE:
-    emit_line("mem = elvm_store(mem, %s, %s)",
-              reg_names[inst->dst.reg], tf_src_str(inst));
+    emit_line("mem = inplace_ops.inplace_update(mem, %s, %s)",
+              tf_src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
