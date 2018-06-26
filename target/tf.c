@@ -18,8 +18,8 @@ static void init_state_tf(Data* data) {
   for (int mp = 0; data; data = data->next, mp++) {
     emit_line("data.append(%d)", data->v);
   }
-  emit_line("mem = tf.concat(0, [data, "
-            "tf.zeros([(1<<24)-len(data)], dtype=tf.int32, name='mem')])");
+  emit_line("mem = tf.concat([data, "
+            "tf.zeros([(1<<24)-len(data)], dtype=tf.int32)], 0, name='mem')");
   emit_line("done = tf.constant(0, name='done')");
   emit_line("out = tf.constant('', name='out')");
   emit_line("CHAR_TBL = tf.constant([chr(i) for i in xrange(256)])");
@@ -51,7 +51,7 @@ static void init_state_tf(Data* data) {
   emit_line("");
   emit_line("@function.Defun(tf.int32, tf.int32, tf.int32)");
   emit_line("def elvm_store(mem, x, y):");
-  emit_line("  return tf.concat(0, [mem[:y], [x], mem[y+1:]])");
+  emit_line("  return tf.concat([mem[:y], [x], mem[y+1:]], 0)");
 }
 
 static const char* tf_value_str(Value* v) {
