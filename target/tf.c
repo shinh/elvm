@@ -23,8 +23,8 @@ static void init_state_tf(Data* data) {
             "tf.zeros([(1<<24)-len(data)], dtype=tf.int32)], 0, name='mem')");
   emit_line("done = tf.constant(0, name='done')");
   emit_line("out = tf.constant('', name='out')");
-  emit_line("CHAR_TBL = tf.constant([chr(i) for i in xrange(256)])");
-  emit_line("input = map(ord, sys.stdin.read())");
+  emit_line("CHAR_TBL = tf.constant([chr(i) for i in range(256)])");
+  emit_line("input = list(map(ord, sys.stdin.read()))");
   emit_line("INPUT_LEN = len(input)");
   emit_line("INPUT = tf.placeholder("
             "shape=[INPUT_LEN], dtype=tf.int32)");
