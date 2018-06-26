@@ -47,6 +47,7 @@ Currently, there are 35 backends:
 * Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
 * Unlambda (by [@irori](https://github.com/irori/))
 * Vim script (by [@rhysd](https://github.com/rhysd/))
+* WebAssembly (by [@dubek](https://github.com/dubek/))
 * Whitespace
 * arm-linux (by [@irori](https://github.com/irori/))
 * i386-linux
@@ -261,8 +262,7 @@ TODO: Reduce the size of the graph and run 8cc
 
 I'm interested in
 
-* adding more backends (e.g., WebAssembly, 16bit CPU, Malbolge
-  Unshackled, ...)
+* adding more backends (e.g., 16bit CPU, Malbolge Unshackled, ...)
 * running more programs (e.g., lua.bf or mruby.bf?)
 * supporting more C features (e.g., bit operations)
 * eliminating unnecessary code in 8cc

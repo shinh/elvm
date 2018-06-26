@@ -125,6 +125,7 @@ ELC_SRCS := \
 	tm.c \
 	unl.c \
 	vim.c \
+	wasm.c \
 	ws.c \
 	x86.c \
 
@@ -259,6 +260,11 @@ include target.mk
 
 TARGET := asmjs
 RUNNER := nodejs
+include target.mk
+
+TARGET := wasm
+RUNNER := tools/runwasm.sh
+TOOL := wat2wasm
 include target.mk
 
 TARGET := php
