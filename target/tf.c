@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include <ir/ir.h>
 #include <target/util.h>
 
@@ -159,6 +161,22 @@ static void tf_emit_func_epilogue(const char* args) {
   dec_indent();
 }
 
+static void tf_emit_pc_dispatch(int min_pc, int max_pc,
+                                const char* state_args_str) {
+  assert(min_pc <= max_pc);
+  if (min_pc == max_pc) {
+    emit_line("lambda: pc_%d(%s),", min_pc, state_args_str);
+    return;
+  }
+  int mid_pc = (min_pc + max_pc) / 2;
+  emit_line("lambda: tf.cond(tf.less(pc, %d),", mid_pc + 1);
+  inc_indent();
+  tf_emit_pc_dispatch(min_pc, mid_pc, state_args_str);
+  tf_emit_pc_dispatch(mid_pc + 1, max_pc, state_args_str);
+  emit_line("),", mid_pc + 1);
+  dec_indent();
+}
+
 void target_tf(Module* module) {
   init_state_tf(module->data);
 
@@ -182,14 +200,12 @@ void target_tf(Module* module) {
   emit_line("");
   emit_line("def run_step(%s):", STATE_ARGS_STR);
   inc_indent();
-  //emit_line("pc = tf.Print(pc, [pc])");
-  emit_line("fn_pairs = []");
-  for (int i = 0; i < prev_pc; i++) {
-    emit_line("fn_pairs.append((tf.equal(pc, %d), lambda: pc_%d(%s)))",
-              i, i, STATE_ARGS_STR);
-  }
-  emit_line("r = tf.case(fn_pairs, lambda: pc_%d(%s))",
-            prev_pc, STATE_ARGS_STR);
+  emit_line("r = (");
+  inc_indent();
+  tf_emit_pc_dispatch(0, prev_pc, STATE_ARGS_STR);
+  dec_indent();
+  emit_line(")");
+  emit_line("r = r[0]()");
   emit_line("r[8].set_shape([1<<24])");
   emit_line("return r");
   dec_indent();
