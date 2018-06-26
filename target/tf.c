@@ -222,7 +222,7 @@ void target_tf(Module* module) {
   emit_line("sess = tf.Session()");
   emit_line("tf.train.write_graph(loop[9].graph.as_graph_def(),"
             " '/tmp', 'graph.pbtxt')");
-  emit_line("tf.initialize_all_variables().run(session=sess)");
+  emit_line("sess.run(tf.global_variables_initializer())");
   emit_line("r = sess.run(loop, feed_dict={INPUT: input})");
 
   emit_line("");
