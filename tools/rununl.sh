@@ -7,7 +7,7 @@ if [ ! -e out/unlambda ]; then
     dir=$(mktemp -d)
     cd $dir
 
-    wget https://cdn.rawgit.com/irori/unlambda/844fa552/unlambda.c
+    wget https://cdn.jsdelivr.net/gh/irori/unlambda@844fa552/unlambda.c
     gcc -O2 unlambda.c -o unlambda
 
     mv unlambda ${orig_dir}/out
