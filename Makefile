@@ -114,6 +114,7 @@ ELC_SRCS := \
 	py.c \
 	ps.c \
 	rb.c \
+	rs.c \
 	sed.c \
 	sh.c \
 	sqlite3.c \
@@ -468,6 +469,11 @@ $(OUT.eir.hs.out): tools/runhs.sh
 
 TARGET := oct
 RUNNER := octave -q
+include target.mk
+
+TARGET := rs
+RUNNER := tools/runrs.sh
+TOOL := rustc
 include target.mk
 
 test: $(TEST_RESULTS)
