@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <algorithm>
 #include <iterator>
@@ -22,6 +23,7 @@ typedef unsigned char byte;
 
 using namespace std;
 
+bool g_trace;
 bool g_verbose;
 
 struct Loop;
@@ -30,12 +32,14 @@ enum OpType {
   OP_MEM,
   OP_PTR,
   OP_LOOP,
+  OP_COMMENT,
 };
 
 struct Op {
   char op;
   int arg;
   Loop* loop;
+  string comment;
 
   Op()
       : op(0), arg(0) {
@@ -146,14 +150,26 @@ void parse(const char* code, vector<Op*>* ops) {
         loop_stack.pop_back();
         break;
 
+      case '#':
+        if (g_trace && p[1] == '{') {
+          op->op = OP_COMMENT;
+          for (p += 2; *p != '}'; p++) {
+            op->comment += *p;
+          }
+        } else {
+          goto nop;
+        }
+        break;
+
       case '@':
         if (g_verbose) {
           op->op = c;
           break;
         }
-        FALLTHROUGH;
+        goto nop;
 
       default:
+      nop:
         delete op;
         op = NULL;
     }
@@ -270,6 +286,13 @@ void run(const vector<Op*>& ops) {
         break;
       }
 
+      case OP_COMMENT: {
+        fprintf(stderr, "TRACE %f %s\n",
+                static_cast<double>(clock()) / CLOCKS_PER_SEC,
+                op->comment.c_str());
+        break;
+      }
+
       case '@':
         if (g_verbose)
           dump_state(mem);
@@ -359,6 +382,8 @@ int main(int argc, char* argv[]) {
   while (argc >= 2 && argv[1][0] == '-') {
     if (!strcmp(argv[1], "-c")) {
       should_compile = true;
+    } else if (!strcmp(argv[1], "-t")) {
+      g_trace = true;
     } else if (!strcmp(argv[1], "-v")) {
       g_verbose = true;
     } else {
@@ -385,6 +410,16 @@ int main(int argc, char* argv[]) {
     int c = fgetc(fp);
     if (c == EOF)
       break;
+    if (c == '#') {
+      c = fgetc(fp);
+      if (c == '{') {
+        buf += "#{";
+        for (; c != '}';) {
+          c = fgetc(fp);
+          buf += c;
+        }
+      }
+    }
     if (strchr("+-<>.,[]@", c))
       buf += c;
   }
