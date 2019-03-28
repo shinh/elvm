@@ -11,6 +11,8 @@
 
 static bool g_split_basic_block_by_mem = false;
 
+static char g_current_magic_comment[64];
+
 typedef struct DataPrivate_ {
   int v;
   struct DataPrivate_* next;
@@ -80,6 +82,19 @@ static void skip_until_ret(Parser* p) {
       break;
   }
   ir_ungetc(p, c);
+}
+
+static void read_magic_comment(Parser* p) {
+  int c;
+  for (int i = 0;; i++) {
+    if (i > 62) {
+      ir_error(p, "magic comment too long");
+    }
+    c = ir_getc(p);
+    if (c == '}')
+      break;
+    g_current_magic_comment[i] = c;
+  }
 }
 
 static void skip_ws(Parser* p) {
@@ -415,6 +430,10 @@ static void parse_line(Parser* p, int c) {
   p->text->op = op;
   p->text->pc = p->pc;
   p->text->lineno = p->lineno;
+  if (g_current_magic_comment[0]) {
+    p->text->magic_comment = strdup(g_current_magic_comment);
+    g_current_magic_comment[0] = '\0';
+  }
   p->prev_boundary = false;
   switch (op) {
     case LOAD:
@@ -495,6 +514,9 @@ static void parse_eir(Parser* p) {
       break;
 
     if (c == '#') {
+      if (peek(p) == '{') {
+        read_magic_comment(p);
+      }
       skip_until_ret(p);
     } else if (c == '_' || c == '.' || isalpha(c)) {
       parse_line(p, c);

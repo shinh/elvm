@@ -44,6 +44,7 @@ typedef struct Inst_ {
   Value jmp;
   int pc;
   int lineno;
+  char* magic_comment;
   struct Inst_* next;
 } Inst;
 
