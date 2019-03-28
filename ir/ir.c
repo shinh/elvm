@@ -91,8 +91,10 @@ static void read_magic_comment(Parser* p) {
       ir_error(p, "magic comment too long");
     }
     c = ir_getc(p);
-    if (c == '}')
+    if (c == '}') {
+      g_current_magic_comment[i] = '\0';
       break;
+    }
     g_current_magic_comment[i] = c;
   }
 }
