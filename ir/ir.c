@@ -514,8 +514,11 @@ static void parse_eir(Parser* p) {
       break;
 
     if (c == '#') {
-      if (peek(p) == '{') {
+      c = ir_getc(p);
+      if (c == '{') {
         read_magic_comment(p);
+      } else {
+        ir_ungetc(p, c);
       }
       skip_until_ret(p);
     } else if (c == '_' || c == '.' || isalpha(c)) {

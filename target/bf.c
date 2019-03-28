@@ -48,6 +48,10 @@ static void bf_comment(const char* s) {
   printf("\n# %s\n", s);
 }
 
+static void bf_magic_comment(const char* s) {
+  printf("\n#{%s}\n", s);
+}
+
 static void bf_rep(char c, int n) {
   for (int i = 0; i < n; i++)
     putchar(c);
@@ -174,6 +178,7 @@ static void bf_dbg(const char* s) {
 
 static void bf_interpreter_check(void) {
   bf_comment("interpreter check");
+  bf_magic_comment("InterpCheck");
 
   // Test for cell wrap != 256
   emit_line(">[-]<[-]++++++++[>++++++++<-]>[<++++>-]<[>>");
@@ -196,6 +201,7 @@ static void bf_init_state(Data* data) {
   bf_interpreter_check();
 
   bf_comment("init data");
+  bf_magic_comment("InitData");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
       int hi = mp / 256;
@@ -437,6 +443,10 @@ static void bf_emit_cmp(Inst* inst) {
 }
 
 static void bf_emit_op(Inst* inst) {
+  if (inst->magic_comment) {
+    bf_magic_comment(inst->magic_comment);
+  }
+
   switch (inst->op) {
   case MOV: {
     int dst = bf_regpos(inst->dst.reg);
