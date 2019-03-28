@@ -33,10 +33,8 @@ end
 File.open('trace.json', 'w') do |of|
   a = []
   record.each do |name, st, ed, pc|
-    ts = ((st - start) * 1000000).to_i
-    dur = ((ed - st) * 1000000).to_i
-    ts = (st - start) * 1000
-    dur = (ed - st) * 1000
+    ts = (st - start) * 1000000
+    dur = (ed - st) * 1000000
     a << %Q({"cat":"BF","name":"#{name}","ts":#{ts},"dur":#{dur},"tid":1,"pid":1,"args":{"pc":#{pc}},"ph":"X"})
   end
   of.puts("[#{a * ",\n"}]")
