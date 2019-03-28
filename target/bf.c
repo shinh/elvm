@@ -178,7 +178,7 @@ static void bf_dbg(const char* s) {
 
 static void bf_interpreter_check(void) {
   bf_comment("interpreter check");
-  bf_magic_comment("InterpCheck");
+  bf_magic_comment("push:InterpCheck");
 
   // Test for cell wrap != 256
   emit_line(">[-]<[-]++++++++[>++++++++<-]>[<++++>-]<[>>");
@@ -195,13 +195,14 @@ static void bf_interpreter_check(void) {
 
   // Test for cell wrap != 256 and flip condition
   emit_line(">[-]<[-]++++++++[>++++++++<-]>[<++++>-]+<[>-<[-]]>[-<");
+  bf_magic_comment("pop:InterpCheck");
 }
 
 static void bf_init_state(Data* data) {
   bf_interpreter_check();
 
   bf_comment("init data");
-  bf_magic_comment("InitData");
+  bf_magic_comment("push:InitData");
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
       int hi = mp / 256;
@@ -210,6 +211,7 @@ static void bf_init_state(Data* data) {
       bf_add_word(ptr, data->v);
     }
   }
+  bf_magic_comment("pop:InitData");
 }
 
 static void bf_loop_begin(int ptr, char c) {
@@ -628,6 +630,7 @@ static void bf_emit_mem_load(void) {
 
   bf_move_ptr(BF_LOAD_REQ);
   bf_emit("[-");
+  bf_magic_comment("push:MemLoad");
 
   bf_move_ptr(BF_MEM);
   bf_set_ptr(0);
@@ -673,6 +676,7 @@ static void bf_emit_mem_load(void) {
   bf_move_word(BF_MEM + BF_MEM_V, BF_A);
 
   bf_move_ptr(BF_LOAD_REQ);
+  bf_magic_comment("pop:MemLoad");
   bf_emit("]");
 }
 
@@ -681,6 +685,7 @@ static void bf_emit_mem_store(void) {
 
   bf_move_ptr(BF_STORE_REQ);
   bf_emit("[-");
+  bf_magic_comment("push:MemStore");
 
   bf_move_ptr(BF_MEM);
   bf_set_ptr(0);
@@ -728,6 +733,7 @@ static void bf_emit_mem_store(void) {
   bf_set_ptr(BF_MEM);
 
   bf_move_ptr(BF_STORE_REQ);
+  bf_magic_comment("pop:MemStore");
   bf_emit("]");
 }
 
