@@ -211,7 +211,7 @@ EXT := out
 DEPS := $(TEST_INS)
 # TODO: Hacky!
 sharp := \#
-CMD = $2 -S -o $1.S.tmp - < test/8cc.in.c && sed 's/ *$(sharp).*//' $1.S.tmp > $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
+CMD = $2 -S -o $1.S.tmp - < test/8cc.in.c && sed 's/ *$(sharp) .*//' $1.S.tmp > $1.S && (echo === test/8cc.in === && cat $1.S && echo) > $1.tmp && mv $1.tmp $1
 include build.mk
 
 include clear_vars.mk
