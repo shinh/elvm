@@ -630,7 +630,7 @@ static void bf_emit_mem_load(void) {
 
   bf_move_ptr(BF_LOAD_REQ);
   bf_emit("[-");
-  bf_magic_comment("push:MemLoad");
+  // bf_magic_comment("push:MemLoad");
 
   bf_move_ptr(BF_MEM);
   bf_set_ptr(0);
@@ -676,7 +676,7 @@ static void bf_emit_mem_load(void) {
   bf_move_word(BF_MEM + BF_MEM_V, BF_A);
 
   bf_move_ptr(BF_LOAD_REQ);
-  bf_magic_comment("pop:MemLoad");
+  // bf_magic_comment("pop:MemLoad");
   bf_emit("]");
 }
 
@@ -685,7 +685,7 @@ static void bf_emit_mem_store(void) {
 
   bf_move_ptr(BF_STORE_REQ);
   bf_emit("[-");
-  bf_magic_comment("push:MemStore");
+  // bf_magic_comment("push:MemStore");
 
   bf_move_ptr(BF_MEM);
   bf_set_ptr(0);
@@ -733,7 +733,7 @@ static void bf_emit_mem_store(void) {
   bf_set_ptr(BF_MEM);
 
   bf_move_ptr(BF_STORE_REQ);
-  bf_magic_comment("pop:MemStore");
+  // bf_magic_comment("pop:MemStore");
   bf_emit("]");
 }
 

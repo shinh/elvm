@@ -287,9 +287,10 @@ void run(const vector<Op*>& ops) {
       }
 
       case OP_COMMENT: {
-        fprintf(stderr, "TRACE %f %s\n",
+        fprintf(stderr, "TRACE %s %f %lu\n",
+                op->comment.c_str(),
                 static_cast<double>(clock()) / CLOCKS_PER_SEC,
-                op->comment.c_str());
+                pc);
         break;
       }
 
