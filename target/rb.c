@@ -127,12 +127,13 @@ void target_rb(Module* module) {
   emit_line("");
   emit_line("while true");
   inc_indent();
-  emit_line("case @pc / %d", CHUNKED_FUNC_SIZE);
-  for (int i = 0; i < num_funcs; i++) {
-    emit_line("when %d", i);
-    emit_line(" func%d", i);
-  }
-  emit_line("end");
+//   emit_line("case @pc / %d", CHUNKED_FUNC_SIZE);
+//   for (int i = 0; i < num_funcs; i++) {
+//     emit_line("when %d", i);
+//     emit_line(" func%d", i);
+//   }
+  emit_line("send(\"func\" + (@pc / 512).to_s)");
+  //emit_line("end");
   dec_indent();
   emit_line("end");
 }
