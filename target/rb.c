@@ -118,11 +118,11 @@ void target_rb(Module* module) {
   init_state_rb(module->data);
   emit_line("");
 
-  int num_funcs = emit_chunked_main_loop(module->text,
-                                         rb_emit_func_prologue,
-                                         rb_emit_func_epilogue,
-                                         rb_emit_pc_change,
-                                         rb_emit_inst);
+  emit_chunked_main_loop(module->text,
+                          rb_emit_func_prologue,
+                          rb_emit_func_epilogue,
+                          rb_emit_pc_change,
+                          rb_emit_inst);
 
   emit_line("");
   emit_line("while true");
