@@ -118,21 +118,16 @@ void target_rb(Module* module) {
   init_state_rb(module->data);
   emit_line("");
 
-  int num_funcs = emit_chunked_main_loop(module->text,
-                                         rb_emit_func_prologue,
-                                         rb_emit_func_epilogue,
-                                         rb_emit_pc_change,
-                                         rb_emit_inst);
+  emit_chunked_main_loop(module->text,
+                          rb_emit_func_prologue,
+                          rb_emit_func_epilogue,
+                          rb_emit_pc_change,
+                          rb_emit_inst);
 
   emit_line("");
   emit_line("while true");
   inc_indent();
-  emit_line("case @pc / %d", CHUNKED_FUNC_SIZE);
-  for (int i = 0; i < num_funcs; i++) {
-    emit_line("when %d", i);
-    emit_line(" func%d", i);
-  }
-  emit_line("end");
+  emit_line("send(\"func\" + (@pc / %d).to_s)", CHUNKED_FUNC_SIZE);
   dec_indent();
   emit_line("end");
 }
