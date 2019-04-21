@@ -127,7 +127,7 @@ void target_rb(Module* module) {
   emit_line("");
   emit_line("while true");
   inc_indent();
-  emit_line("send(\"func\" + (@pc / 512).to_s)");
+  emit_line("send(\"func\" + (@pc / %d).to_s)", CHUNKED_FUNC_SIZE);
   dec_indent();
   emit_line("end");
 }
