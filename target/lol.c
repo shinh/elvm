@@ -152,7 +152,7 @@ static void lol_emit_inst(Inst* inst) {
   }
 }
 
-void target_py(Module* module) {
+void target_lol(Module* module) {
   init_state_py(module->data);
 
   int num_funcs = emit_chunked_main_loop(module->text,
