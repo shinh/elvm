@@ -2,7 +2,8 @@
 #include <target/util.h>
 
 static void init_state_lol(Data* data) {
-  emit_line("HAI 1.2");
+  emit_line("HAI 1.4");
+  emit_line("CAN HAS STDLIB?");
   for (int i = 0; i < 7; i++) {
     emit_line("I HAS A %s ITZ 0", reg_names[i]);
   }
@@ -12,6 +13,10 @@ static void init_state_lol(Data* data) {
       emit_line("mem HAS A m%d ITZ %d", mp, data->v);
     }
   }
+}
+
+static void lol_cmp_str(char* type, char* left, char* right){
+  switch (type){}
 }
 
 static void lol_emit_func_prologue(int func_id) {
@@ -40,14 +45,14 @@ static void lol_emit_func_epilogue(void) {
   emit_line("IF U SAY SO");
 }
 
-static void py_emit_pc_change(int pc) {
+static void lol_emit_pc_change(int pc) {
   emit_line("");
   dec_indent();
   emit_line("OMG %d", pc);
   inc_indent();
 }
 
-static void py_emit_inst(Inst* inst) {
+static void lol_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
     emit_line("%s R %s", reg_names[inst->dst.reg], src_str(inst));
@@ -78,7 +83,7 @@ static void py_emit_inst(Inst* inst) {
     break;
 
   case GETC:
-    emit_line("I HAS A p, GIMMEH p, ",
+    emit_line("I HAS A p, GIMMEH p, %s R p",
               reg_names[inst->dst.reg]);
     break;
 
@@ -90,13 +95,28 @@ static void py_emit_inst(Inst* inst) {
     break;
 
   case EQ:
+    emit_line("%s = MAEK BOTH SAEM %s AN %s A NUMBAR",
+              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    break;
   case NE:
-  case LT:
-  case GT:
+    emit_line("%s = MAEK DIFFRINT %s AN %s A NUMBAR",
+            reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    break;
   case LE:
+    emit_line("%s = MAEK BOTH SAEM %s AN SMALLR OF %s AN %s A NUMBAR",
+              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    break;
   case GE:
-    emit_line("%s = int(%s)",
-              reg_names[inst->dst.reg], cmp_str(inst, "True"));
+    emit_line("%s = MAEK BOTH SAEM %s AN BIGGR OF %s AN %s A NUMBAR",
+              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    break;
+  case LT:
+    emit_line("%s = MAEK DIFFRINT %s AN SMALLR %s AN %s A NUMBAR",
+              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    break;
+  case GT:
+    eemit_line("%s = MAEK DIFFRINT %s AN BIGGR %s AN %s A NUMBAR",
+              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
     break;
 
   case JEQ:
