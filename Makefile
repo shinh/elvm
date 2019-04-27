@@ -129,6 +129,7 @@ ELC_SRCS := \
 	wasm.c \
 	ws.c \
 	x86.c \
+	lol.c \
 
 ELC_SRCS := $(addprefix target/,$(ELC_SRCS))
 COBJS := $(addprefix out/,$(notdir $(ELC_SRCS:.c=.o)))
