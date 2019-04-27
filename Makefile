@@ -477,6 +477,10 @@ RUNNER := tools/runrs.sh
 TOOL := rustc
 include target.mk
 
+TARGET := lol
+RUNNER := 
+include target.mk
+
 test: $(TEST_RESULTS)
 
 .SUFFIXES:
