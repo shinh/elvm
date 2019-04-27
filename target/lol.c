@@ -1,5 +1,6 @@
 #include <ir/ir.h>
 #include <target/util.h>
+#include <string.h>
 
 static void init_state_lol(Data* data) {
   emit_line("HAI 1.4");
@@ -15,8 +16,38 @@ static void init_state_lol(Data* data) {
   }
 }
 
-static void lol_cmp_str(char* type, char* left, char* right){
-  switch (type){}
+static void lol_cmp_str(int op, char* left, char* right){
+  char* output;
+  switch (op){
+    case JEQ:
+    case EQ:
+      sprintf(output, "BOTH SAEM %s AN %s", left, right);
+      break;
+    case JNE:
+    case NE:
+      sprintf(output, "DIFFRINT %s AN %s", left, right);
+      break;
+    case JLE:
+    case LE:
+      sprintf(output, "BOTH SAEM %s AN SMALLR OF %s AN %s", left, left, right);
+      break;
+    case JGE:
+    case GE:
+      sprintf(output, "BOTH SAEM %s AN BIGGR OF %s AN %s", left, left, right);
+      break;
+    case JLT:
+    case LT:
+      sprintf(output, "DIFFRINT %s AN BIGGR OF %s AN %s", left, left, right);
+      break;
+    case JGT
+    case GT:
+      sprintf(output, "DIFFRINT %s AN SMALLR OF %s AN %s", left, left, right);
+      break;
+    case JMP:
+      output = "WIN";
+      break;
+  }
+  return output;
 }
 
 static void lol_emit_func_prologue(int func_id) {
@@ -88,6 +119,7 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case EXIT:
+    // TODO: add lolcode exit
     emit_line("sys.exit(0)");
     break;
 
@@ -95,28 +127,13 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case EQ:
-    emit_line("%s = MAEK BOTH SAEM %s AN %s A NUMBAR",
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
-    break;
   case NE:
-    emit_line("%s = MAEK DIFFRINT %s AN %s A NUMBAR",
-            reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
-    break;
   case LE:
-    emit_line("%s = MAEK BOTH SAEM %s AN SMALLR OF %s AN %s A NUMBAR",
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
-    break;
   case GE:
-    emit_line("%s = MAEK BOTH SAEM %s AN BIGGR OF %s AN %s A NUMBAR",
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
-    break;
   case LT:
-    emit_line("%s = MAEK DIFFRINT %s AN SMALLR %s AN %s A NUMBAR",
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
-    break;
   case GT:
-    eemit_line("%s = MAEK DIFFRINT %s AN BIGGR %s AN %s A NUMBAR",
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->dst.reg], reg_names[inst->src.reg]);
+    emit_line("%s = MAEK %s A NUMBAR",
+              lol_cmp_str(inst->op, regnames[inst->dst.reg], regnames[inst->src.reg]));
     break;
 
   case JEQ:
@@ -127,7 +144,7 @@ static void lol_emit_inst(Inst* inst) {
   case JGE:
   case JMP:
     emit_line("if %s: pc = %s - 1",
-              cmp_str(inst, "True"), value_str(&inst->jmp));
+              lol_cmp_str(inst->op, regnames[inst->dst.reg], regnames[inst->src.reg]), value_str(&inst->jmp));
     break;
 
   default:
@@ -139,10 +156,10 @@ void target_py(Module* module) {
   init_state_py(module->data);
 
   int num_funcs = emit_chunked_main_loop(module->text,
-                                         py_emit_func_prologue,
-                                         py_emit_func_epilogue,
-                                         py_emit_pc_change,
-                                         py_emit_inst);
+                                         lol_emit_func_prologue,
+                                         lol_emit_func_epilogue,
+                                         lol_emit_pc_change,
+                                         lol_emit_inst);
 
   emit_line("");
   emit_line("while True:");
