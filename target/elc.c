@@ -11,6 +11,7 @@ void target_bef(Module* module);
 void target_bf(Module* module);
 void target_c(Module* module);
 void target_cl(Module* module);
+void target_cmake(Module* module);
 void target_cpp(Module* module);
 void target_cpp_template(Module* module);
 void target_cr(Module* module);
@@ -61,6 +62,7 @@ static target_func_t get_target_func(const char* ext) {
   }
   if (!strcmp(ext, "c")) return target_c;
   if (!strcmp(ext, "cl")) return target_cl;
+  if (!strcmp(ext, "cmake")) return target_cmake;
   if (!strcmp(ext, "cpp")) return target_cpp;
   if (!strcmp(ext, "cpp_template")) return target_cpp_template;
   if (!strcmp(ext, "cr")) return target_cr;
