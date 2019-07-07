@@ -5,6 +5,7 @@
 #include "_raw_print.h"
 #include <ctype.h>
 
+#define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
 static void print_str(const char* p);
