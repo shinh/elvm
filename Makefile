@@ -29,7 +29,7 @@ ELC := out/elc
 	8cc/set.c \
 	8cc/vector.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/cmake_putc_helper
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -66,6 +66,9 @@ out/befunge: tools/befunge.cc
 out/bfopt: tools/bfopt.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
+out/cmake_putc_helper: tools/cmake_putc_helper.c
+	$(CC) $(CFLAGS) $< -o $@
+
 out/tm: tools/tm.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
@@ -92,6 +95,7 @@ ELC_SRCS := \
 	bf.c \
 	c.c \
 	cl.c \
+	cmake.c \
 	cpp.c \
 	cpp_template.c \
 	cr.c \
@@ -474,6 +478,11 @@ include target.mk
 TARGET := rs
 RUNNER := tools/runrs.sh
 TOOL := rustc
+include target.mk
+
+TARGET := cmake
+RUNNER := tools/runcmake.sh
+TOOL := cmake
 include target.mk
 
 test: $(TEST_RESULTS)
