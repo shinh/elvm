@@ -104,6 +104,7 @@ ELC_SRCS := \
 	forth.c \
 	fs.c \
 	go.c \
+	hell.c \
 	hs.c \
 	i.c \
 	java.c \
