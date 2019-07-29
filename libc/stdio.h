@@ -205,4 +205,12 @@ int ungetc(int c, FILE* fp) {
   return EOF;
 }
 
+int fputc(int c, FILE* fp) {
+  return putchar(c);
+}
+
+int putc(int c, FILE* fp) {
+  return putchar(c);
+}
+
 #endif  // ELVM_LIBC_STDIO_H_
