@@ -20,30 +20,29 @@
    A symbol can be any non-whitespace character. The blank symbol is
    _.
 
-   The tape extends infinitely to the right, but not to the left.
-
    The input string is read from stdin:
 
-   - If the -b switch is given, the input is encoded on the tape in
-     binary, most significant bit first. For example, "ABC" would be
-     encoded as 010000010100001001000011___....
+   - If the -b switch is given, the input bytes are encoded on the
+     tape in binary, most significant bit first. For example, "ABC"
+     would be encoded as 010000010100001001000011___.... Machines
+     compiled from EIR should be run with this switch.
 
-   - If the -n switch is given, nothing is ready from stdin, and the
+   - If the -n switch is given, nothing is read from stdin, and the
      input string is empty.
 
-   The head starts on the first square of the tape.
+   The tape extends infinitely to the right, but not to the left. The
+   head starts on the first square of the tape. If the machine
+   attempts to move the head to the left of the first square, the head
+   remains on the first square.
 
-   If the machine attempts to move the head to the left of the first
-   square, the head remains on the first square.
+   If the machine enters the accept state, the contents of the tape
+   are written to stdout, and the simulator exits with status 0. If
+   the -b switch is given, the tape is decoded using the same encoding
+   as described above. Symbols that are neither 0 nor 1 are ignored,
+   as are incomplete bytes.
 
-   If the machine enters the accept state, the simulator exits with
-   status 0. If a move is not possible, the simulator exits with
-   status 1. 
-
-   If the machine accepts, the contents of the tape are written to
-   stdout. If the -b switch is given, the tape is decoded using the
-   same encoding as described above. Symbols that are neither 0 nor 1
-   are ignored, as are incomplete bytes.
+   If, at any time, a move is not possible, the simulator exits with
+   status 1.
 
    When compiled with NOFILE or __eir__ defined, the simulator takes
    no command-line arguments and reads everything from stdin: the
