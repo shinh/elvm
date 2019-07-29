@@ -1,37 +1,37 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-// TODO: build compare functions, modulus functions, PC-logic, and put all together
+// TODO: build inc/dec/sub/add mod-INT24 functions, PC-logic, and put all together
 
 // minor TODO: fix indention (this file (space vs tab) and HeLL file as well: add more inc_indent,dec_indent)
 //             (maybe) remove all these dirty "fix LMFAO problem"-fixes
 
 
+// TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
+
+
 typedef enum {
   REG_A = 0, REG_B = 1, REG_C = 2, REG_D = 3,
   REG_BP = 4, REG_SP = 5, SRC = 6, DST = 7,
-  ALU_SRC = 8, ALU_DST = 9, TMP = 10, CARRY = 11, VAL_1222 = 12, TMP2 = 13
+  ALU_SRC = 8, ALU_DST = 9, TMP = 10, CARRY = 11, VAL_1222 = 12,
+  TMP2 = 13, TMP3 = 14
 } HellVariable;
 
-#define GENERATE_1222_ONLY_ONCE 0
+#define GENERATE_1222_ONLY_ONCE 1
 
 static const char* HELL_VARIABLE_NAMES[] = {
 	"reg_a", "reg_b", "reg_c", "reg_d",
 	"reg_bp", "reg_sp", "src", "dst",
-	"alu_src", "alu_dst", "tmp", "carry", "val_1222", "tmp2", "" // NULL instead of "" crashes 8cc
+	"alu_src", "alu_dst", "tmp", "carry", "val_1222",
+	"tmp2", "tmp3", "" // NULL instead of "" crashes 8cc
 };
 // --> labels: opr_reg_a, rot_reg_a, reg_a; opr_reg_b, ...; .....
-
-static int HELL_VARIABLE_INIT_VAL[] = {
-	0, 0, 0, 0,
-	0, 0, 29524, 29524,
-	29524, 29524, 29524, 29524, 29524, 29524
-};
 
 static int num_hell_variable_return_labels[] = {
 	0, 0, 0, 0,
 	0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0,
+	0, 0
 };
 
 static int num_flags = 0;
@@ -56,7 +56,14 @@ typedef enum {
 	HELL_SET_MEMPTR=7,
 	HELL_READ_MEMORY=8,
 	HELL_WRITE_MEMORY=9,
-	HELL_COMPUTE_MEMPTR=10
+	HELL_COMPUTE_MEMPTR=10,
+	HELL_TEST_LT=11,
+	HELL_TEST_GE=12,
+	HELL_TEST_EQ=13,
+	HELL_TEST_NEQ=14,
+	HELL_TEST_GT=15,
+	HELL_TEST_LE=16,
+	HELL_MODULO=17
 } HeLLFunctions;
 
 static const HeLLFunction HELL_FUNCTIONS[] = {
@@ -70,18 +77,31 @@ static const HeLLFunction HELL_FUNCTIONS[] = {
 	{"set_memptr", "SET_MEMPTR"},
 	{"read_memory", "READ_MEMORY"},
 	{"write_memory", "WRITE_MEMORY"},
-	{"compute_memptr", "COMPUTE_MEMPTR"}
+	{"compute_memptr", "COMPUTE_MEMPTR"},
+	{"test_lt", "TEST_LT"},
+	{"test_ge", "TEST_GE"},
+	{"test_eq", "TEST_EQ"},
+	{"test_neq", "TEST_NEQ"},
+	{"test_gt", "TEST_GT"},
+	{"test_le", "TEST_LE"},
+	{"modulo", "MODULO"}
 };
 
 static int num_calls[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
 
 
 
 // init
-static void emit_compute_memptr_base(); // ALU_DST := (MEMORY - 2) - 2* ALU_SRC
+static void emit_modulo_base(); // ALU_DST := ALU_DST % ALU_SRC ;;; side effect: changes TMP2, TMP3
+static void emit_test_le_base(); // ALU_DST := (ALU_DST <= ALU_SRC)?1:0 ;;; side effect: changes TMP2
+static void emit_test_gt_base(); // ALU_DST := (ALU_DST > ALU_SRC)?1:0  ;;; side effect: changes TMP2
+static void emit_test_neq_base(); // ALU_DST := (ALU_DST != ALU_SRC)?1:0
+static void emit_test_eq_base(); // ALU_DST := (ALU_DST == ALU_SRC)?1:0
+static void emit_test_ge_base(); // ALU_DST := (ALU_DST >= ALU_SRC)?1:0
+static void emit_test_lt_base(); // ALU_DST := (ALU_DST < ALU_SRC)?1:0
+static void emit_compute_memptr_base(); // ALU_DST := (MEMORY - 2) - 2* ALU_SRC ;;; side effect: changes TMP2
 static void emit_write_memory_base(); // copy ALU_DST to memory
 static void emit_read_memory_base(); // copy memory to ALU_DST
 static void emit_set_memptr_base(); // copy ALU_DST to memptr (without any changes);; to access cell i, memptr must contain "(MEMORY - 2) - 2*i"
@@ -110,27 +130,32 @@ static void emit_rotwidth_loop_begin(); // for (int i=0; i<rotwidth; i++) {
 static void emit_rotwidth_loop_end();   // }
 
 
+// helper
+static void dec_ternary_string(char* str);
+
+
+
 
 static void emit_call(HeLLFunctions hf) {
 	num_calls[hf]++;
-	emit_line("R_%s%d",HELL_FUNCTIONS[hf].flag_name,num_calls[hf]);
+	emit_line("R_%s%u",HELL_FUNCTIONS[hf].flag_name,num_calls[hf]);
 	emit_line("MOVD %s",HELL_FUNCTIONS[hf].function_name);
 	dec_indent();
 	emit_line("");
-	emit_line("%s_ret%d:",HELL_FUNCTIONS[hf].function_name,num_calls[hf]);
+	emit_line("%s_ret%u:",HELL_FUNCTIONS[hf].function_name,num_calls[hf]);
 	inc_indent();
 }
 
 
 static void emit_function_footer(HeLLFunctions hf) {
 	for (int i=1; i<=num_calls[hf]; i++) {
-		emit_line("%s%d %s_ret%d R_%s%d",HELL_FUNCTIONS[hf].flag_name,i,HELL_FUNCTIONS[hf].function_name,i,HELL_FUNCTIONS[hf].flag_name,i);
+		emit_line("%s%u %s_ret%u R_%s%u",HELL_FUNCTIONS[hf].flag_name,i,HELL_FUNCTIONS[hf].function_name,i,HELL_FUNCTIONS[hf].flag_name,i);
 	}
 	if (!num_calls[hf]) { emit_line("0"); /* fix LMFAO problem */ }
 	emit_line("");
 	emit_line(".CODE");
 	for (int i=1; i<=num_calls[hf]; i++) {
-		emit_line("%s%d:",HELL_FUNCTIONS[hf].flag_name,i);
+		emit_line("%s%u:",HELL_FUNCTIONS[hf].flag_name,i);
 		inc_indent();
 		emit_line("Nop/MovD");
 		emit_line("Jmp");
@@ -150,11 +175,11 @@ static void emit_read_0tvar(HellVariable var) {
 	emit_call(HELL_GENERATE_1222);
 #endif
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C0 R_ROT");
 	emit_opr_var(VAL_1222);
 	emit_opr_var(var);
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 }
 
 // set VAL_1222 to 1t22..22, read from var, but with preceeding 1t11..
@@ -166,11 +191,11 @@ static void emit_read_1tvar(HellVariable var) {
 	emit_call(HELL_GENERATE_1222);
 #endif
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C1 R_ROT");
 	emit_opr_var(VAL_1222);
 	emit_opr_var(var);
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 }
 
 // set var AND tmp to C1, prepare for writing...
@@ -180,13 +205,13 @@ static void emit_clear_var(HellVariable var) {
 	}
 	emit_line("ROT C1 R_ROT");
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_opr_var(var);
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_opr_var(TMP);
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 }
 
 // write to var; tmp and var must be set to C1 before
@@ -198,6 +223,173 @@ static void emit_write_var(HellVariable var) {
 	emit_opr_var(var);
 }
 
+
+static void emit_modulo_base() {
+	emit_line(".DATA");
+	emit_line("modulo:");
+	emit_line("R_MOVD");
+
+	// save modulus
+	emit_clear_var(TMP3);
+	emit_read_0tvar(ALU_SRC);
+	emit_write_var(TMP3);
+
+	emit_line("continue_modulo:");
+	// save current remainder
+	emit_clear_var(TMP2);
+	emit_read_0tvar(ALU_DST);
+	emit_write_var(TMP2);
+	// subtract modulus
+	emit_call(HELL_SUB);
+	// restore modulus
+	emit_clear_var(ALU_SRC);
+	emit_read_0tvar(TMP3);
+	emit_write_var(ALU_SRC);
+	// test underflow
+	emit_line("R_%s_IS_C1", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("%s_IS_C1 continue_modulo", HELL_VARIABLE_NAMES[TMP]); // try one more
+
+	// restore remainder
+
+	emit_clear_var(ALU_DST);
+	emit_read_0tvar(TMP2);
+	emit_write_var(ALU_DST);
+
+	emit_function_footer(HELL_MODULO);
+}
+
+
+static void emit_test_le_base() {
+	emit_line(".DATA");
+	emit_line("test_le:");
+	emit_line("R_MOVD");
+	
+	emit_clear_var(TMP2);
+	emit_read_0tvar(ALU_DST);
+	emit_write_var(TMP2);
+
+	emit_clear_var(ALU_DST);
+	emit_read_0tvar(ALU_SRC);
+	emit_write_var(ALU_DST);
+
+	emit_clear_var(ALU_SRC);
+	emit_read_0tvar(TMP2);
+	emit_write_var(ALU_SRC);
+
+	emit_call(HELL_TEST_GE);
+
+	emit_function_footer(HELL_TEST_LE);
+}
+
+static void emit_test_gt_base() {
+	emit_line(".DATA");
+	emit_line("test_gt:");
+	emit_line("R_MOVD");
+	
+	emit_clear_var(TMP2);
+	emit_read_0tvar(ALU_DST);
+	emit_write_var(TMP2);
+
+	emit_clear_var(ALU_DST);
+	emit_read_0tvar(ALU_SRC);
+	emit_write_var(ALU_DST);
+
+	emit_clear_var(ALU_SRC);
+	emit_read_0tvar(TMP2);
+	emit_write_var(ALU_SRC);
+
+	emit_call(HELL_TEST_LT);
+
+	emit_function_footer(HELL_TEST_GT);
+}
+
+
+static void emit_test_neq_base() {
+	emit_line(".DATA");
+	emit_line("test_neq:");
+	emit_line("R_MOVD");
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_SRC);
+	emit_line("ROT C1 R_ROT");
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_opr_var(ALU_SRC);
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("%s_IS_C1 is_eq", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_line("is_eq:");
+	emit_opr_var(ALU_DST);
+
+	emit_function_footer(HELL_TEST_NEQ);
+}
+
+
+static void emit_test_eq_base() {
+	emit_line(".DATA");
+	emit_line("test_eq:");
+	emit_line("R_MOVD");
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_SRC);
+	emit_line("ROT C1 R_ROT");
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_opr_var(ALU_SRC);
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("R_%s_IS_C1", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("%s_IS_C1 is_neq", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_line("is_neq:");
+	emit_opr_var(ALU_DST);
+
+	emit_function_footer(HELL_TEST_EQ);
+}
+
+
+static void emit_test_ge_base() {
+	emit_line(".DATA");
+	emit_line("test_ge:");
+	emit_line("R_MOVD");
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("%s_IS_C1 is_lt", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_line("is_lt:");
+	emit_opr_var(ALU_DST);
+
+	emit_function_footer(HELL_TEST_GE);
+}
+
+
+static void emit_test_lt_base() {
+	emit_line(".DATA");
+	emit_line("test_lt:");
+	emit_line("R_MOVD");
+
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("R_%s_IS_C1", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("%s_IS_C1 is_ge", HELL_VARIABLE_NAMES[TMP]);
+	emit_line("OPR 0t2 R_OPR");
+	emit_line("OPR 1t0 R_OPR");
+	emit_line("is_ge:");
+	emit_opr_var(ALU_DST);
+
+	emit_function_footer(HELL_TEST_LT);
+}
 
 
 
@@ -265,11 +457,11 @@ static void emit_compute_memptr_base() {
 #endif
 	emit_clear_var(ALU_DST);
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C1 R_ROT");
 	emit_opr_var(VAL_1222);
 	emit_line("OPR MEMORY_0-2 R_OPR");
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	emit_write_var(ALU_DST);
 
 	// save ALU_SRC to TMP2
@@ -322,11 +514,11 @@ static void emit_read_memory_base() {
 	emit_opr_var(TMP);
 
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C0 R_ROT");
 	emit_opr_var(VAL_1222);
 	emit_call(HELL_OPR_MEMORY);
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 
 	emit_opr_var(TMP);
 	emit_opr_var(ALU_DST);
@@ -383,17 +575,17 @@ static void emit_add_base() {
 	emit_line("ROT C1 R_ROT");
 	emit_opr_var(VAL_1222); // load 0t22..22
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_opr_var(ALU_DST); // opr dest
 	emit_opr_var(TMP); // opr tmp
 	emit_opr_var(CARRY); // opr carry
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C1 R_ROT");
 	emit_line("OPR 0t2 R_OPR"); // load 0t2
 	emit_opr_var(TMP); // opr tmp
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	emit_line("%s_IS_C1 keep_carry_during_add",HELL_VARIABLE_NAMES[TMP]); // keep increment carry-flag
 	emit_test_var(TMP); // MOVD tmp
 	emit_line("R_%s_IS_C1",HELL_VARIABLE_NAMES[TMP]);
@@ -570,17 +762,17 @@ static void emit_increment_base() {
 	emit_line("ROT C1 R_ROT");
 	emit_opr_var(VAL_1222); // load 0t22..22
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_opr_var(ALU_DST); // opr dest
 	emit_opr_var(TMP); // opr tmp
 	emit_opr_var(CARRY); // opr carry
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	num_rw_var_calls++;
-	emit_line("do_read_again_%d:",num_rw_var_calls);
+	emit_line("do_read_again_%u:",num_rw_var_calls);
 	emit_line("ROT C1 R_ROT");
 	emit_line("OPR 0t2 R_OPR"); // load 0t2
 	emit_opr_var(TMP); // opr tmp
-	emit_line("LOOP2 do_read_again_%d",num_rw_var_calls);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);
 	emit_test_var(TMP); // MOVD tmp
 	emit_line("no_increment:");
 	emit_rot_var(ALU_DST); // rot dest
@@ -675,51 +867,47 @@ static void emit_generate_val_1222_base() {
 
 
 
-
-
-
-
 static void emit_opr_var(HellVariable var) {
 	num_hell_variable_return_labels[var]++;
-	emit_line("R_%s_RETURN%d",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("R_%s_RETURN%u",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 	emit_line("MOVD opr_%s",HELL_VARIABLE_NAMES[var]);
 	emit_line("");
-	emit_line("%s_ret%d:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("%s_ret%u:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 }
 
 static void emit_rot_var(HellVariable var) {
 	num_hell_variable_return_labels[var]++;
-	emit_line("R_%s_RETURN%d",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("R_%s_RETURN%u",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 	emit_line("MOVD rot_%s",HELL_VARIABLE_NAMES[var]);
 	emit_line("");
-	emit_line("%s_ret%d:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("%s_ret%u:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 }
 
 static void emit_test_var(HellVariable var) {
 	num_hell_variable_return_labels[var]++;
-	emit_line("R_%s_RETURN%d",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("R_%s_RETURN%u",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 	emit_line("MOVD %s",HELL_VARIABLE_NAMES[var]);
 	emit_line("");
-	emit_line("%s_ret%d:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
+	emit_line("%s_ret%u:",HELL_VARIABLE_NAMES[var],num_hell_variable_return_labels[var]);
 }
 
 
 
 static void emit_rotwidth_loop_begin() {
 	num_rotwidth_loop_calls++;
-	emit_line("R_ROTWIDTH_LOOP%d",num_rotwidth_loop_calls);
+	emit_line("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
 	emit_line("MOVD loop");
 	dec_indent();
 	emit_line("");
-	emit_line("rotwidth_loop_inner%d:",num_rotwidth_loop_calls);
+	emit_line("rotwidth_loop_inner%u:",num_rotwidth_loop_calls);
 	inc_indent();
-	emit_line("R_ROTWIDTH_LOOP%d",num_rotwidth_loop_calls);
+	emit_line("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
 }
 static void emit_rotwidth_loop_end() {
 	emit_line("MOVD end_of_loop_body");
 	dec_indent();
 	emit_line("");
-	emit_line("rotwidth_loop_ret%d:",num_rotwidth_loop_calls);
+	emit_line("rotwidth_loop_ret%u:",num_rotwidth_loop_calls);
 	inc_indent();
 }
 
@@ -755,7 +943,7 @@ static void emit_rotwidth_loop_base() {
   inc_indent();
   emit_line("R_OPR");
   for (int i=1;i<=4;i++) {
-    emit_line("FLAG%d loop_tmp_ret%d R_FLAG%d",flag_base+i,i,flag_base+i);
+    emit_line("FLAG%u loop_tmp_ret%u R_FLAG%u",flag_base+i,i,flag_base+i);
   }
   dec_indent();
   emit_line("");
@@ -763,7 +951,7 @@ static void emit_rotwidth_loop_base() {
   inc_indent();
   emit_line("R_MOVD");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
-    emit_line("ROTWIDTH_LOOP%d rotwidth_loop_inner%d R_ROTWIDTH_LOOP%d",i,i,i);
+    emit_line("ROTWIDTH_LOOP%u rotwidth_loop_inner%u R_ROTWIDTH_LOOP%u",i,i,i);
   }
   // emit_line("MOVD end_of_loop_body");
   emit_line("");
@@ -775,7 +963,7 @@ static void emit_rotwidth_loop_base() {
   dec_indent();
   emit_line("reset_loop_tmp_loop:");
   inc_indent();
-  emit_line("R_FLAG%d",flag_base+1);
+  emit_line("R_FLAG%u",flag_base+1);
   emit_line("MOVD opr_loop_tmp");
   emit_line("");
   dec_indent();
@@ -787,7 +975,7 @@ static void emit_rotwidth_loop_base() {
   inc_indent();
   emit_line("ROT C1 R_ROT");
   emit_line("OPR C02 R_OPR");
-  emit_line("R_FLAG%d",flag_base+2);
+  emit_line("R_FLAG%u",flag_base+2);
   emit_line("MOVD opr_loop_tmp");
   emit_line("");
   dec_indent();
@@ -795,14 +983,14 @@ static void emit_rotwidth_loop_base() {
   inc_indent();
   emit_line("R_LOOP2");
   emit_line("LOOP2 loop_tmp");
-  emit_line("R_FLAG%d",flag_base+3);
+  emit_line("R_FLAG%u",flag_base+3);
   emit_line("MOVD opr_loop_tmp");
   emit_line("");
   dec_indent();
   emit_line("loop_tmp_ret3:");
   inc_indent();
   emit_line("ROT C12 R_ROT");
-  emit_line("R_FLAG%d",flag_base+4);
+  emit_line("R_FLAG%u",flag_base+4);
   emit_line("MOVD opr_loop_tmp");
   emit_line("");
   dec_indent();
@@ -815,14 +1003,14 @@ static void emit_rotwidth_loop_base() {
   inc_indent();
   emit_line("R_MOVD");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
-    emit_line("ROTWIDTH_LOOP%d rotwidth_loop_ret%d R_ROTWIDTH_LOOP%d",i,i,i);
+    emit_line("ROTWIDTH_LOOP%u rotwidth_loop_ret%u R_ROTWIDTH_LOOP%u",i,i,i);
   }
   dec_indent();
   emit_line("");
 
   emit_line(".CODE");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
-    emit_line("ROTWIDTH_LOOP%d:",i);
+    emit_line("ROTWIDTH_LOOP%u:",i);
     inc_indent();
     emit_line("Nop/MovD");
     emit_line("Jmp");
@@ -836,6 +1024,25 @@ static void emit_rotwidth_loop_base() {
 
 
 static void finalize_hell() {
+
+  emit_modulo_base();
+  emit_test_le_base();
+  emit_test_gt_base();
+  emit_test_neq_base();
+  emit_test_eq_base();
+  emit_test_ge_base();
+  emit_test_lt_base();
+  emit_compute_memptr_base();
+  emit_write_memory_base();
+  emit_read_memory_base();
+  emit_set_memptr_base();
+  emit_memory_access_base();
+  emit_add_base();
+  emit_sub_base();
+  emit_increment_base();
+  emit_decrement_base();
+  emit_generate_val_1222_base();
+  emit_rotwidth_loop_base();
 
   emit_line(".DATA");
   emit_line("");
@@ -856,7 +1063,7 @@ static void finalize_hell() {
 		dec_indent();
 		emit_line("%s:",HELL_VARIABLE_NAMES[i]);
 		inc_indent();
-		emit_line("%d",HELL_VARIABLE_INIT_VAL[i]);
+		emit_line("?");
 		emit_line("U_NOP continue_%s",HELL_VARIABLE_NAMES[i]);
 		emit_line("U_NOP %s_was_c1",HELL_VARIABLE_NAMES[i]);
 		emit_line("U_NOP %s_was_c0",HELL_VARIABLE_NAMES[i]);
@@ -880,7 +1087,7 @@ static void finalize_hell() {
 		inc_indent();
 		emit_line("R_MOVD");
 		for (int j=1;j<=num_hell_variable_return_labels[i];j++) {
-			emit_line("%s_RETURN%d %s_ret%d R_%s_RETURN%d",HELL_VARIABLE_NAMES[i],j,HELL_VARIABLE_NAMES[i],j,HELL_VARIABLE_NAMES[i],j);
+			emit_line("%s_RETURN%u %s_ret%u R_%s_RETURN%u",HELL_VARIABLE_NAMES[i],j,HELL_VARIABLE_NAMES[i],j,HELL_VARIABLE_NAMES[i],j);
 		}
 		dec_indent();
 		emit_line("");
@@ -901,7 +1108,7 @@ static void finalize_hell() {
 		dec_indent();
 		emit_line("");
 		for (int j=1;j<=num_hell_variable_return_labels[i];j++) {
-			emit_line("%s_RETURN%d:",HELL_VARIABLE_NAMES[i],j);
+			emit_line("%s_RETURN%u:",HELL_VARIABLE_NAMES[i],j);
 			inc_indent();
 			emit_line("Nop/MovD");
 			emit_line("Jmp");
@@ -965,7 +1172,7 @@ static void finalize_hell() {
   emit_line("");
 
   for (int i=1; i<=num_flags; i++) {  
-    emit_line("FLAG%d:",i);
+    emit_line("FLAG%u:",i);
     inc_indent();
     emit_line("Nop/MovD");
     emit_line("Jmp");
@@ -980,13 +1187,13 @@ static void dec_ternary_string(char* str) {
 	while (l) {
 		l--;
 		str[l]--;
-		if (str[l] < '0')
+		if (str[l] < '0') {
 			str[l] = '2';
-		else
+		}else{
 			break;
+		}
 	}
 }
-
 
 static void init_state_hell(Data* data) {
 	/* THS MUST BE WRITTEN AT THE VERY START OF THE PROGRAM ---- TODO: maybe not??*/
@@ -1014,9 +1221,9 @@ static void init_state_hell(Data* data) {
 	int mp = 0;
 	for (; data; data = data->next, mp++) {
 		emit_line("@1t%s",address);
-		emit_line("MEMORY_%d:", mp);
+		emit_line("MEMORY_%u:", mp);
 		if (data->v) {
-			emit_line("%d return_from_uninitialized_cell", data->v);
+			emit_line("%u return_from_uninitialized_cell", data->v);
 		}else{
 			emit_line("? return_from_uninitialized_cell");
 		}
@@ -1030,8 +1237,8 @@ static void init_state_hell(Data* data) {
 		emit_line("");
 	}
 	
-  // TODO: necessary?? fix??
-  emit_line("unused: %d*3 // force rot_width to be large enough", UINT_MAX); // multiplication with 3 may not be necessary
+  // TODO: necessary?? sufficient large value?
+  emit_line("unused: %u*9 // force rot_width to be large enough", UINT_MAX); // multiplication with 3 may not be necessary
   emit_line("");
 
 
@@ -1055,113 +1262,43 @@ void target_hell(Module* module) {
 	inc_indent();
 
 
-	// set pointer to memory cell 23
 	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!23 R_OPR");
+	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'~' R_OPR");
 	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// write 'i' into memory
+
+
 	emit_clear_var(ALU_DST);
+	emit_line("ROT 1t2222222222222221 R_ROT OPR 1t222222222222222!('h'+27*'~') R_OPR");
+	emit_write_var(ALU_DST);
+	
+	emit_call(HELL_MODULO);
+
+	emit_clear_var(ALU_SRC);
 	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'i' R_OPR");
-	emit_write_var(ALU_DST);
-	emit_call(HELL_WRITE_MEMORY);
-
-	// set pointer to memory cell 6
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!6 R_OPR");
 	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// write '\n' into memory
-	emit_clear_var(ALU_DST);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'\\n' R_OPR");
-	emit_write_var(ALU_DST);
-	emit_call(HELL_WRITE_MEMORY);
 
-	// set pointer to memory cell 7
+	emit_read_0tvar(ALU_DST);
+	emit_line("OUT ?- R_OUT");
+	emit_read_0tvar(ALU_SRC);
+	emit_line("OUT ?- R_OUT");
+	
+	emit_call(HELL_TEST_NEQ);
+
 	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!7 R_OPR");
+	emit_line("ROT 1t222221 R_ROT OPR 1t22222!('!'-1) R_OPR");
 	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// write 'h' into memory
-	emit_clear_var(ALU_DST);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'h' R_OPR");
-	emit_write_var(ALU_DST);
-	emit_call(HELL_WRITE_MEMORY);
+	
+	emit_call(HELL_ADD);
 
-	// set pointer to memory cell 5
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!5 R_OPR");
-	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// write '!' into memory
-	emit_clear_var(ALU_DST);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'!' R_OPR");
-	emit_write_var(ALU_DST);
-	emit_call(HELL_WRITE_MEMORY);
-
-
-	// set pointer to memory cell 7
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!7 R_OPR");
-	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// read and print
-	emit_call(HELL_READ_MEMORY);
 	emit_read_0tvar(ALU_DST);
 	emit_line("OUT ?- R_OUT");
 
-	// set pointer to memory cell 23
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!23 R_OPR");
-	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// read and print
-	emit_call(HELL_READ_MEMORY);
-	emit_read_0tvar(ALU_DST);
-	emit_line("OUT ?- R_OUT");
 
-	// set pointer to memory cell 5
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!5 R_OPR");
-	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// read and print
-	emit_call(HELL_READ_MEMORY);
-	emit_read_0tvar(ALU_DST);
-	emit_line("OUT ?- R_OUT");
-
-	// set pointer to memory cell 6
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!6 R_OPR");
-	emit_write_var(ALU_SRC);
-	emit_call(HELL_COMPUTE_MEMPTR);
-	emit_call(HELL_SET_MEMPTR);
-	// read and print
-	emit_call(HELL_READ_MEMORY);
-	emit_read_0tvar(ALU_DST);
-	emit_line("OUT ?- R_OUT");
-
+  emit_line("ROT 1t222221 R_ROT OPR 1t22222!'\\n' R_OPR");
+  emit_line("OUT ?- R_OUT");
   emit_line("HALT");
   dec_indent();
   emit_line("");
 
-  emit_compute_memptr_base();
-  emit_write_memory_base();
-  emit_read_memory_base();
-  emit_set_memptr_base();
-  emit_memory_access_base();
-  emit_add_base();
-  emit_sub_base();
-  emit_increment_base();
-  emit_decrement_base();
-  emit_generate_val_1222_base();
-  emit_rotwidth_loop_base();
   finalize_hell();
 }
