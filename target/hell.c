@@ -1,27 +1,29 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-// TODO: build inc/dec/sub/add mod-INT24 functions, PC-logic, and put all together
+// TODO: build function that copies registers or immediates to ALU_-variables, calls an EIR command, and copies the result back!;
+// TODO: build PC-logic, and put all together
 
 // minor TODO: fix indention (this file (space vs tab) and HeLL file as well: add more inc_indent,dec_indent)
 //             (maybe) remove all these dirty "fix LMFAO problem"-fixes
 
 
 // TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
+// TODO: speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
 
 
 typedef enum {
   REG_A = 0, REG_B = 1, REG_C = 2, REG_D = 3,
-  REG_BP = 4, REG_SP = 5, SRC = 6, DST = 7,
-  ALU_SRC = 8, ALU_DST = 9, TMP = 10, CARRY = 11, VAL_1222 = 12,
-  TMP2 = 13, TMP3 = 14
+  REG_BP = 4, REG_SP = 5,
+  ALU_SRC = 6, ALU_DST = 7, TMP = 8, CARRY = 9, VAL_1222 = 10,
+  TMP2 = 11, TMP3 = 12
 } HellVariable;
 
 #define GENERATE_1222_ONLY_ONCE 1
 
 static const char* HELL_VARIABLE_NAMES[] = {
 	"reg_a", "reg_b", "reg_c", "reg_d",
-	"reg_bp", "reg_sp", "src", "dst",
+	"reg_bp", "reg_sp",
 	"alu_src", "alu_dst", "tmp", "carry", "val_1222",
 	"tmp2", "tmp3", "" // NULL instead of "" crashes 8cc
 };
@@ -29,7 +31,7 @@ static const char* HELL_VARIABLE_NAMES[] = {
 
 static int num_hell_variable_return_labels[] = {
 	0, 0, 0, 0,
-	0, 0, 0, 0,
+	0, 0,
 	0, 0, 0, 0, 0,
 	0, 0
 };
@@ -63,7 +65,13 @@ typedef enum {
 	HELL_TEST_NEQ=14,
 	HELL_TEST_GT=15,
 	HELL_TEST_LE=16,
-	HELL_MODULO=17
+	HELL_MODULO=17,
+	HELL_DECREMENT_UINT24=18,
+	HELL_INCREMENT_UINT24=19,
+	HELL_SUB_UINT24=20,
+	HELL_ADD_UINT24=21,
+	HELL_GETC=22,
+	HELL_PUTC=23
 } HeLLFunctions;
 
 static const HeLLFunction HELL_FUNCTIONS[] = {
@@ -84,16 +92,32 @@ static const HeLLFunction HELL_FUNCTIONS[] = {
 	{"test_neq", "TEST_NEQ"},
 	{"test_gt", "TEST_GT"},
 	{"test_le", "TEST_LE"},
-	{"modulo", "MODULO"}
+	{"modulo", "MODULO"},
+	{"decrement_uint24", "DECREMENT_UINT24_"},
+	{"increment_uint24", "INCREMENT_UINT24_"},
+	{"sub_uint24", "SUB_UINT24_"},
+	{"add_uint24", "ADD_UINT24_"},
+	{"getc", "GETC"},
+	{"putc", "PUTC"}
 };
 
 static int num_calls[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0
 };
 
 
 
 // init
+static void emit_putc_base(); // write a character from ALU_DST to stdout (modulo 256) ;;; changes ALU_DST by mod 256 computation ;;; changes TMP2, TMP3
+static void emit_getc_base(); // read a character from stdin into ALU_DST (modulo 256; revert newline to '\n'; convert EOF to '\0') ;;; changes ALU_SRC, TMP2, TMP3
+static void emit_add_uint24_base(); // arithmetic: add ALU_SRC to ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
+static void emit_sub_uint24_base(); // arithmetic: sub ALU_SRC from ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
+static void emit_increment_uint24_base(); // arithmetic: increment ALU_DST by one ;;; side effect: changes TMP2, TMP3
+static void emit_decrement_uint24_base(); // arithmetic: decrement ALU_DST by one
 static void emit_modulo_base(); // ALU_DST := ALU_DST % ALU_SRC ;;; side effect: changes TMP2, TMP3
 static void emit_test_le_base(); // ALU_DST := (ALU_DST <= ALU_SRC)?1:0 ;;; side effect: changes TMP2
 static void emit_test_gt_base(); // ALU_DST := (ALU_DST > ALU_SRC)?1:0  ;;; side effect: changes TMP2
@@ -107,9 +131,9 @@ static void emit_read_memory_base(); // copy memory to ALU_DST
 static void emit_set_memptr_base(); // copy ALU_DST to memptr (without any changes);; to access cell i, memptr must contain "(MEMORY - 2) - 2*i"
 static void emit_memory_access_base(); // OPR memory // OPR memptr
 static void emit_add_base(); // arithmetic: add ALU_SRC to ALU_DST; ALU_SRC gets destroyed!; tmp_IS_C1-flag: overflow
-static void emit_sub_base(); // arithmetic: sub ALU_SRC from ALU_DST; ALU_SRC gets destroyed!; tmp_IS_C1-flag: overflow
+static void emit_sub_base(); // arithmetic: sub ALU_SRC from ALU_DST; ALU_SRC gets destroyed!; tmp_IS_C1-flag: overflow ;;;; side effect: ALU_DST changes from 0t.. to 1t..
 static void emit_increment_base(); // arithmetic: increment ALU_DST by one; tmp_IS_C1-flag: overflow
-static void emit_decrement_base(); // arithmetic: decrement ALU_DST by one; tmp_IS_C1-flag: overflow
+static void emit_decrement_base(); // arithmetic: decrement ALU_DST by one; tmp_IS_C1-flag: overflow ;;;; side effect: ALU_DST changes from 0t.. to 1t..
 static void emit_generate_val_1222_base(); // set VAL_1222 to 1t22.22
 static void emit_rotwidth_loop_base();
 static void emit_function_footer(HeLLFunctions hf); // generate function footer
@@ -222,6 +246,271 @@ static void emit_write_var(HellVariable var) {
 	emit_opr_var(TMP);
 	emit_opr_var(var);
 }
+
+static void emit_increment_uint24_base() {
+	emit_line(".DATA");
+	emit_line("increment_uint24:");
+	emit_line("R_MOVD");
+
+	// normal computation
+	emit_call(HELL_INCREMENT);
+
+	// read (UINT_MAX+1) into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR %u+1 R_OPR",UINT_MAX);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+
+	// now modulo can be applied
+	emit_call(HELL_MODULO);
+
+	emit_function_footer(HELL_INCREMENT_UINT24);
+}
+
+
+static void emit_putc_base() {
+	emit_line(".DATA");
+	emit_line("putc:");
+	emit_line("R_MOVD");
+
+	// do mod 256 computation
+	// read 256 into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR 256 R_OPR");
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+	emit_call(HELL_MODULO);
+	
+	emit_read_0tvar(ALU_DST);
+	emit_line("OUT ?- R_OUT");
+
+	emit_function_footer(HELL_PUTC);
+}
+
+
+static void emit_getc_base() {
+	emit_line(".DATA");
+	emit_line("getc:");
+	emit_line("R_MOVD");
+
+	emit_clear_var(ALU_DST);
+	emit_line("IN ?- R_IN");
+	emit_write_var(ALU_DST);
+	
+	// save in TMP3
+	emit_clear_var(TMP3);
+	emit_read_0tvar(ALU_DST);
+	emit_write_var(TMP3);
+
+	// detect C21 and C2
+	
+	// DESTROY preceeding 2t... by moving the value back from TMP3
+	emit_clear_var(ALU_DST);
+	emit_read_0tvar(TMP3);
+	emit_write_var(ALU_DST);
+
+	// read 16777215 into ALU_SRC (which is much larger than largest Unicode code point,
+	// but much smaller than modified special Malbolge Unshackled encoding 0t22..21 or 0t22..22
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR 16777215 R_OPR");
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+	
+	// test if alu_dst is less than alu_src
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("%s_IS_C1 handle_normal_input_character", HELL_VARIABLE_NAMES[TMP]);
+
+	// handle special input character:
+	// only the last trit matters to determine whether newline or EOF has been read
+	// restore last trit from TMP3
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C0 R_ROT");
+	emit_line("OPR 1t2 R_OPR");
+	emit_opr_var(ALU_DST); // set ALU_DST to 0t2
+	emit_read_1tvar(TMP3);
+	emit_opr_var(ALU_DST);
+	// if last trit of input has been '2', ALU_DST will now be '1'
+	// if last trit of input has been '1', ALU_DST will now be '2'
+
+	// now compare with 2:
+	// read 2 into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR 2 R_OPR");
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+
+	// test if alu_dst is less than alu_src
+	emit_call(HELL_SUB);
+	emit_clear_var(ALU_DST);
+	emit_line("ROT C1 R_ROT");
+	emit_line("%s_IS_C1 handle_eof_input", HELL_VARIABLE_NAMES[TMP]);
+
+
+	// handle newline
+	// read '\n' into ALU_DST
+	emit_clear_var(ALU_DST);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR '\\n' R_OPR");
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_DST);
+	emit_line("MOVD finish_getc");
+
+
+	// handle eof
+	emit_line("handle_eof_input:");
+	// read '\0' into ALU_DST
+	emit_clear_var(ALU_DST);
+	emit_opr_var(ALU_DST);
+	emit_line("MOVD finish_getc");
+	
+
+	// handle normal character
+	emit_line("handle_normal_input_character:");
+	// restore from TMP3
+	emit_clear_var(ALU_DST);
+	emit_read_0tvar(TMP3);
+	emit_write_var(ALU_DST);
+	// do mod 256 computation
+	// read 256 into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR 256 R_OPR");
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+	emit_call(HELL_MODULO);
+	// done.
+
+	emit_line("R_MOVD");
+	emit_line("finish_getc:");
+	emit_line("R_MOVD");
+
+	emit_function_footer(HELL_GETC);
+}
+
+
+
+
+static void emit_decrement_uint24_base() {
+	emit_line(".DATA");
+	emit_line("decrement_uint24:");
+	emit_line("R_MOVD");
+
+	emit_call(HELL_DECREMENT);
+	emit_line("R_%s_IS_C1", HELL_VARIABLE_NAMES[CARRY]);
+	emit_line("%s_IS_C1 no_decrement_undeflow", HELL_VARIABLE_NAMES[CARRY]);
+
+	// load UINT_MAX into ALU_DST
+	emit_clear_var(ALU_DST);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR %u R_OPR",UINT_MAX);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_DST);
+
+	emit_line("no_decrement_undeflow:");
+	emit_function_footer(HELL_DECREMENT_UINT24);
+}
+
+
+
+static void emit_sub_uint24_base() {
+	emit_line(".DATA");
+	emit_line("sub_uint24:");
+	emit_line("R_MOVD");
+
+	// backup ALU_SRC to TMP2
+	emit_clear_var(TMP2);
+	emit_read_0tvar(ALU_SRC);
+	emit_write_var(TMP2);
+
+	// load UINT_MAX+1 into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR %u+1 R_OPR",UINT_MAX);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+
+	// add UINT_MAX+1 to ALU_DST
+	emit_call(HELL_ADD);
+	
+	// restore ALU_SRC from TMP2
+	emit_clear_var(ALU_SRC);
+	emit_read_0tvar(TMP2);
+	emit_write_var(ALU_SRC);
+
+	// do actual subtraction
+	emit_call(HELL_SUB);		
+
+	// compute result modulo (UINT_MAX+1)
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR %u+1 R_OPR",UINT_MAX);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+	emit_call(HELL_MODULO);
+
+	emit_function_footer(HELL_SUB_UINT24);
+}
+
+
+
+
+static void emit_add_uint24_base() {
+	emit_line(".DATA");
+	emit_line("add_uint24:");
+	emit_line("R_MOVD");
+
+	// normal computation
+	emit_call(HELL_ADD);
+
+	// read (UINT_MAX+1) into ALU_SRC
+	emit_clear_var(ALU_SRC);
+	num_rw_var_calls++;
+	emit_line("do_read_again_%u:",num_rw_var_calls);
+	emit_line("ROT C0 R_ROT");
+	emit_opr_var(VAL_1222);
+	emit_line("OPR %u+1 R_OPR",UINT_MAX);
+	emit_line("LOOP2 do_read_again_%u",num_rw_var_calls);	
+	emit_write_var(ALU_SRC);
+
+	// now modulo can be applied
+	emit_call(HELL_MODULO);
+
+	emit_function_footer(HELL_ADD_UINT24);
+}
+
 
 
 static void emit_modulo_base() {
@@ -1025,6 +1314,12 @@ static void emit_rotwidth_loop_base() {
 
 static void finalize_hell() {
 
+  emit_putc_base();
+  emit_getc_base();
+  emit_add_uint24_base();
+  emit_sub_uint24_base();
+  emit_increment_uint24_base();
+  emit_decrement_uint24_base();
   emit_modulo_base();
   emit_test_le_base();
   emit_test_gt_base();
@@ -1261,17 +1556,33 @@ void target_hell(Module* module) {
 
 	inc_indent();
 
+	emit_clear_var(ALU_DST);
+	emit_line("ROT 1t22222222222222222221 R_ROT OPR 1t2222222222222222222!(12353) R_OPR");
+	emit_write_var(ALU_DST);
+	emit_line("ROT 0t01210210 R_ROT"); // kill A register
 
-	emit_clear_var(ALU_SRC);
-	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'~' R_OPR");
-	emit_write_var(ALU_SRC);
-
+	emit_call(HELL_PUTC);
+	emit_line("HALT");
 
 	emit_clear_var(ALU_DST);
-	emit_line("ROT 1t2222222222222221 R_ROT OPR 1t222222222222222!('h'+27*'~') R_OPR");
+	emit_line("ROT 1t222221 R_ROT OPR 1t22222!2 R_OPR"); //('h'-2) R_OPR");
 	emit_write_var(ALU_DST);
+
+
+	emit_clear_var(ALU_SRC);
+	emit_line("ROT 1t22222222222222222221 R_ROT OPR 1t2222222222222222222!16777214 R_OPR");
+	emit_write_var(ALU_SRC);
 	
-	emit_call(HELL_MODULO);
+	emit_line("IN alu_dst R_IN");
+	emit_call(HELL_DECREMENT_UINT24);
+	emit_line("IN alu_dst R_IN");
+	emit_call(HELL_DECREMENT_UINT24);
+	emit_line("IN alu_dst R_IN");
+	emit_call(HELL_DECREMENT_UINT24);
+	emit_line("IN alu_dst R_IN");
+	emit_call(HELL_DECREMENT_UINT24);
+	emit_line("IN alu_dst R_IN");
+	emit_line("HALT");
 
 	emit_clear_var(ALU_SRC);
 	emit_line("ROT 1t222221 R_ROT OPR 1t22222!'i' R_OPR");

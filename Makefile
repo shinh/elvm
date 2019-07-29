@@ -443,6 +443,13 @@ TARGET := go
 RUNNER := go run
 include target.mk
 
+ifdef HELL
+TARGET := hell
+RUNNER := tools/runhell.sh
+include target.mk
+$(OUT.eir.hell.out): tools/runhell.sh
+endif
+
 TARGET := sqlite3
 RUNNER := tools/runsqlite3.sh
 TOOL := sqlite3
