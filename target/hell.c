@@ -4,9 +4,7 @@
 /// TODO: fix issue with 8cc and remove this dirty HACK for passing make!!!!!
 #if __GNUC__
 
-// TODO: dramatically reduce size of generated HeLL file s.t. LMFAO will not crash on so many tests
-
-// --> introduce fixed MOV-functions for REG --> ALU, ALU --> REG, and REG --> REG; making such calls a lot more shorter
+// TODO: dramatically reduce size of generated HeLL file
 
 // TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
 // TODO: speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
@@ -131,9 +129,27 @@ static HeLLFunction HELL_FUNCTIONS[] = {
   {"putc", &HELL_FLAGS[FLAG_ARITHMETIC_OR_IO], 0}
 };
 
+typedef enum {
+  HELL_VAR_READ_0t = 0,
+  HELL_VAR_READ_1t = 1,
+  HELL_VAR_WRITE = 2,
+  HELL_VAR_CLEAR = 3
+} ModifyMode;
+
+int modify_var_counter[4][8] = {
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0}
+};
 
 
 // initialization and finalization (almost finalization)
+static void emit_read0t_var_base(int var);
+static void emit_read1t_var_base(int var);
+static void emit_write_var_base(int var);
+static void emit_clear_var_base(int var);
+static void emit_modify_var_footer(int var, ModifyMode access); // generate function footer for variable-modifying functions
 static void emit_putc_base(); // write a character from ALU_DST to stdout (modulo 256) ;;; changes ALU_DST by mod 256 computation ;;; changes TMP2, TMP3
 static void emit_getc_base(); // read a character from stdin into ALU_DST (modulo 256; revert newline to '\n'; convert EOF to '\0') ;;; changes ALU_SRC, TMP2, TMP3
 static void emit_add_uint24_base(); // arithmetic: add ALU_SRC to ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
@@ -162,9 +178,11 @@ static void finalize_hell();
 static void init_state_hell(Data* data);
 
 
+
 // use
 static void hell_emit_inst(Inst* inst); // produce HeLL code for a given instruction
 static void emit_call(HeLLFunctions hf); // call some function
+static void emit_modify_var(int var, ModifyMode access); // read, write, or clear variable
 static void emit_jmp(Value* jmp);
 static void emit_read_0tvar(int var); // set VAL_1222 to 1t22..22, read a value starting with 0t from var
 static void emit_read_1tvar(int var); // set VAL_1222 to 1t22..22, read a value starting with 1t from var
@@ -181,10 +199,160 @@ static void emit_rotwidth_loop_end();   // }
 static void dec_ternary_string(char* str);
 static int hell_cmp_call(Inst* inst);
 static void emit_indented(const char* fmt, ...);
-static void emit_nonindented(const char* fmt, ...);
+static void emit_unindented(const char* fmt, ...);
 
 
-void emit_nonindented(const char* fmt, ...) {
+static void emit_modify_var(int var, ModifyMode access) {
+  modify_var_counter[access][var]++;
+  emit_indented("R_MODIFY_VAR_RETURN%u",modify_var_counter[access][var]);
+  switch (access) {
+    case HELL_VAR_READ_0t:
+      emit_indented("MOVD READ0t_%s",HELL_VARIABLES[var].name);
+      emit_unindented("");
+      emit_unindented("read0t_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      break;
+    case HELL_VAR_READ_1t:
+      emit_indented("MOVD READ1t_%s",HELL_VARIABLES[var].name);
+      emit_unindented("");
+      emit_unindented("read1t_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      break;
+    case HELL_VAR_WRITE:
+      emit_indented("MOVD WRITE_%s",HELL_VARIABLES[var].name);
+      emit_unindented("");
+      emit_unindented("write_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      break;
+    case HELL_VAR_CLEAR:
+      emit_indented("MOVD CLEAR_%s",HELL_VARIABLES[var].name);
+      emit_unindented("");
+      emit_unindented("clear_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      break;
+  }
+}
+
+static void emit_modify_var_footer(int var, ModifyMode access) {
+  for (int i=1; i<=modify_var_counter[access][var]; i++) {
+  const char* ret;
+  switch (access) {
+    case HELL_VAR_READ_0t:
+      ret = "read0t";
+      break;
+    case HELL_VAR_READ_1t:
+      ret = "read1t";
+      break;
+    case HELL_VAR_WRITE:
+      ret = "write";
+      break;
+    case HELL_VAR_CLEAR:
+      ret = "clear";
+      break;
+    default:
+      error("oops");
+  }
+  emit_unindented("MODIFY_VAR_RETURN%u %s_%s_ret%u R_MODIFY_VAR_RETURN%u",
+      i, ret, HELL_VARIABLES[var].name, i, i);
+}
+  if (!modify_var_counter[access][var]) {
+    emit_indented("0"); /* fix LMFAO problem */
+  }
+  emit_unindented("");
+}
+
+static void emit_read0t_var_base(int var) {
+  emit_unindented("READ0t_%s:",HELL_VARIABLES[var].name);
+  emit_unindented("R_MOVD");
+  emit_read_0tvar(var);
+  emit_modify_var_footer(var, HELL_VAR_READ_0t);
+
+}
+
+static void emit_read1t_var_base(int var) {
+  emit_unindented("READ1t_%s:",HELL_VARIABLES[var].name);
+  emit_unindented("R_MOVD");
+  emit_read_1tvar(var);
+  emit_modify_var_footer(var, HELL_VAR_READ_1t);
+
+}
+
+static void emit_write_var_base(int var) {
+  int flag_base = num_flags;
+  num_flags += 4;
+
+  emit_unindented("WRITE_%s:",HELL_VARIABLES[var].name);
+  emit_unindented("R_MOVD");
+  
+  // SAVE A REGISTER
+
+  // OPR into TMP VAR
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp", flag_base+1,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp_ret1:",HELL_VARIABLES[var].name);
+
+  // OPR into TMP2 VAR
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp2", flag_base+1,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp2_ret1:",HELL_VARIABLES[var].name);
+
+  // clear destination variable
+  emit_clear_var(var);
+
+  // restore A register
+  num_local_labels++;
+  emit_unindented("local_label_%u:",num_local_labels);
+  emit_indented("ROT C0 R_ROT");
+  emit_opr_var(VAL_1222);
+  // OPR into TMP2 VAR
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp2", flag_base+2,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp2_ret2:",HELL_VARIABLES[var].name);
+  emit_indented("LOOP2 local_label_%u",num_local_labels);
+  
+  // WRITE A REGISTER
+  emit_write_var(var);
+
+  // RESET local TMP, TMP2 VARS
+  emit_indented("ROT C1 R_ROT");
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp", flag_base+2,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp_ret2:",HELL_VARIABLES[var].name);
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp", flag_base+3,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp_ret3:",HELL_VARIABLES[var].name);
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp2", flag_base+3,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp2_ret3:",HELL_VARIABLES[var].name);
+  emit_indented("R_FLAG%u MOVD write_%s_opr_tmp2", flag_base+4,HELL_VARIABLES[var].name);
+  emit_unindented("");
+  emit_unindented("write_%s_tmp2_ret4:",HELL_VARIABLES[var].name);
+
+  // return
+  emit_modify_var_footer(var, HELL_VAR_WRITE);
+
+
+  emit_unindented("write_%s_opr_tmp:",HELL_VARIABLES[var].name);
+  emit_indented("OPR C1 R_OPR R_MOVD");
+  for (int i=1;i<=3;i++) {
+    emit_indented("FLAG%u write_%s_tmp_ret%u R_FLAG%u",flag_base+i,HELL_VARIABLES[var].name,i,flag_base+i);
+  }
+  emit_unindented("");
+  emit_unindented("write_%s_opr_tmp2:",HELL_VARIABLES[var].name);
+  emit_indented("OPR C1 R_OPR R_MOVD");
+  for (int i=1;i<=4;i++) {
+    emit_indented("FLAG%u write_%s_tmp2_ret%u R_FLAG%u",flag_base+i,HELL_VARIABLES[var].name,i,flag_base+i);
+  }
+  emit_unindented("");
+}
+
+static void emit_clear_var_base(int var) {
+  emit_unindented("CLEAR_%s:",HELL_VARIABLES[var].name);
+  emit_unindented("R_MOVD");
+  emit_clear_var(var);
+  emit_modify_var_footer(var, HELL_VAR_CLEAR);
+
+}
+
+
+
+void emit_unindented(const char* fmt, ...) {
   if (fmt[0]) {
     va_list ap;
     va_start(ap, fmt);
@@ -209,7 +377,7 @@ void emit_indented(const char* fmt, ...) {
 
 static void emit_load_immediate(unsigned int immediate) {
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_indented("OPR %u R_OPR", immediate);
@@ -242,123 +410,115 @@ static void hell_emit_inst(Inst* inst) {
   switch (inst->op) {
     case MOV:
 
-    emit_clear_var(inst->dst.reg);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(inst->dst.reg);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
   case ADD:
 
     // copy to ALU
-    emit_clear_var(ALU_DST);
-    emit_read_0tvar(inst->dst.reg);
-    emit_write_var(ALU_DST);
+    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
-    emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
     // compute
     emit_call(HELL_ADD_UINT24);
 
     // copy result back
-    emit_clear_var(inst->dst.reg);
-    emit_read_0tvar(ALU_DST);
-    emit_write_var(inst->dst.reg);
+    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
   case SUB:
 
     // copy to ALU
-    emit_clear_var(ALU_DST);
-    emit_read_0tvar(inst->dst.reg);
-    emit_write_var(ALU_DST);
+    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
-    emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
     // compute
     emit_call(HELL_SUB_UINT24);
 
     // copy result back
-    emit_clear_var(inst->dst.reg);
-    emit_read_0tvar(ALU_DST);
-    emit_write_var(inst->dst.reg);
+    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
   case LOAD:
     // set memory pointer to address
-    emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+
     emit_call(HELL_COMPUTE_MEMPTR);
     emit_call(HELL_SET_MEMPTR);
 
     // load value
     emit_call(HELL_READ_MEMORY);
-    emit_clear_var(inst->dst.reg);
-    emit_read_0tvar(ALU_DST);
-    emit_write_var(inst->dst.reg);
+
+    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
   case STORE:
     // set memory pointer to address
-    emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+
     emit_call(HELL_COMPUTE_MEMPTR);
     emit_call(HELL_SET_MEMPTR);
 
     // store value
-    emit_clear_var(ALU_DST);
-    emit_read_0tvar(inst->dst.reg);
-    emit_write_var(ALU_DST);
+    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+
     emit_call(HELL_WRITE_MEMORY);
     break;
 
   case PUTC:
 
-  // copy to ALU
-  emit_clear_var(ALU_DST);
+    // copy to ALU
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_DST);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
     // compute
     emit_call(HELL_PUTC);
@@ -370,9 +530,8 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(HELL_GETC);
 
     // copy result back
-    emit_clear_var(inst->dst.reg);
-    emit_read_0tvar(ALU_DST);
-    emit_write_var(inst->dst.reg);
+    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
   case EXIT:
@@ -390,27 +549,24 @@ static void hell_emit_inst(Inst* inst) {
   case LE:
   case GE:
     // copy to ALU
-    emit_clear_var(ALU_DST);
-    emit_read_0tvar(inst->dst.reg);
-    emit_write_var(ALU_DST);
+    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
-  emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
     // compute
     emit_call(hell_cmp_call(inst));
 
     // copy result back
-    emit_clear_var(inst->dst.reg);
-    emit_read_0tvar(ALU_DST);
-    emit_write_var(inst->dst.reg);
+    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
+    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
     break;
 
 
@@ -421,19 +577,17 @@ static void hell_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
     // copy to ALU
-    emit_clear_var(ALU_DST);
-    emit_read_0tvar(inst->dst.reg);
-    emit_write_var(ALU_DST);
+    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
+    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
-    emit_clear_var(ALU_SRC);
     if (inst->src.type == REG) {
-      emit_read_0tvar(inst->src.reg);
+      emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
     }else if (inst->src.type == IMM) {
       emit_load_immediate(inst->src.imm);
     }else{
       error("invalid value");
     }
-    emit_write_var(ALU_SRC);
+    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
     // compute
     emit_call(hell_cmp_call(inst));
@@ -447,7 +601,7 @@ static void hell_emit_inst(Inst* inst) {
       int dntjmp = num_local_labels;
       emit_indented("%s_IS_C1 dont_jmp_%u", HELL_VARIABLES[CARRY].name, dntjmp);
       emit_jmp(&inst->jmp);
-      emit_nonindented("dont_jmp_%u:", dntjmp);
+      emit_unindented("dont_jmp_%u:", dntjmp);
       emit_indented("NOP");
     }
     break;
@@ -468,7 +622,7 @@ static void emit_jmp(Value* jmp) {
     emit_clear_var(ALU_DST);
     // pc_lookup_table
     num_local_labels++;
-    emit_nonindented("local_label_%u:",num_local_labels);
+    emit_unindented("local_label_%u:",num_local_labels);
     emit_indented("ROT C1 R_ROT");
     emit_opr_var(VAL_1222);
     emit_indented("OPR pc_lookup_table R_OPR");
@@ -497,7 +651,7 @@ static void emit_jmp(Value* jmp) {
     }else{
       error("invalid value");
     }
-    emit_nonindented("");
+    emit_unindented("");
 
 }
 
@@ -510,8 +664,8 @@ static void emit_call(HeLLFunctions hf) {
   emit_indented("R_%s%u",HELL_FUNCTIONS[hf].flag->name,HELL_FUNCTIONS[hf].counter);
   emit_indented("MOVD %s",HELL_FUNCTIONS[hf].name);
 
-  emit_nonindented("");
-  emit_nonindented("%s_ret%u:",HELL_FUNCTIONS[hf].name,HELL_FUNCTIONS[hf].counter);
+  emit_unindented("");
+  emit_unindented("%s_ret%u:",HELL_FUNCTIONS[hf].name,HELL_FUNCTIONS[hf].counter);
 
 }
 
@@ -523,16 +677,16 @@ static void emit_function_footer(HeLLFunctions hf) {
   if (!HELL_FUNCTIONS[hf].counter) {
     emit_indented("0"); /* fix LMFAO problem */
   }
-  emit_nonindented("");
+  emit_unindented("");
 }
 
 static void emit_flags() {
   for (int j=0; HELL_FLAGS[j].name[0]; j++) {
     for (int i=1; i<=HELL_FLAGS[j].counter; i++) {
-      emit_nonindented("%s%u:",HELL_FLAGS[j].name,i);
+      emit_unindented("%s%u:",HELL_FLAGS[j].name,i);
       emit_indented("Nop/MovD");
       emit_indented("Jmp");
-      emit_nonindented("");
+      emit_unindented("");
     }
   }
 }
@@ -545,7 +699,7 @@ static void emit_read_0tvar(int var) {
     error("oops");
   }
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_opr_var(var);
@@ -558,7 +712,7 @@ static void emit_read_1tvar(int var) {
     error("oops");
   }
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C1 R_ROT");
   emit_opr_var(VAL_1222);
   emit_opr_var(var);
@@ -572,11 +726,11 @@ static void emit_clear_var(int var) {
   }
   emit_indented("ROT C1 R_ROT");
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_opr_var(var);
   emit_indented("LOOP2 local_label_%u",num_local_labels);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_opr_var(TMP);
   emit_indented("LOOP2 local_label_%u",num_local_labels);
 }
@@ -592,7 +746,7 @@ static void emit_write_var(int var) {
 
 
 static void emit_putc_base() {
-  emit_nonindented("putc:");
+  emit_unindented("putc:");
   emit_indented("R_MOVD");
 
   // do mod 256 computation
@@ -610,7 +764,7 @@ static void emit_putc_base() {
 
 
 static void emit_getc_base() {
-  emit_nonindented("getc:");
+  emit_unindented("getc:");
   emit_indented("R_MOVD");
 
   emit_clear_var(ALU_DST);
@@ -675,7 +829,7 @@ static void emit_getc_base() {
 
 
   // handle eof
-  emit_nonindented("handle_eof_input:");
+  emit_unindented("handle_eof_input:");
   // read '\0' into ALU_DST
   emit_clear_var(ALU_DST);
   emit_opr_var(ALU_DST);
@@ -683,7 +837,7 @@ static void emit_getc_base() {
 
 
   // handle normal character
-  emit_nonindented("handle_normal_input_character:");
+  emit_unindented("handle_normal_input_character:");
   // restore from TMP3
   emit_clear_var(ALU_DST);
   emit_read_0tvar(TMP3);
@@ -697,7 +851,7 @@ static void emit_getc_base() {
   // done.
 
   emit_indented("R_MOVD");
-  emit_nonindented("finish_getc:");
+  emit_unindented("finish_getc:");
   emit_indented("R_MOVD");
 
   emit_function_footer(HELL_GETC);
@@ -706,7 +860,7 @@ static void emit_getc_base() {
 
 
 static void emit_sub_uint24_base() {
-  emit_nonindented("sub_uint24:");
+  emit_unindented("sub_uint24:");
   emit_indented("R_MOVD");
 
   // backup ALU_SRC to TMP2
@@ -717,7 +871,7 @@ static void emit_sub_uint24_base() {
   // load UINT_MAX+1 into ALU_SRC
   emit_clear_var(ALU_SRC);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_indented("OPR %u+1 R_OPR",UINT_MAX);
@@ -738,7 +892,7 @@ static void emit_sub_uint24_base() {
   // compute result modulo (UINT_MAX+1)
   emit_clear_var(ALU_SRC);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_indented("OPR %u+1 R_OPR",UINT_MAX);
@@ -753,7 +907,7 @@ static void emit_sub_uint24_base() {
 
 
 static void emit_add_uint24_base() {
-  emit_nonindented("add_uint24:");
+  emit_unindented("add_uint24:");
   emit_indented("R_MOVD");
 
   // normal computation
@@ -762,7 +916,7 @@ static void emit_add_uint24_base() {
   // read (UINT_MAX+1) into ALU_SRC
   emit_clear_var(ALU_SRC);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_indented("OPR %u+1 R_OPR",UINT_MAX);
@@ -778,7 +932,7 @@ static void emit_add_uint24_base() {
 
 
 static void emit_modulo_base() {
-  emit_nonindented("modulo:");
+  emit_unindented("modulo:");
   emit_indented("R_MOVD");
 
   // save modulus
@@ -786,7 +940,7 @@ static void emit_modulo_base() {
   emit_read_0tvar(ALU_SRC);
   emit_write_var(TMP3);
 
-  emit_nonindented("continue_modulo:");
+  emit_unindented("continue_modulo:");
   // save current remainder
   emit_clear_var(TMP2);
   emit_read_0tvar(ALU_DST);
@@ -812,7 +966,7 @@ static void emit_modulo_base() {
 
 
 static void emit_test_le_base() {
-  emit_nonindented("test_le:");
+  emit_unindented("test_le:");
   emit_indented("R_MOVD");
 
   emit_clear_var(TMP2);
@@ -833,7 +987,7 @@ static void emit_test_le_base() {
 }
 
 static void emit_test_gt_base() {
-  emit_nonindented("test_gt:");
+  emit_unindented("test_gt:");
   emit_indented("R_MOVD");
 
   emit_clear_var(TMP2);
@@ -855,7 +1009,7 @@ static void emit_test_gt_base() {
 
 
 static void emit_test_neq_base() {
-  emit_nonindented("test_neq:");
+  emit_unindented("test_neq:");
   emit_indented("R_MOVD");
 
   emit_call(HELL_SUB);
@@ -871,7 +1025,7 @@ static void emit_test_neq_base() {
   emit_indented("%s_IS_C1 is_eq", HELL_VARIABLES[TMP].name);
   emit_indented("OPR 0t2 R_OPR");
   emit_indented("OPR 1t0 R_OPR");
-  emit_nonindented("is_eq:");
+  emit_unindented("is_eq:");
   emit_opr_var(ALU_DST);
 
   emit_function_footer(HELL_TEST_NEQ);
@@ -879,7 +1033,7 @@ static void emit_test_neq_base() {
 
 
 static void emit_test_eq_base() {
-  emit_nonindented("test_eq:");
+  emit_unindented("test_eq:");
   emit_indented("R_MOVD");
 
   emit_call(HELL_SUB);
@@ -896,7 +1050,7 @@ static void emit_test_eq_base() {
   emit_indented("%s_IS_C1 is_neq", HELL_VARIABLES[TMP].name);
   emit_indented("OPR 0t2 R_OPR");
   emit_indented("OPR 1t0 R_OPR");
-  emit_nonindented("is_neq:");
+  emit_unindented("is_neq:");
   emit_opr_var(ALU_DST);
 
   emit_function_footer(HELL_TEST_EQ);
@@ -904,7 +1058,7 @@ static void emit_test_eq_base() {
 
 
 static void emit_test_ge_base() {
-  emit_nonindented("test_ge:");
+  emit_unindented("test_ge:");
   emit_indented("R_MOVD");
 
   emit_call(HELL_SUB);
@@ -913,7 +1067,7 @@ static void emit_test_ge_base() {
   emit_indented("%s_IS_C1 is_lt", HELL_VARIABLES[TMP].name);
   emit_indented("OPR 0t2 R_OPR");
   emit_indented("OPR 1t0 R_OPR");
-  emit_nonindented("is_lt:");
+  emit_unindented("is_lt:");
   emit_opr_var(ALU_DST);
 
   emit_function_footer(HELL_TEST_GE);
@@ -921,7 +1075,7 @@ static void emit_test_ge_base() {
 
 
 static void emit_test_lt_base() {
-  emit_nonindented("test_lt:");
+  emit_unindented("test_lt:");
   emit_indented("R_MOVD");
 
   emit_call(HELL_SUB);
@@ -931,7 +1085,7 @@ static void emit_test_lt_base() {
   emit_indented("%s_IS_C1 is_ge", HELL_VARIABLES[TMP].name);
   emit_indented("OPR 0t2 R_OPR");
   emit_indented("OPR 1t0 R_OPR");
-  emit_nonindented("is_ge:");
+  emit_unindented("is_ge:");
   emit_opr_var(ALU_DST);
 
   emit_function_footer(HELL_TEST_LT);
@@ -941,32 +1095,32 @@ static void emit_test_lt_base() {
 
 
 static void emit_memory_access_base() {
-  emit_nonindented("");
-  emit_nonindented("opr_memory:");
+  emit_unindented("");
+  emit_unindented("opr_memory:");
   emit_indented("U_MOVDOPRMOVD memptr");
-  emit_nonindented("opr_memptr:");
+  emit_unindented("opr_memptr:");
   emit_indented("OPR");
-  emit_nonindented("memptr:");
+  emit_unindented("memptr:");
   emit_indented("MEMORY_0 - 2");
   emit_indented("R_OPR");
   emit_indented("R_MOVD");
   emit_function_footer(HELL_OPR_MEMPTR);
 
-  emit_nonindented("");
-  emit_nonindented("restore_opr_memory:");
+  emit_unindented("");
+  emit_unindented("restore_opr_memory:");
   emit_indented("R_MOVD");
-  emit_nonindented("restore_opr_memory_no_r_moved:");
+  emit_unindented("restore_opr_memory_no_r_moved:");
   emit_indented("PARTIAL_MOVDOPRMOVD ?-");
   emit_indented("R_MOVDOPRMOVD ?- ?- ?- ?-");
   emit_indented("LOOP4 half_of_restore_opr_memory_done");
   emit_indented("MOVD restore_opr_memory");
-  emit_nonindented("");
-  emit_nonindented("half_of_restore_opr_memory_done:");
+  emit_unindented("");
+  emit_unindented("half_of_restore_opr_memory_done:");
   emit_indented("LOOP2_2 restore_opr_memory_done");
   emit_indented("PARTIAL_MOVDOPRMOVD");
   emit_indented("restore_opr_memory_no_r_moved");
-  emit_nonindented("");
-  emit_nonindented("restore_opr_memory_done:");
+  emit_unindented("");
+  emit_unindented("restore_opr_memory_done:");
   emit_function_footer(HELL_OPR_MEMORY);
 
 }
@@ -974,12 +1128,12 @@ static void emit_memory_access_base() {
 
 static void emit_compute_memptr_base() {
   ; // ALU_DST := (MEMORY_0 - 2) - 2* ALU_SRC
-  emit_nonindented("compute_memptr:");
+  emit_unindented("compute_memptr:");
   emit_indented("R_MOVD");
   // set ALU_DST to MEMORY_0-2
   emit_clear_var(ALU_DST);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C1 R_ROT");
   emit_opr_var(VAL_1222);
   emit_indented("OPR MEMORY_0-2 R_OPR");
@@ -1007,7 +1161,7 @@ static void emit_compute_memptr_base() {
 
 
 static void emit_write_memory_base() {
-  emit_nonindented("write_memory:");
+  emit_unindented("write_memory:");
   emit_indented("R_MOVD");
 
   // add offset (such that uninitialized cells, which are initially 0t10000, equal 0t000)
@@ -1036,12 +1190,12 @@ static void emit_write_memory_base() {
 
 
 static void emit_read_memory_base() {
-  emit_nonindented("read_memory:");
+  emit_unindented("read_memory:");
   emit_indented("R_MOVD");
   emit_clear_var(ALU_DST);
 
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C0 R_ROT");
   emit_opr_var(VAL_1222);
   emit_call(HELL_OPR_MEMORY);
@@ -1066,7 +1220,7 @@ static void emit_read_memory_base() {
 
 
 static void emit_set_memptr_base() {
-  emit_nonindented("set_memptr:");
+  emit_unindented("set_memptr:");
   emit_indented("R_MOVD");
   emit_indented("ROT C1 R_ROT");
   emit_call(HELL_OPR_MEMPTR);
@@ -1083,7 +1237,7 @@ static void emit_set_memptr_base() {
 
 static void emit_add_base() {
 
-  emit_nonindented("add:");
+  emit_unindented("add:");
 
   emit_indented("%s_IS_C1 add",HELL_VARIABLES[TMP].name); // set CARRY flag
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name); // clear CARRY flag
@@ -1095,7 +1249,7 @@ static void emit_add_base() {
   emit_indented("%s_IS_C1 no_increment_during_add",HELL_VARIABLES[TMP].name);
   //  unset CARRY and increment ALU_DST
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("force_increment_during_add:");
+  emit_unindented("force_increment_during_add:");
   emit_clear_var(CARRY);
   emit_opr_var(TMP); // set tmp to C0
   emit_opr_var(VAL_1222); // load 1t22..22
@@ -1106,13 +1260,13 @@ static void emit_add_base() {
   emit_indented("ROT C1 R_ROT");
   emit_opr_var(VAL_1222); // load 0t22..22
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_opr_var(ALU_DST); // opr dest
   emit_opr_var(TMP); // opr tmp
   emit_opr_var(CARRY); // opr carry
   emit_indented("LOOP2 local_label_%u",num_local_labels);
   num_local_labels++;
-  emit_nonindented("local_label_%u:",num_local_labels);
+  emit_unindented("local_label_%u:",num_local_labels);
   emit_indented("ROT C1 R_ROT");
   emit_indented("OPR 0t2 R_OPR"); // load 0t2
   emit_opr_var(TMP); // opr tmp
@@ -1120,9 +1274,9 @@ static void emit_add_base() {
   emit_indented("%s_IS_C1 keep_carry_during_add",HELL_VARIABLES[TMP].name); // keep increment carry-flag
   emit_test_var(TMP); // MOVD tmp
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("keep_carry_during_add:");
+  emit_unindented("keep_carry_during_add:");
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("no_increment_during_add:");
+  emit_unindented("no_increment_during_add:");
 
   // decrement ALU_SRC
   emit_clear_var(CARRY);
@@ -1170,7 +1324,7 @@ static void emit_sub_base() {
 //  overflow occured. -> calling method should handle this
 //  possible overflow handling: undo increment, increase rot-width, try increment again
 
-  emit_nonindented("sub:");
+  emit_unindented("sub:");
 
   emit_indented("%s_IS_C1 sub",HELL_VARIABLES[TMP].name); // set CARRY flag
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name); // clear CARRY flag
@@ -1182,7 +1336,7 @@ static void emit_sub_base() {
   emit_indented("%s_IS_C1 no_decrement_during_sub",HELL_VARIABLES[TMP].name);
   //  unset CARRY and increment ALU_DST
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("force_decrement_during_sub:");
+  emit_unindented("force_decrement_during_sub:");
 
   // decrement ALU_DST
   emit_clear_var(CARRY);
@@ -1216,9 +1370,9 @@ static void emit_sub_base() {
   emit_test_var(CARRY); // MOVD tmp
   emit_indented("%s_IS_C1 keep_carry_during_sub",HELL_VARIABLES[CARRY].name); // if CARRY_IS_C1 is set, TMP_IS_C1 should remain disabled
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("keep_carry_during_sub:");
+  emit_unindented("keep_carry_during_sub:");
   emit_indented("R_%s_IS_C1",HELL_VARIABLES[TMP].name);
-  emit_nonindented("no_decrement_during_sub:");
+  emit_unindented("no_decrement_during_sub:");
 
   // decrement ALU_SRC
   emit_clear_var(CARRY);
@@ -1262,11 +1416,11 @@ static void emit_sub_base() {
 
 
 static void emit_generate_val_1222_base() {
-  emit_nonindented("generate_1222:");
+  emit_unindented("generate_1222:");
 
   emit_indented("R_MOVD");
   emit_indented("ROT C1 R_ROT");
-  emit_nonindented("generate_1222_2loop:");
+  emit_unindented("generate_1222_2loop:");
   emit_opr_var(VAL_1222);
   emit_indented("LOOP2 generate_1222_2loop");
   emit_rotwidth_loop_begin();
@@ -1285,24 +1439,24 @@ static void emit_opr_var(int var) {
   HELL_VARIABLES[var].counter++;
   emit_indented("R_VAR_RETURN%u",HELL_VARIABLES[var].counter);
   emit_indented("MOVD opr_%s",HELL_VARIABLES[var].name);
-  emit_nonindented("");
-  emit_nonindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
+  emit_unindented("");
+  emit_unindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
 }
 
 static void emit_rot_var(int var) {
   HELL_VARIABLES[var].counter++;
   emit_indented("R_VAR_RETURN%u",HELL_VARIABLES[var].counter);
   emit_indented("MOVD rot_%s",HELL_VARIABLES[var].name);
-  emit_nonindented("");
-  emit_nonindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
+  emit_unindented("");
+  emit_unindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
 }
 
 static void emit_test_var(int var) {
   HELL_VARIABLES[var].counter++;
   emit_indented("R_VAR_RETURN%u",HELL_VARIABLES[var].counter);
   emit_indented("MOVD %s",HELL_VARIABLES[var].name);
-  emit_nonindented("");
-  emit_nonindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
+  emit_unindented("");
+  emit_unindented("%s_ret%u:",HELL_VARIABLES[var].name,HELL_VARIABLES[var].counter);
 }
 
 
@@ -1312,16 +1466,16 @@ static void emit_rotwidth_loop_begin() {
   emit_indented("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
   emit_indented("MOVD loop");
 
-  emit_nonindented("");
-  emit_nonindented("rotwidth_loop_inner%u:",num_rotwidth_loop_calls);
+  emit_unindented("");
+  emit_unindented("rotwidth_loop_inner%u:",num_rotwidth_loop_calls);
 
   emit_indented("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
 }
 static void emit_rotwidth_loop_end() {
   emit_indented("MOVD end_of_loop_body");
 
-  emit_nonindented("");
-  emit_nonindented("rotwidth_loop_ret%u:",num_rotwidth_loop_calls);
+  emit_unindented("");
+  emit_unindented("rotwidth_loop_ret%u:",num_rotwidth_loop_calls);
 
 }
 
@@ -1330,108 +1484,108 @@ static void emit_rotwidth_loop_base() {
   int flag_base = num_flags;
   num_flags += 4;
 
-  emit_nonindented(".DATA");
-  emit_nonindented("opr_loop_tmp:");
+  emit_unindented(".DATA");
+  emit_unindented("opr_loop_tmp:");
 
   emit_indented("R_MOVD");
   emit_indented("OPR");
 
-  emit_nonindented("loop_tmp:");
+  emit_unindented("loop_tmp:");
 
   emit_indented("?");
   emit_indented("U_NOP no_decision");
   emit_indented("U_NOP was_C1");
   emit_indented("U_NOP was_C10");
 
-  emit_nonindented("was_C1:");
+  emit_unindented("was_C1:");
 
   emit_indented("R_LOOP2");
   emit_indented("MOVD leave_loop");
 
-  emit_nonindented("was_C10:");
+  emit_unindented("was_C10:");
 
   emit_indented("R_LOOP2");
   emit_indented("MOVD loop");
 
-  emit_nonindented("no_decision:");
+  emit_unindented("no_decision:");
 
   emit_indented("R_OPR");
   for (int i=1;i<=4;i++) {
     emit_indented("FLAG%u loop_tmp_ret%u R_FLAG%u",flag_base+i,i,flag_base+i);
   }
 
-  emit_nonindented("");
-  emit_nonindented("loop:");
+  emit_unindented("");
+  emit_unindented("loop:");
 
   emit_indented("R_MOVD");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
     emit_indented("ROTWIDTH_LOOP%u rotwidth_loop_inner%u R_ROTWIDTH_LOOP%u",i,i,i);
   }
   // emit_indented("MOVD end_of_loop_body");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("end_of_loop_body:");
+  emit_unindented("end_of_loop_body:");
 
   emit_indented("R_MOVD");
   emit_indented("ROT C1 R_ROT");
 
-  emit_nonindented("reset_loop_tmp_loop:");
+  emit_unindented("reset_loop_tmp_loop:");
 
   emit_indented("R_FLAG%u",flag_base+1);
   emit_indented("MOVD opr_loop_tmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("loop_tmp_ret1:");
+  emit_unindented("loop_tmp_ret1:");
 
   emit_indented("LOOP2 reset_loop_tmp_loop");
 
-  emit_nonindented("do_twice:");
+  emit_unindented("do_twice:");
 
   emit_indented("ROT C1 R_ROT");
   emit_indented("OPR C02 R_OPR");
   emit_indented("R_FLAG%u",flag_base+2);
   emit_indented("MOVD opr_loop_tmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("loop_tmp_ret2:");
+  emit_unindented("loop_tmp_ret2:");
 
   emit_indented("R_LOOP2");
   emit_indented("LOOP2 loop_tmp");
   emit_indented("R_FLAG%u",flag_base+3);
   emit_indented("MOVD opr_loop_tmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("loop_tmp_ret3:");
+  emit_unindented("loop_tmp_ret3:");
 
   emit_indented("ROT C12 R_ROT");
   emit_indented("R_FLAG%u",flag_base+4);
   emit_indented("MOVD opr_loop_tmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("loop_tmp_ret4:");
+  emit_unindented("loop_tmp_ret4:");
 
   emit_indented("LOOP2 do_twice");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("leave_loop:");
+  emit_unindented("leave_loop:");
 
   emit_indented("R_MOVD");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
     emit_indented("ROTWIDTH_LOOP%u rotwidth_loop_ret%u R_ROTWIDTH_LOOP%u",i,i,i);
   }
 
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented(".CODE");
+  emit_unindented(".CODE");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
-    emit_nonindented("ROTWIDTH_LOOP%u:",i);
+    emit_unindented("ROTWIDTH_LOOP%u:",i);
 
     emit_indented("Nop/MovD");
     emit_indented("Jmp");
 
-    emit_nonindented("");
+    emit_unindented("");
   }
-  emit_nonindented("");
+  emit_unindented("");
 
 /** END: LOOP over rotwidth */
 }
@@ -1439,46 +1593,46 @@ static void emit_rotwidth_loop_base() {
 
 static void emit_hell_variables_base() {
   int max_cnt = 0;
-  emit_nonindented(".DATA");
-  emit_nonindented("");
+  emit_unindented(".DATA");
+  emit_unindented("");
   for (int i=0; HELL_VARIABLES[i].name[0] != 0; i++) {
     if (!HELL_VARIABLES[i].counter) {
       // variable is not USED
       continue;
     }
-    emit_nonindented("opr_%s:",HELL_VARIABLES[i].name);
+    emit_unindented("opr_%s:",HELL_VARIABLES[i].name);
 
     emit_indented("R_ROT");
     emit_indented("U_OPR %s",HELL_VARIABLES[i].name);
 
-    emit_nonindented("rot_%s:",HELL_VARIABLES[i].name);
+    emit_unindented("rot_%s:",HELL_VARIABLES[i].name);
 
     emit_indented("R_OPR");
     emit_indented("U_ROT %s",HELL_VARIABLES[i].name);
 
-    emit_nonindented("%s:",HELL_VARIABLES[i].name);
+    emit_unindented("%s:",HELL_VARIABLES[i].name);
 
     emit_indented("?");
     emit_indented("U_NOP continue_%s",HELL_VARIABLES[i].name);
     emit_indented("U_NOP %s_was_c1",HELL_VARIABLES[i].name);
     emit_indented("U_NOP %s_was_c0",HELL_VARIABLES[i].name);
 
-    emit_nonindented("%s_was_c1:",HELL_VARIABLES[i].name);
+    emit_unindented("%s_was_c1:",HELL_VARIABLES[i].name);
 
     emit_indented("%s_IS_C1 %s_was_c1",HELL_VARIABLES[i].name,HELL_VARIABLES[i].name);
     emit_indented("U_NOP return_from_%s",HELL_VARIABLES[i].name);
 
-    emit_nonindented("%s_was_c0:",HELL_VARIABLES[i].name);
+    emit_unindented("%s_was_c0:",HELL_VARIABLES[i].name);
 
     emit_indented("%s_IS_C1 %s_was_c0",HELL_VARIABLES[i].name,HELL_VARIABLES[i].name);
     emit_indented("R_%s_IS_C1",HELL_VARIABLES[i].name);
     emit_indented("U_NOP return_from_%s",HELL_VARIABLES[i].name);
 
-    emit_nonindented("continue_%s:",HELL_VARIABLES[i].name);
+    emit_unindented("continue_%s:",HELL_VARIABLES[i].name);
 
     emit_indented("R_ROT R_OPR");
 
-    emit_nonindented("return_from_%s:",HELL_VARIABLES[i].name);
+    emit_unindented("return_from_%s:",HELL_VARIABLES[i].name);
 
     emit_indented("R_MOVD");
     for (int j=1;j<=HELL_VARIABLES[i].counter;j++) {
@@ -1488,42 +1642,56 @@ static void emit_hell_variables_base() {
       max_cnt = HELL_VARIABLES[i].counter;
     }
 
-    emit_nonindented("");
+    emit_unindented("");
   }
 
-  emit_nonindented(".CODE");
-  emit_nonindented("");
+  emit_unindented(".CODE");
+  emit_unindented("");
 
   for (int i=0; HELL_VARIABLES[i].name[0] != 0; i++) {
     if (!HELL_VARIABLES[i].counter) {
       // variable is not USED
       continue;
     }
-    emit_nonindented("%s_IS_C1:",HELL_VARIABLES[i].name);
+    emit_unindented("%s_IS_C1:",HELL_VARIABLES[i].name);
     emit_indented("Nop/MovD");
     emit_indented("Jmp");
-    emit_nonindented("");
+    emit_unindented("");
   }
   for (int j=1;j<=max_cnt;j++) {
-    emit_nonindented("VAR_RETURN%u:",j);
+    emit_unindented("VAR_RETURN%u:",j);
     emit_indented("Nop/MovD");
     emit_indented("Jmp");
-    emit_nonindented("");
+    emit_unindented("");
   }
 }
 
 static void emit_branch_lookup_table() {
-  emit_nonindented(".DATA");
-  emit_nonindented("");
-  emit_nonindented("pc_lookup_table:");
+  emit_unindented(".DATA");
+  emit_unindented("");
+  emit_unindented("pc_lookup_table:");
   for (int i=0;i<=current_pc_value;i++) {
     emit_indented("MOVD label_pc%u",i);
   }
-  emit_nonindented("");
+  emit_unindented("");
 }
 
 static void finalize_hell() {
 
+  for (int i=0; i<TMP; i++) {
+    if (modify_var_counter[HELL_VAR_READ_0t][i]) {
+      emit_read0t_var_base(i);
+    }
+    if (modify_var_counter[HELL_VAR_READ_1t][i]) {
+      emit_read1t_var_base(i);
+    }
+    if (modify_var_counter[HELL_VAR_WRITE][i]) {
+      emit_write_var_base(i);
+    }
+    if (modify_var_counter[HELL_VAR_CLEAR][i]) {
+      emit_clear_var_base(i);
+    }
+  }
   emit_putc_base();
   emit_getc_base();
   emit_add_uint24_base();
@@ -1547,81 +1715,96 @@ static void finalize_hell() {
   emit_hell_variables_base();
   emit_branch_lookup_table();
 
-  emit_nonindented(".CODE");
-  emit_nonindented("");
+  emit_unindented(".CODE");
+  emit_unindented("");
 
-  emit_nonindented("MOVD:");
+  emit_unindented("MOVD:");
   emit_indented("MovD/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("ROT:");
+  emit_unindented("ROT:");
   emit_indented("Rot/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("OPR:");
+  emit_unindented("OPR:");
   emit_indented("Opr/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("IN:");
+  emit_unindented("IN:");
   emit_indented("In/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("OUT:");
+  emit_unindented("OUT:");
   emit_indented("Out/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("NOP:");
+  emit_unindented("NOP:");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("HALT:");
+  emit_unindented("HALT:");
   emit_indented("Hlt");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("MOVDMOVD:");
+  emit_unindented("MOVDMOVD:");
   emit_indented("MovD/Nop");
   emit_indented("RNop");
   emit_indented("RNop");
   emit_indented("RNop");
   emit_indented("MovD/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("LOOP2:");
+  emit_unindented("LOOP2:");
   emit_indented("MovD/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("LOOP4:");
+  emit_unindented("LOOP4:");
   emit_indented("Nop/Nop/Nop/MovD");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("LOOP2_2:");
+  emit_unindented("LOOP2_2:");
   emit_indented("Nop/MovD");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
-  emit_nonindented("MOVDOPRMOVD:");
+  emit_unindented("MOVDOPRMOVD:");
   emit_indented("MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop");
   emit_indented("RNop");
   emit_indented("RNop");
   emit_indented("Opr/Nop/Nop/Nop/Nop/Rot/Nop/Nop/Nop");
-  emit_nonindented("PARTIAL_MOVDOPRMOVD:");
+  emit_unindented("PARTIAL_MOVDOPRMOVD:");
   emit_indented("MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop");
   emit_indented("Jmp");
-  emit_nonindented("");
+  emit_unindented("");
 
   for (int i=1; i<=num_flags; i++) {
-    emit_nonindented("FLAG%u:",i);
+    emit_unindented("FLAG%u:",i);
     emit_indented("Nop/MovD");
     emit_indented("Jmp");
-    emit_nonindented("");
+    emit_unindented("");
+  }
+  
+  int max_var = 0;
+  for (int i=0; i<4; i++) {
+    for (int j=0; j<8; j++) {
+      if (max_var < modify_var_counter[i][j]) {
+        max_var = modify_var_counter[i][j];
+      }
+    }
+  }
+  for (int i=1; i<=max_var; i++) {
+    emit_unindented("MODIFY_VAR_RETURN%u:",i);
+    emit_indented("Nop/MovD");
+    emit_indented("Jmp");
+    emit_unindented("");
   }
   emit_flags();
 }
@@ -1641,14 +1824,14 @@ static void dec_ternary_string(char* str) {
 }
 
 static void init_state_hell(Data* data) {
-  emit_nonindented(".DATA");
-  emit_nonindented("");
-  emit_nonindented("// backjump");
-  emit_nonindented("@1t01112 return_from_memory_cell:");
+  emit_unindented(".DATA");
+  emit_unindented("");
+  emit_unindented("// backjump");
+  emit_unindented("@1t01112 return_from_memory_cell:");
   emit_indented("R_MOVD");
   emit_indented("MOVD restore_opr_memory");
-  emit_nonindented("");
-  emit_nonindented("// memory array");
+  emit_unindented("");
+  emit_unindented("// memory array");
 
   char address[20];
   for (int i=0; i<13; i++) {
@@ -1665,28 +1848,28 @@ static void init_state_hell(Data* data) {
 
   int mp = 0;
   for (; data; data = data->next, mp++) {
-    emit_nonindented("@1t%s",address);
-    emit_nonindented("MEMORY_%u:", mp);
+    emit_unindented("@1t%s",address);
+    emit_unindented("MEMORY_%u:", mp);
     if (data->v) {
       emit_indented("%u return_from_memory_cell", data->v + 81); // add offset to fix uninitialized cells to 0
     }else{
       emit_indented("? return_from_memory_cell");
     }
-    emit_nonindented("");
+    emit_unindented("");
     dec_ternary_string(address); dec_ternary_string(address);
   }
   if (!mp) {
-    emit_nonindented("@1t022222");
-    emit_nonindented("MEMORY_0:");
+    emit_unindented("@1t022222");
+    emit_unindented("MEMORY_0:");
     emit_indented("? return_from_memory_cell");
-    emit_nonindented("");
+    emit_unindented("");
   }
 
 
-  emit_nonindented("unused:");
+  emit_unindented("unused:");
   // force rotation width to be large enough when 1t22...22-constant is generated at program start
   emit_indented("%u*9 // force rot_width to be large enough", UINT_MAX);
-  emit_nonindented("");
+  emit_unindented("");
 
 
   if (data) {
@@ -1697,8 +1880,8 @@ static void init_state_hell(Data* data) {
 void target_hell(Module* module) {
   init_state_hell(module->data);
 
-  emit_nonindented(".DATA");
-  emit_nonindented("ENTRY:");
+  emit_unindented(".DATA");
+  emit_unindented("ENTRY:");
 
   emit_call(HELL_GENERATE_1222);
 
@@ -1706,18 +1889,18 @@ void target_hell(Module* module) {
   for (; inst; inst = inst->next) {
     if (current_pc_value != inst->pc) {
       current_pc_value = inst->pc;
-      emit_nonindented("prepare_label_pc%u:",current_pc_value); // to fix issue with unused code
+      emit_unindented("prepare_label_pc%u:",current_pc_value); // to fix issue with unused code
       emit_indented("R_MOVD");
       emit_indented("R_MOVDMOVD ?- ?- ?- label_pc%u",current_pc_value);
-      emit_nonindented("label_pc%u:",current_pc_value);
+      emit_unindented("label_pc%u:",current_pc_value);
       emit_indented("R_MOVD");
       emit_indented("R_MOVDMOVD ?- ?- ?- ?-");
     }
     hell_emit_inst(inst);
   }
-  emit_nonindented("end:"); // fix LMFAO problem
+  emit_unindented("end:"); // fix LMFAO problem
   emit_indented("HALT");
-  emit_nonindented("");
+  emit_unindented("");
 
   finalize_hell();
 }
