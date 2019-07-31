@@ -1,8 +1,6 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-/// TODO: fix issue with 8cc and remove this dirty HACK for passing make!!!!!
-#if __GNUC__
 
 // TODO: dramatically reduce size of generated HeLL file
 
@@ -78,7 +76,7 @@ static HellFlag HELL_FLAGS[] = {
 
 typedef struct {
   const char* name;
-  HellFlag* flag;
+  int flag;
   int counter;
 } HeLLFunction;
 
@@ -107,26 +105,26 @@ typedef enum {
 } HeLLFunctions;
 
 static HeLLFunction HELL_FUNCTIONS[] = {
-  {"generate_1222", &HELL_FLAGS[FLAG_BASIS_ALU], 0},
-  {"add", &HELL_FLAGS[FLAG_BASIS_ALU], 0},
-  {"sub", &HELL_FLAGS[FLAG_BASIS_ALU], 0},
-  {"opr_memptr", &HELL_FLAGS[FLAG_OPR_MEM], 0},
-  {"opr_memory", &HELL_FLAGS[FLAG_OPR_MEM], 0},
-  {"set_memptr", &HELL_FLAGS[FLAG_MEM_ACCESS], 0},
-  {"read_memory", &HELL_FLAGS[FLAG_MEM_ACCESS], 0},
-  {"write_memory", &HELL_FLAGS[FLAG_MEM_ACCESS], 0},
-  {"compute_memptr", &HELL_FLAGS[FLAG_MEM_ACCESS], 0},
-  {"test_lt", &HELL_FLAGS[FLAG_TEST_LT], 0},
-  {"test_ge", &HELL_FLAGS[FLAG_TEST_LT], 0},
-  {"test_eq", &HELL_FLAGS[FLAG_TEST_EQ], 0},
-  {"test_neq", &HELL_FLAGS[FLAG_TEST_EQ], 0},
-  {"test_gt", &HELL_FLAGS[FLAG_TEST_GT], 0},
-  {"test_le", &HELL_FLAGS[FLAG_TEST_GT], 0},
-  {"modulo", &HELL_FLAGS[FLAG_MODULO], 0},
-  {"sub_uint24", &HELL_FLAGS[FLAG_ARITHMETIC_OR_IO], 0},
-  {"add_uint24", &HELL_FLAGS[FLAG_ARITHMETIC_OR_IO], 0},
-  {"getc", &HELL_FLAGS[FLAG_ARITHMETIC_OR_IO], 0},
-  {"putc", &HELL_FLAGS[FLAG_ARITHMETIC_OR_IO], 0}
+  {"generate_1222", FLAG_BASIS_ALU, 0},
+  {"add", FLAG_BASIS_ALU, 0},
+  {"sub", FLAG_BASIS_ALU, 0},
+  {"opr_memptr", FLAG_OPR_MEM, 0},
+  {"opr_memory", FLAG_OPR_MEM, 0},
+  {"set_memptr", FLAG_MEM_ACCESS, 0},
+  {"read_memory", FLAG_MEM_ACCESS, 0},
+  {"write_memory", FLAG_MEM_ACCESS, 0},
+  {"compute_memptr", FLAG_MEM_ACCESS, 0},
+  {"test_lt", FLAG_TEST_LT, 0},
+  {"test_ge", FLAG_TEST_LT, 0},
+  {"test_eq", FLAG_TEST_EQ, 0},
+  {"test_neq", FLAG_TEST_EQ, 0},
+  {"test_gt", FLAG_TEST_GT, 0},
+  {"test_le", FLAG_TEST_GT, 0},
+  {"modulo", FLAG_MODULO, 0},
+  {"sub_uint24", FLAG_ARITHMETIC_OR_IO, 0},
+  {"add_uint24", FLAG_ARITHMETIC_OR_IO, 0},
+  {"getc", FLAG_ARITHMETIC_OR_IO, 0},
+  {"putc", FLAG_ARITHMETIC_OR_IO, 0}
 };
 
 typedef enum {
@@ -658,10 +656,10 @@ static void emit_jmp(Value* jmp) {
 
 static void emit_call(HeLLFunctions hf) {
   HELL_FUNCTIONS[hf].counter++;
-  if (HELL_FUNCTIONS[hf].flag->counter < HELL_FUNCTIONS[hf].counter) {
-    HELL_FUNCTIONS[hf].flag->counter = HELL_FUNCTIONS[hf].counter;
+  if (HELL_FLAGS[HELL_FUNCTIONS[hf].flag].counter < HELL_FUNCTIONS[hf].counter) {
+    HELL_FLAGS[HELL_FUNCTIONS[hf].flag].counter = HELL_FUNCTIONS[hf].counter;
   }
-  emit_indented("R_%s%u",HELL_FUNCTIONS[hf].flag->name,HELL_FUNCTIONS[hf].counter);
+  emit_indented("R_%s%u",HELL_FLAGS[HELL_FUNCTIONS[hf].flag].name,HELL_FUNCTIONS[hf].counter);
   emit_indented("MOVD %s",HELL_FUNCTIONS[hf].name);
 
   emit_unindented("");
@@ -672,7 +670,7 @@ static void emit_call(HeLLFunctions hf) {
 
 static void emit_function_footer(HeLLFunctions hf) {
   for (int i=1; i<=HELL_FUNCTIONS[hf].counter; i++) {
-    emit_indented("%s%u %s_ret%u R_%s%u",HELL_FUNCTIONS[hf].flag->name,i,HELL_FUNCTIONS[hf].name,i,HELL_FUNCTIONS[hf].flag->name,i);
+    emit_indented("%s%u %s_ret%u R_%s%u",HELL_FLAGS[HELL_FUNCTIONS[hf].flag].name,i,HELL_FUNCTIONS[hf].name,i,HELL_FLAGS[HELL_FUNCTIONS[hf].flag].name,i);
   }
   if (!HELL_FUNCTIONS[hf].counter) {
     emit_indented("0"); /* fix LMFAO problem */
@@ -1904,11 +1902,3 @@ void target_hell(Module* module) {
 
   finalize_hell();
 }
-
-#else
-
-void target_hell(Module* module) {
-  if (module->text) { }
-}
-
-#endif
