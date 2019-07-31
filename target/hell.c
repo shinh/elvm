@@ -1849,9 +1849,9 @@ static void init_state_hell(Data* data) {
     emit_unindented("@1t%s",address);
     emit_unindented("MEMORY_%u:", mp);
     if (data->v) {
-      emit_indented("%u return_from_memory_cell", data->v + 81); // add offset to fix uninitialized cells to 0
+      emit_indented("%u+0t10000 return_from_memory_cell", data->v); // add offset to fix uninitialized cells to 0
     }else{
-      emit_indented("? return_from_memory_cell");
+      emit_indented("0t10000 return_from_memory_cell");
     }
     emit_unindented("");
     dec_ternary_string(address); dec_ternary_string(address);
@@ -1859,7 +1859,7 @@ static void init_state_hell(Data* data) {
   if (!mp) {
     emit_unindented("@1t022222");
     emit_unindented("MEMORY_0:");
-    emit_indented("? return_from_memory_cell");
+    emit_indented("0t10000 return_from_memory_cell");
     emit_unindented("");
   }
 
