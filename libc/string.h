@@ -53,6 +53,17 @@ int strcmp(const char* a, const char* b) {
   return 0;
 }
 
+int strncmp(const char* a, const char* b, size_t n) {
+  int i;
+  for (i=0; (*a || *b) && i < n; a++, b++, i++) {
+    if (*a < *b)
+      return -1;
+    if (*a > *b)
+      return 1;
+  }
+  return 0;
+}
+
 char* strchr(char* s, int c) {
   for (; *s; s++) {
     if (*s == c)
