@@ -1,12 +1,10 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-
-// TODO: dramatically reduce size of generated HeLL file
+// TODO: reduce size of generated HeLL file even more
 
 // TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
 // TODO: speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
-// TODO: speed up function returnment by introducing binary search for return FLAGs (adapt emit_call and emit_function_footer)
 
 void target_hell(Module* module); /// generate and print HeLL code for given program
 
@@ -57,9 +55,8 @@ typedef enum {
   FLAG_MEM_ACCESS=2,
   FLAG_TEST_LT=3,
   FLAG_TEST_EQ=4,
-  FLAG_TEST_GT=5,
-  FLAG_MODULO=6,
-  FLAG_ARITHMETIC_OR_IO=7
+  FLAG_MODULO=5,
+  FLAG_ARITHMETIC_OR_IO=6
 } HeLLFlags;
 
 static HellFlag HELL_FLAGS[] = {
@@ -68,7 +65,6 @@ static HellFlag HELL_FLAGS[] = {
   {"MEM_ACCESS", 0},
   {"TEST_LT", 0},
   {"TEST_EQ", 0},
-  {"TEST_GT", 0},
   {"MODULO", 0},
   {"ARITHMETIC_OR_IO", 0},
   {"", 0}
@@ -95,13 +91,11 @@ typedef enum {
   HELL_TEST_GE=10,
   HELL_TEST_EQ=11,
   HELL_TEST_NEQ=12,
-  HELL_TEST_GT=13,
-  HELL_TEST_LE=14,
-  HELL_MODULO=15,
-  HELL_SUB_UINT24=16,
-  HELL_ADD_UINT24=17,
-  HELL_GETC=18,
-  HELL_PUTC=19
+  HELL_MODULO=13,
+  HELL_SUB_UINT24=14,
+  HELL_ADD_UINT24=15,
+  HELL_GETC=16,
+  HELL_PUTC=17
 } HeLLFunctions;
 
 static HeLLFunction HELL_FUNCTIONS[] = {
@@ -118,8 +112,6 @@ static HeLLFunction HELL_FUNCTIONS[] = {
   {"test_ge", FLAG_TEST_LT, 0},
   {"test_eq", FLAG_TEST_EQ, 0},
   {"test_neq", FLAG_TEST_EQ, 0},
-  {"test_gt", FLAG_TEST_GT, 0},
-  {"test_le", FLAG_TEST_GT, 0},
   {"modulo", FLAG_MODULO, 0},
   {"sub_uint24", FLAG_ARITHMETIC_OR_IO, 0},
   {"add_uint24", FLAG_ARITHMETIC_OR_IO, 0},
@@ -153,8 +145,6 @@ static void emit_getc_base(); // read a character from stdin into ALU_DST (modul
 static void emit_add_uint24_base(); // arithmetic: add ALU_SRC to ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
 static void emit_sub_uint24_base(); // arithmetic: sub ALU_SRC from ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
 static void emit_modulo_base(); // ALU_DST := ALU_DST % ALU_SRC ;;; side effect: changes TMP2, TMP3
-static void emit_test_le_base(); // ALU_DST := (ALU_DST <= ALU_SRC)?1:0 ;;; side effect: changes TMP2
-static void emit_test_gt_base(); // ALU_DST := (ALU_DST > ALU_SRC)?1:0  ;;; side effect: changes TMP2
 static void emit_test_neq_base(); // ALU_DST := (ALU_DST != ALU_SRC)?1:0
 static void emit_test_eq_base(); // ALU_DST := (ALU_DST == ALU_SRC)?1:0
 static void emit_test_ge_base(); // ALU_DST := (ALU_DST >= ALU_SRC)?1:0
@@ -393,9 +383,9 @@ static int hell_cmp_call(Inst* inst) {
     case JLT:
       return HELL_TEST_LT;
     case JGT:
-      return HELL_TEST_GT;
+      return HELL_TEST_LT;
     case JLE:
-      return HELL_TEST_LE;
+      return HELL_TEST_GE;
     case JGE:
       return HELL_TEST_GE;
     default:
@@ -548,7 +538,11 @@ static void hell_emit_inst(Inst* inst) {
   case GE:
     // copy to ALU
     emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    if (inst->op == GT || inst->op == LE) {
+      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    }else{
+      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    }
 
     if (inst->src.type == REG) {
       emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
@@ -557,7 +551,11 @@ static void hell_emit_inst(Inst* inst) {
     }else{
       error("invalid value");
     }
-    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    if (inst->op == GT || inst->op == LE) {
+      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    }else{
+      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    }
 
     // compute
     emit_call(hell_cmp_call(inst));
@@ -576,7 +574,11 @@ static void hell_emit_inst(Inst* inst) {
   case JGE:
     // copy to ALU
     emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    if (inst->op == JGT || inst->op == JLE) {
+      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    }else{
+      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    }
 
     if (inst->src.type == REG) {
       emit_modify_var(inst->src.reg, HELL_VAR_READ_0t);
@@ -585,7 +587,11 @@ static void hell_emit_inst(Inst* inst) {
     }else{
       error("invalid value");
     }
-    emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    if (inst->op == JGT || inst->op == JLE) {
+      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    }else{
+      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+    }
 
     // compute
     emit_call(hell_cmp_call(inst));
@@ -960,49 +966,6 @@ static void emit_modulo_base() {
   emit_write_var(ALU_DST);
 
   emit_function_footer(HELL_MODULO);
-}
-
-
-static void emit_test_le_base() {
-  emit_unindented("test_le:");
-  emit_indented("R_MOVD");
-
-  emit_clear_var(TMP2);
-  emit_read_0tvar(ALU_DST);
-  emit_write_var(TMP2);
-
-  emit_clear_var(ALU_DST);
-  emit_read_0tvar(ALU_SRC);
-  emit_write_var(ALU_DST);
-
-  emit_clear_var(ALU_SRC);
-  emit_read_0tvar(TMP2);
-  emit_write_var(ALU_SRC);
-
-  emit_call(HELL_TEST_GE);
-
-  emit_function_footer(HELL_TEST_LE);
-}
-
-static void emit_test_gt_base() {
-  emit_unindented("test_gt:");
-  emit_indented("R_MOVD");
-
-  emit_clear_var(TMP2);
-  emit_read_0tvar(ALU_DST);
-  emit_write_var(TMP2);
-
-  emit_clear_var(ALU_DST);
-  emit_read_0tvar(ALU_SRC);
-  emit_write_var(ALU_DST);
-
-  emit_clear_var(ALU_SRC);
-  emit_read_0tvar(TMP2);
-  emit_write_var(ALU_SRC);
-
-  emit_call(HELL_TEST_LT);
-
-  emit_function_footer(HELL_TEST_GT);
 }
 
 
@@ -1695,8 +1658,6 @@ static void finalize_hell() {
   emit_add_uint24_base();
   emit_sub_uint24_base();
   emit_modulo_base();
-  emit_test_le_base();
-  emit_test_gt_base();
   emit_test_neq_base();
   emit_test_eq_base();
   emit_test_ge_base();
