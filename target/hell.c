@@ -1,10 +1,9 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+// FIXME: hello.mu hangs with Unshackled interpreter (but not with malbolge_20 fake interpreter)
+
 // TODO: reduce size of generated HeLL file even more
-//       --> implement HeLL procedures:
-//              - test whether ALU_DST is 0 or 1
-//              - move D register to pc_lookup_table[ALU_SRC]
 
 // TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
 // TODO: speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
@@ -99,7 +98,8 @@ typedef enum {
   HELL_SUB_UINT24=13,
   HELL_ADD_UINT24=14,
   HELL_GETC=15,
-  HELL_PUTC=16
+  HELL_PUTC=16,
+  HELL_TEST_ALU_DST=17
 } HeLLFunctions;
 
 static HeLLFunction HELL_FUNCTIONS[] = {
@@ -119,17 +119,20 @@ static HeLLFunction HELL_FUNCTIONS[] = {
   {"sub_uint24", FLAG_ARITHMETIC_OR_IO, 0},
   {"add_uint24", FLAG_ARITHMETIC_OR_IO, 0},
   {"getc", FLAG_ARITHMETIC_OR_IO, 0},
-  {"putc", FLAG_ARITHMETIC_OR_IO, 0}
+  {"putc", FLAG_ARITHMETIC_OR_IO, 0},
+  {"test_alu_dst",FLAG_BASIS_ALU}
 };
 
 typedef enum {
-  HELL_VAR_READ_0t = 0,
-  HELL_VAR_READ_1t = 1,
-  HELL_VAR_WRITE = 2,
-  HELL_VAR_CLEAR = 3
+  HELL_VAR_TO_ALU_DST = 0,
+  HELL_VAR_TO_ALU_SRC = 1,
+  HELL_VAR_READ_0t = 2,
+  HELL_VAR_WRITE = 3,
+  HELL_ALU_DST_TO_VAR = 4
 } ModifyMode;
 
-int modify_var_counter[4][8] = {
+int modify_var_counter[5][8] = {
+  {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
@@ -138,11 +141,14 @@ int modify_var_counter[4][8] = {
 
 
 // initialization and finalization (almost finalization)
-static void emit_read0t_var_base(int var);
-static void emit_read1t_var_base(int var);
+static void emit_jmp_alusrc_base();
+static void emit_copy_var_aludst_base(int var);
+static void emit_copy_var_alusrc_base(int var);
+static void emit_read_var_0t_base(int var);
 static void emit_write_var_base(int var);
-static void emit_clear_var_base(int var);
+static void emit_copy_aludst_to_var_base(int var);
 static void emit_modify_var_footer(int var, ModifyMode access); // generate function footer for variable-modifying functions
+static void emit_test_alu_dst_base(); // set CARRY flag if ALU_DST == 0; clear CARRY flag if ALU_DST == 1; otherwise: crash
 static void emit_putc_base(); // write a character from ALU_DST to stdout (modulo 256) ;;; changes ALU_DST by mod 256 computation ;;; changes TMP2, TMP3
 static void emit_getc_base(); // read a character from stdin into ALU_DST (modulo 256; revert newline to '\n'; convert EOF to '\0') ;;; changes ALU_SRC, TMP2, TMP3
 static void emit_add_uint24_base(); // arithmetic: add ALU_SRC to ALU_DST; ALU_SRC gets destroyed! ;;; side effect: changes TMP2, TMP3
@@ -198,25 +204,30 @@ static void emit_modify_var(int var, ModifyMode access) {
   modify_var_counter[access][var]++;
   emit_indented("R_MODIFY_VAR_RETURN%u",modify_var_counter[access][var]);
   switch (access) {
-    case HELL_VAR_READ_0t:
-      emit_indented("MOVD READ0t_%s",HELL_VARIABLES[var].name);
+    case HELL_VAR_TO_ALU_DST:
+      emit_indented("MOVD copy_var_to_aludst_%s",HELL_VARIABLES[var].name);
       emit_unindented("");
-      emit_unindented("read0t_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      emit_unindented("copy_var_to_aludst_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
       break;
-    case HELL_VAR_READ_1t:
-      emit_indented("MOVD READ1t_%s",HELL_VARIABLES[var].name);
+    case HELL_VAR_TO_ALU_SRC:
+      emit_indented("MOVD copy_var_to_alusrc_%s",HELL_VARIABLES[var].name);
       emit_unindented("");
-      emit_unindented("read1t_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      emit_unindented("copy_var_to_alusrc_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      break;
+    case HELL_VAR_READ_0t:
+      emit_indented("MOVD read_var_0t_%s",HELL_VARIABLES[var].name);
+      emit_unindented("");
+      emit_unindented("read_var_0t_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
       break;
     case HELL_VAR_WRITE:
       emit_indented("MOVD WRITE_%s",HELL_VARIABLES[var].name);
       emit_unindented("");
       emit_unindented("write_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
       break;
-    case HELL_VAR_CLEAR:
-      emit_indented("MOVD CLEAR_%s",HELL_VARIABLES[var].name);
+    case HELL_ALU_DST_TO_VAR:
+      emit_indented("MOVD copy_aludst_to_var_%s",HELL_VARIABLES[var].name);
       emit_unindented("");
-      emit_unindented("clear_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
+      emit_unindented("copy_aludst_to_var_%s_ret%u:",HELL_VARIABLES[var].name,modify_var_counter[access][var]);
       break;
   }
 }
@@ -225,17 +236,20 @@ static void emit_modify_var_footer(int var, ModifyMode access) {
   for (int i=1; i<=modify_var_counter[access][var]; i++) {
     const char* ret;
     switch (access) {
-      case HELL_VAR_READ_0t:
-        ret = "read0t";
+      case HELL_VAR_TO_ALU_DST:
+        ret = "copy_var_to_aludst";
         break;
-      case HELL_VAR_READ_1t:
-        ret = "read1t";
+      case HELL_VAR_TO_ALU_SRC:
+        ret = "copy_var_to_alusrc";
+        break;
+      case HELL_VAR_READ_0t:
+        ret = "read_var_0t";
         break;
       case HELL_VAR_WRITE:
         ret = "write";
         break;
-      case HELL_VAR_CLEAR:
-        ret = "clear";
+      case HELL_ALU_DST_TO_VAR:
+        ret = "copy_aludst_to_var";
         break;
       default:
         error("oops");
@@ -249,19 +263,31 @@ static void emit_modify_var_footer(int var, ModifyMode access) {
   emit_unindented("");
 }
 
-static void emit_read0t_var_base(int var) {
-  emit_unindented("READ0t_%s:",HELL_VARIABLES[var].name);
+static void emit_copy_var_aludst_base(int var) {
+  emit_unindented("copy_var_to_aludst_%s:",HELL_VARIABLES[var].name);
   emit_indented("R_MOVD");
+  emit_clear_var(ALU_DST);
   emit_read_0tvar(var);
-  emit_modify_var_footer(var, HELL_VAR_READ_0t);
+  emit_write_var(ALU_DST);
+  emit_modify_var_footer(var, HELL_VAR_TO_ALU_DST);
 
 }
 
-static void emit_read1t_var_base(int var) {
-  emit_unindented("READ1t_%s:",HELL_VARIABLES[var].name);
+static void emit_copy_var_alusrc_base(int var) {
+  emit_unindented("copy_var_to_alusrc_%s:",HELL_VARIABLES[var].name);
   emit_indented("R_MOVD");
-  emit_read_1tvar(var);
-  emit_modify_var_footer(var, HELL_VAR_READ_1t);
+  emit_clear_var(ALU_SRC);
+  emit_read_0tvar(var);
+  emit_write_var(ALU_SRC);
+  emit_modify_var_footer(var, HELL_VAR_TO_ALU_SRC);
+
+}
+
+static void emit_read_var_0t_base(int var) {
+  emit_unindented("read_var_0t_%s:",HELL_VARIABLES[var].name);
+  emit_indented("R_MOVD");
+  emit_read_0tvar(var);
+  emit_modify_var_footer(var, HELL_VAR_READ_0t);
 
 }
 
@@ -334,15 +360,15 @@ static void emit_write_var_base(int var) {
   emit_unindented("");
 }
 
-static void emit_clear_var_base(int var) {
-  emit_unindented("CLEAR_%s:",HELL_VARIABLES[var].name);
+
+static void emit_copy_aludst_to_var_base(int var) {
+  emit_unindented("copy_aludst_to_var_%s:",HELL_VARIABLES[var].name);
   emit_indented("R_MOVD");
   emit_clear_var(var);
-  emit_modify_var_footer(var, HELL_VAR_CLEAR);
-
+  emit_read_0tvar(ALU_DST);
+  emit_write_var(var);
+  emit_modify_var_footer(var, HELL_ALU_DST_TO_VAR);
 }
-
-
 
 void emit_unindented(const char* fmt, ...) {
   if (fmt[0]) {
@@ -457,8 +483,7 @@ static void hell_emit_inst(Inst* inst) {
   case ADD:
 
     // copy to ALU
-    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_DST);
     hell_read_value(&inst->src);
     emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
@@ -466,15 +491,13 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(HELL_ADD_UINT24);
 
     // copy result back
-    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
-    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_ALU_DST_TO_VAR);
     break;
 
   case SUB:
 
     // copy to ALU
-    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_DST);
     hell_read_value(&inst->src);
     emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
 
@@ -482,8 +505,7 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(HELL_SUB_UINT24);
 
     // copy result back
-    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
-    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_ALU_DST_TO_VAR);
     break;
 
   case LOAD:
@@ -495,16 +517,14 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(HELL_READ_MEMORY);
 
     // copy result back
-    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
-    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_ALU_DST_TO_VAR);
     break;
 
   case STORE:
     // copy to ALU
     hell_read_value(&inst->src);
     emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
-    emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-    emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_DST);
 
     // compute
     emit_call(HELL_WRITE_MEMORY);
@@ -526,8 +546,7 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(HELL_GETC);
 
     // copy result back
-    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
-    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_ALU_DST_TO_VAR);
     break;
 
   case EXIT:
@@ -547,13 +566,11 @@ static void hell_emit_inst(Inst* inst) {
     // copy to ALU
     // for GT and LE operation: toggle SRC and DST
     if (inst->op == GT || inst->op == LE) {
-      emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+      emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_SRC);
       hell_read_value(&inst->src);
       emit_modify_var(ALU_DST, HELL_VAR_WRITE);
     }else{
-      emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+      emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_DST);
       hell_read_value(&inst->src);
       emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
     }
@@ -562,8 +579,7 @@ static void hell_emit_inst(Inst* inst) {
     emit_call(hell_cmp_call(inst));
 
     // copy result back
-    emit_modify_var(ALU_DST, HELL_VAR_READ_0t);
-    emit_modify_var(inst->dst.reg, HELL_VAR_WRITE);
+    emit_modify_var(inst->dst.reg, HELL_ALU_DST_TO_VAR);
     break;
 
 
@@ -576,13 +592,11 @@ static void hell_emit_inst(Inst* inst) {
     // copy to ALU
     if (inst->op == JGT || inst->op == JLE) {
       // for JGT and JLE operation: toggle SRC and DST
-      emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-      emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
+      emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_SRC);
       hell_read_value(&inst->src);
       emit_modify_var(ALU_DST, HELL_VAR_WRITE);
     }else{
-      emit_modify_var(inst->dst.reg, HELL_VAR_READ_0t);
-      emit_modify_var(ALU_DST, HELL_VAR_WRITE);
+      emit_modify_var(inst->dst.reg, HELL_VAR_TO_ALU_DST);
       hell_read_value(&inst->src);
       emit_modify_var(ALU_SRC, HELL_VAR_WRITE);
     }
@@ -592,10 +606,7 @@ static void hell_emit_inst(Inst* inst) {
 
     // test result
     {
-      emit_clear_var(CARRY);
-      emit_read_0tvar(ALU_DST);
-      emit_opr_var(CARRY);
-      emit_test_var(CARRY);
+      emit_call(HELL_TEST_ALU_DST); // set carry_IS_C1 if ALU_DST is 0; unset if ALU_DST is 1
       num_local_labels++;
       int dntjmp = num_local_labels;
       emit_indented("%s_IS_C1 dont_jmp_%u", HELL_VARIABLES[CARRY].name, dntjmp);
@@ -615,36 +626,42 @@ static void hell_emit_inst(Inst* inst) {
 }
 
 static void emit_jmp(Value* jmp) {
-
   if (jmp->type == REG) {
+    emit_modify_var(jmp->reg, HELL_VAR_TO_ALU_SRC);
+    emit_indented("MOVD jmp_to_alu_src");
+  }else if (jmp->type == IMM) {
+    emit_indented("MOVD direct_jmp_label_pc%u", jmp->imm);
+  }else{
+    error("invalid value");
+  }
+  emit_unindented("");
+}
 
+static void emit_jmp_alusrc_base() {
+    emit_unindented("jmp_to_alu_src:");
+    emit_indented("R_MOVD");
+    // save address
+    emit_clear_var(TMP2);
+    emit_read_0tvar(ALU_SRC);
+    emit_write_var(TMP2);
+    
     // pc_lookup_table
     emit_load_expression("pc_lookup_table", 1);
     emit_modify_var(ALU_DST, HELL_VAR_WRITE);
 
-    for (int i=0;i<2;i++) {
-      emit_read_0tvar(jmp->reg);
-      emit_modify_var(ALU_SRC,HELL_VAR_WRITE);
-      emit_call(HELL_ADD);
-    }
+    // compute position in lookup table
+    emit_call(HELL_ADD);
+    emit_read_0tvar(TMP2);
+    emit_modify_var(ALU_SRC,HELL_VAR_WRITE);
+    emit_call(HELL_ADD);
 
     // change 0t.. prefix to 1t..
     emit_clear_var(ALU_SRC);
     emit_read_1tvar(ALU_DST);
     emit_write_var(ALU_SRC);
 
-      // do the jmp
+      // do the jmp using the lookup table
     emit_indented("MOVDMOVD %s-3",HELL_VARIABLES[ALU_SRC].name);
-
-    }else if (jmp->type == IMM) {
-      num_local_labels++;
-      emit_indented("R_MOVDMOVD ?- ?- ?- destroy_movd%u destroy_movd%u:",num_local_labels,num_local_labels); // destroy MOVDMOVD
-      emit_indented("MOVD label_pc%u", jmp->imm);
-    }else{
-      error("invalid value");
-    }
-    emit_unindented("");
-
 }
 
 
@@ -737,7 +754,25 @@ static void emit_write_var(int var) {
 }
 
 
+
+static void emit_test_alu_dst_base() {
+  if (!HELL_FUNCTIONS[HELL_TEST_ALU_DST].counter) {
+    return;
+  }
+  emit_unindented("test_alu_dst:");
+  emit_indented("R_MOVD");
+  emit_clear_var(CARRY);
+  emit_read_0tvar(ALU_DST);
+  emit_opr_var(CARRY);
+  emit_test_var(CARRY);
+  emit_function_footer(HELL_TEST_ALU_DST);
+}
+
+
 static void emit_putc_base() {
+  if (!HELL_FUNCTIONS[HELL_PUTC].counter) {
+    return;
+  }
   emit_unindented("putc:");
   emit_indented("R_MOVD");
 
@@ -756,6 +791,9 @@ static void emit_putc_base() {
 
 
 static void emit_getc_base() {
+  if (!HELL_FUNCTIONS[HELL_GETC].counter) {
+    return;
+  }
   emit_unindented("getc:");
   emit_indented("R_MOVD");
 
@@ -852,6 +890,9 @@ static void emit_getc_base() {
 
 
 static void emit_sub_uint24_base() {
+  if (!HELL_FUNCTIONS[HELL_SUB_UINT24].counter) {
+    return;
+  }
   emit_unindented("sub_uint24:");
   emit_indented("R_MOVD");
 
@@ -889,6 +930,9 @@ static void emit_sub_uint24_base() {
 
 
 static void emit_add_uint24_base() {
+  if (!HELL_FUNCTIONS[HELL_ADD_UINT24].counter) {
+    return;
+  }
   emit_unindented("add_uint24:");
   emit_indented("R_MOVD");
 
@@ -909,6 +953,9 @@ static void emit_add_uint24_base() {
 
 
 static void emit_modulo_base() {
+  if (!HELL_FUNCTIONS[HELL_MODULO].counter) {
+    return;
+  }
   emit_unindented("modulo:");
   emit_indented("R_MOVD");
 
@@ -943,6 +990,9 @@ static void emit_modulo_base() {
 
 
 static void emit_test_neq_base() {
+  if (!HELL_FUNCTIONS[HELL_TEST_NEQ].counter) {
+    return;
+  }
   emit_unindented("test_neq:");
   emit_indented("R_MOVD");
 
@@ -967,6 +1017,9 @@ static void emit_test_neq_base() {
 
 
 static void emit_test_eq_base() {
+  if (!HELL_FUNCTIONS[HELL_TEST_EQ].counter) {
+    return;
+  }
   emit_unindented("test_eq:");
   emit_indented("R_MOVD");
 
@@ -992,6 +1045,9 @@ static void emit_test_eq_base() {
 
 
 static void emit_test_ge_base() {
+  if (!HELL_FUNCTIONS[HELL_TEST_GE].counter) {
+    return;
+  }
   emit_unindented("test_ge:");
   emit_indented("R_MOVD");
 
@@ -1009,6 +1065,9 @@ static void emit_test_ge_base() {
 
 
 static void emit_test_lt_base() {
+  if (!HELL_FUNCTIONS[HELL_TEST_LT].counter) {
+    return;
+  }
   emit_unindented("test_lt:");
   emit_indented("R_MOVD");
 
@@ -1029,38 +1088,51 @@ static void emit_test_lt_base() {
 
 
 static void emit_memory_access_base() {
-  emit_unindented("");
-  emit_unindented("opr_memory:");
-  emit_indented("U_MOVDOPRMOVD memptr");
-  emit_unindented("opr_memptr:");
-  emit_indented("OPR");
-  emit_unindented("memptr:");
-  emit_indented("MEMORY_0 - 2");
-  emit_indented("R_OPR");
-  emit_indented("R_MOVD");
-  emit_function_footer(HELL_OPR_MEMPTR);
+  if (HELL_FUNCTIONS[HELL_OPR_MEMPTR].counter) {
+    emit_unindented("");
+    emit_unindented("opr_memory:");
+    emit_indented("U_MOVDOPRMOVD memptr");
+    emit_unindented("opr_memptr:");
+    emit_indented("OPR");
+    emit_unindented("memptr:");
+    emit_indented("MEMORY_0 - 2");
+    emit_indented("R_OPR");
+    emit_indented("R_MOVD");
+    emit_function_footer(HELL_OPR_MEMPTR);
+  }
 
-  emit_unindented("");
-  emit_unindented("restore_opr_memory:");
-  emit_indented("R_MOVD");
-  emit_unindented("restore_opr_memory_no_r_moved:");
-  emit_indented("PARTIAL_MOVDOPRMOVD ?-");
-  emit_indented("R_MOVDOPRMOVD ?- ?- ?- ?-");
-  emit_indented("LOOP4 half_of_restore_opr_memory_done");
-  emit_indented("MOVD restore_opr_memory");
-  emit_unindented("");
-  emit_unindented("half_of_restore_opr_memory_done:");
-  emit_indented("LOOP2_2 restore_opr_memory_done");
-  emit_indented("PARTIAL_MOVDOPRMOVD");
-  emit_indented("restore_opr_memory_no_r_moved");
-  emit_unindented("");
-  emit_unindented("restore_opr_memory_done:");
-  emit_function_footer(HELL_OPR_MEMORY);
+  if (HELL_FUNCTIONS[HELL_OPR_MEMORY].counter) {
 
+    emit_unindented("");
+    emit_unindented("// backjump");
+    emit_unindented("@1t01112 return_from_memory_cell:");
+    emit_indented("R_MOVD");
+    emit_indented("MOVD restore_opr_memory");
+
+    emit_unindented("");
+    emit_unindented("restore_opr_memory:");
+    emit_indented("R_MOVD");
+    emit_unindented("restore_opr_memory_no_r_moved:");
+    emit_indented("PARTIAL_MOVDOPRMOVD ?-");
+    emit_indented("R_MOVDOPRMOVD ?- ?- ?- ?-");
+    emit_indented("LOOP4 half_of_restore_opr_memory_done");
+    emit_indented("MOVD restore_opr_memory");
+    emit_unindented("");
+    emit_unindented("half_of_restore_opr_memory_done:");
+    emit_indented("LOOP2_2 restore_opr_memory_done");
+    emit_indented("PARTIAL_MOVDOPRMOVD");
+    emit_indented("restore_opr_memory_no_r_moved");
+    emit_unindented("");
+    emit_unindented("restore_opr_memory_done:");
+    emit_function_footer(HELL_OPR_MEMORY);
+  }
 }
 
 
 static void emit_compute_memptr_base() {
+  if (!HELL_FUNCTIONS[HELL_COMPUTE_MEMPTR].counter) {
+    return;
+  }
   ; // ALU_DST := (MEMORY_0 - 2) - 2* ALU_SRC
   emit_unindented("compute_memptr:");
   emit_indented("R_MOVD");
@@ -1100,6 +1172,9 @@ static void emit_compute_memptr_base() {
 
 
 static void emit_write_memory_base() {
+  if (!HELL_FUNCTIONS[HELL_WRITE_MEMORY].counter) {
+    return;
+  }
   emit_unindented("write_memory:");
   emit_indented("R_MOVD");
 
@@ -1142,6 +1217,9 @@ static void emit_write_memory_base() {
 
 
 static void emit_read_memory_base() {
+  if (!HELL_FUNCTIONS[HELL_READ_MEMORY].counter) {
+    return;
+  }
   emit_unindented("read_memory:");
   emit_indented("R_MOVD");
 
@@ -1176,7 +1254,9 @@ static void emit_read_memory_base() {
 
 
 static void emit_add_base() {
-
+  if (!HELL_FUNCTIONS[HELL_ADD].counter) {
+    return;
+  }
   emit_unindented("add:");
 
   emit_indented("%s_IS_C1 add",HELL_VARIABLES[TMP].name); // set CARRY flag
@@ -1260,10 +1340,9 @@ static void emit_add_base() {
 
 
 static void emit_sub_base() {
-// if tmp_IS_C1-flag is set:
-//  overflow occured. -> calling method should handle this
-//  possible overflow handling: undo increment, increase rot-width, try increment again
-
+  if (!HELL_FUNCTIONS[HELL_SUB].counter) {
+    return;
+  }
   emit_unindented("sub:");
 
   emit_indented("%s_IS_C1 sub",HELL_VARIABLES[TMP].name); // set CARRY flag
@@ -1356,6 +1435,9 @@ static void emit_sub_base() {
 
 
 static void emit_generate_val_1222_base() {
+  if (!HELL_FUNCTIONS[HELL_GENERATE_1222].counter) {
+    return;
+  }
   emit_unindented("generate_1222:");
 
   emit_indented("R_MOVD");
@@ -1616,6 +1698,8 @@ static void emit_branch_lookup_table() {
 
 static void finalize_hell() {
 
+  emit_jmp_alusrc_base();
+  emit_test_alu_dst_base();
   emit_putc_base();
   emit_getc_base();
   emit_add_uint24_base();
@@ -1634,17 +1718,20 @@ static void finalize_hell() {
   emit_generate_val_1222_base();
   emit_rotwidth_loop_base();
   for (int i=0; i<TMP; i++) {
-    if (modify_var_counter[HELL_VAR_READ_0t][i]) {
-      emit_read0t_var_base(i);
+    if (modify_var_counter[HELL_VAR_TO_ALU_DST][i]) {
+      emit_copy_var_aludst_base(i);
     }
-    if (modify_var_counter[HELL_VAR_READ_1t][i]) {
-      emit_read1t_var_base(i);
+    if (modify_var_counter[HELL_VAR_TO_ALU_SRC][i]) {
+      emit_copy_var_alusrc_base(i);
+    }
+    if (modify_var_counter[HELL_VAR_READ_0t][i]) {
+      emit_read_var_0t_base(i);
     }
     if (modify_var_counter[HELL_VAR_WRITE][i]) {
       emit_write_var_base(i);
     }
-    if (modify_var_counter[HELL_VAR_CLEAR][i]) {
-      emit_clear_var_base(i);
+    if (modify_var_counter[HELL_ALU_DST_TO_VAR][i]) {
+      emit_copy_aludst_to_var_base(i);
     }
   }
   emit_hell_variables_base();
@@ -1761,13 +1848,9 @@ static void dec_ternary_string(char* str) {
 static void init_state_hell(Data* data) {
   emit_unindented(".DATA");
   emit_unindented("");
-  emit_unindented("// backjump");
-  emit_unindented("@1t01112 return_from_memory_cell:");
-  emit_indented("R_MOVD");
-  emit_indented("MOVD restore_opr_memory");
-  emit_unindented("");
   emit_unindented("// memory array");
 
+  // create fixed offset of first memory cell
   char address[20];
   for (int i=0; i<13; i++) {
     address[i] = '1';
@@ -1780,23 +1863,25 @@ static void init_state_hell(Data* data) {
   address[18] = '2';
   address[19] = 0;
 
-
   int mp = 0;
   for (; data; data = data->next, mp++) {
     emit_unindented("@1t%s",address);
     emit_unindented("MEMORY_%u:", mp);
     if (data->v) {
-      emit_indented("%u+0t10000 return_from_memory_cell", data->v); // add offset to fix uninitialized cells to 0
+      emit_indented("%u+0t10000 1t01111", data->v); // add offset to fix uninitialized cells to 0
     }else{
-      emit_indented("0t10000 return_from_memory_cell");
+      emit_indented("0t10000 1t01111");
     }
     emit_unindented("");
-    dec_ternary_string(address); dec_ternary_string(address);
+    // compute offset of next memory cell
+    dec_ternary_string(address);
+    dec_ternary_string(address);
   }
+  // the offset MEMORY_0 is needed even if no memory cells are initialized at startup
   if (!mp) {
     emit_unindented("@1t022222");
     emit_unindented("MEMORY_0:");
-    emit_indented("0t10000 return_from_memory_cell");
+    emit_indented("0t10000");
     emit_unindented("");
   }
 
@@ -1825,11 +1910,11 @@ void target_hell(Module* module) {
     if (current_pc_value != inst->pc) {
       current_pc_value = inst->pc;
       emit_unindented("prepare_label_pc%u:",current_pc_value); // to fix issue with unused code
-      emit_indented("R_MOVD");
-      emit_indented("R_MOVDMOVD ?- ?- ?- label_pc%u",current_pc_value);
+      emit_indented("MOVD direct_jmp_label_pc%u",current_pc_value);
       emit_unindented("label_pc%u:",current_pc_value);
-      emit_indented("R_MOVD");
       emit_indented("R_MOVDMOVD ?- ?- ?- ?-");
+      emit_indented("direct_jmp_label_pc%u:",current_pc_value);
+      emit_indented("R_MOVD");
     }
     hell_emit_inst(inst);
   }
