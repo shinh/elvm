@@ -104,6 +104,7 @@ ELC_SRCS := \
 	forth.c \
 	fs.c \
 	go.c \
+	hell.c \
 	hs.c \
 	i.c \
 	java.c \
@@ -441,6 +442,19 @@ include target.mk
 TARGET := go
 RUNNER := go run
 include target.mk
+
+ifdef HELL
+TARGET := hell
+RUNNER := tools/runhell.sh
+# these tests require an insane amount of RAM and computation time
+TEST_FILTER := out/fizzbuzz.c.eir.hell out/qsort.c.eir.hell out/fizzbuzz_fast.c.eir.hell out/lisp.c.eir.hell out/8cc.c.eir.hell out/elc.c.eir.hell out/dump_ir.c.eir.hell out/eli.c.eir.hell
+# these tests require a very huge amount of RAM and computation time
+ifndef FULL
+TEST_FILTER += out/24_cmp2.c.eir.hell out/24_cmp.c.eir.hell out/24_muldiv.c.eir.hell out/addsub.c.eir.hell out/array.c.eir.hell out/bitops.c.eir.hell out/bool.c.eir.hell out/cmp_eq.c.eir.hell out/cmp_ge.c.eir.hell out/cmp_gt.c.eir.hell out/cmp_le.c.eir.hell out/cmp_lt.c.eir.hell out/cmp_ne.c.eir.hell out/copy_struct.c.eir.hell out/eof.c.eir.hell out/field_addr.c.eir.hell out/func2.c.eir.hell out/func.c.eir.hell out/func_ptr.c.eir.hell out/getchar.c.eir.hell out/global_array.c.eir.hell out/global.c.eir.hell out/global_struct_ref.c.eir.hell out/hello.c.eir.hell out/increment.c.eir.hell out/logic_val.c.eir.hell out/loop.c.eir.hell out/malloc.c.eir.hell out/muldiv.c.eir.hell out/nullptr.c.eir.hell out/printf.c.eir.hell out/print_int.c.eir.hell out/putchar.c.eir.hell out/puts.c.eir.hell out/struct.c.eir.hell out/swapcase.c.eir.hell out/switch_case.c.eir.hell out/switch_op.c.eir.hell out/switch_range.c.eir.hell
+endif
+include target.mk
+$(OUT.eir.hell.out): tools/runhell.sh
+endif
 
 TARGET := sqlite3
 RUNNER := tools/runsqlite3.sh

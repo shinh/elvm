@@ -30,6 +30,7 @@ Currently, there are 38 backends:
 * F# (by [@masaedw](https://github.com/masaedw/))
 * Forth (by [@dubek](https://github.com/dubek/))
 * Go (by [@shogo82148](https://github.com/shogo82148/))
+* HeLL (by [@esoteric-programmer](https://github.com/esoteric-programmer/))
 * Java
 * JavaScript
 * LLVM IR (by [@retrage](https://github.com/retrage/))
@@ -245,6 +246,28 @@ This backend should support both GNU sed and BSD sed, so this backend
 is more portable than [sedlisp](https://github.com/shinh/sedlisp),
 though much slower. Also note, due to limitation of BSD sed, programs
 cannot output non-ASCII characters and NUL.
+
+### HeLL
+
+This backend was contributed by [@esoteric-programmer](https://github.com/esoteric-programmer/).
+HeLL is an assembly language for Malbolge and Malbolge Unshackled.
+Use [LMFAO](https://github.com/esoteric-programmer/LMFAO) to build the Malbolge Unshackled program from HeLL.
+This backend won't be tested by default because Malbolge Unshackled is extremely slow. Use
+
+    $ HELL=1 make hell
+
+to run them. Note you may need to adjust tools/runhell.sh.
+
+This backend does not support all 8-bit characters on I/O, because I/O of Malbolge Unshackled
+uses Unicode codepoints instead of single bytes in getc/putc calls.
+Further, the Malbolge Unshackled interpreter automatically converts newlines read from stdin,
+which cannot be revert in a platform independent way.
+The backend reverts/converts newlines from input to Linux encoding and
+applies modulo 256 operations to all input and output,
+but it cannot compensate the issues this way.
+You should limit I/O to ASCII characters in order to avoid unexpected behaviour or crashes.
+
+This backend may be replaced by a Malbolge Unshackled backend in the future.
 
 ### TensorFlow
 
