@@ -1,6 +1,8 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+// FIXME: 07mem.eir crashes: "cannot apply xlat2" --> comes from rotwidth-limit...?
+
 // TODO: reduce size of generated HeLL file even more
 
 /*
@@ -1758,6 +1760,7 @@ static void emit_hell_variables_base() {
 static void emit_branch_lookup_table() {
   emit_unindented(".DATA");
   emit_unindented("");
+  emit_unindented("@1t200000"); // prevent growing of pointer too large, so that it can be computed within rotwidth of 20 (see rotwidth loop limit)
   emit_unindented("pc_lookup_table:");
   for (int i=0;i<=current_pc_value;i++) {
     emit_indented("MOVD label_pc%u",i);
