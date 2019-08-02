@@ -1,12 +1,22 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-// FIXME: hello.mu hangs with Unshackled interpreter (but not with malbolge_20 fake interpreter)
-
 // TODO: reduce size of generated HeLL file even more
 
-// TODO: speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
-// TODO: speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
+/*
+
+TODO: speed up:
+
+speed up rotwidth-loop: do computations only for (at most) the first 20 (?) iterations;
+  afterwards: switch to other inner call, which should only be used to adjust ROT variables.
+
+speed up EQ and NEQ test by writing own comparison method (instead of calling SUB two times as of now).
+
+speed up getc by more efficient testing for C21, C2 (using SUB multiple times as of now is the lazy, but slow way to implement this test)
+
+maybe speed up: MODULO: double modulo every time until not successfull, then reset and begin doubling again
+     ---> ensure that there must not occur any overflow in doubled mod. otherwise, start from original again...
+*/
 
 void target_hell(Module* module); /// generate and print HeLL code for given program
 
@@ -1632,7 +1642,7 @@ static void emit_hell_variables_base() {
 
     emit_unindented("%s:",HELL_VARIABLES[i].name);
 
-    emit_indented("?");
+    emit_indented("0"); // initialize all registers to zero
     emit_indented("U_NOP continue_%s",HELL_VARIABLES[i].name);
     emit_indented("U_NOP %s_was_c1",HELL_VARIABLES[i].name);
     emit_indented("U_NOP %s_was_c0",HELL_VARIABLES[i].name);
