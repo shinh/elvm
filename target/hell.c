@@ -197,7 +197,8 @@ static void emit_write_var(int var); // write to var; tmp and var must be set to
 static void emit_opr_var(int var); // OPR var
 static void emit_rot_var(int var); // ROT var
 static void emit_test_var(int var); // MOVD var
-static void emit_rotwidth_loop_begin(); // for (int i=0; i<rotwidth; i++) {
+static void emit_rotwidth_loop_begin(); // for (int i=0; i<rotwidth; i++) { if (i<20) { /* execute the following code at most 20 times */
+static void emit_rotwidth_loop_always(); // } /* execute the following code rotwidth times */
 static void emit_rotwidth_loop_end();   // }
 static int hell_cmp_call(Inst* inst);
 static void hell_read_value(Value* val);
@@ -1338,11 +1339,10 @@ static void emit_add_base() {
   // IF NO BORROW OCURRED: increment ALU_DST
   emit_indented("%s_IS_C1 force_increment_during_add",HELL_VARIABLES[CARRY].name); //  GOTO force_increment if CARRY flag is set (=NO BORROW)
 
+  emit_rotwidth_loop_always();
   emit_rot_var(ALU_DST); // rot dest
   emit_rot_var(ALU_SRC); // rot src
   emit_rotwidth_loop_end();
-  // emit_indented("ROT C0 R_ROT");
-  // emit_opr_var(VAL_1222); // restore VAL_1222 to 1t22..22 (instead of 0t22..22)
 
   emit_function_footer(HELL_ADD);
 }
@@ -1433,11 +1433,10 @@ static void emit_sub_base() {
   // IF NO BORROW OCURRED: increment ALU_DST
   emit_indented("%s_IS_C1 force_decrement_during_sub",HELL_VARIABLES[CARRY].name); //  GOTO force_increment if CARRY flag is set (=NO BORROW)
 
+  emit_rotwidth_loop_always();
   emit_rot_var(ALU_DST); // rot dest
   emit_rot_var(ALU_SRC); // rot src
   emit_rotwidth_loop_end();
-  // emit_indented("ROT C0 R_ROT");
-  // emit_opr_var(VAL_1222); // restore VAL_1222 to 1t22..22 (instead of 0t22..22)
 
   emit_function_footer(HELL_SUB);
 }
@@ -1459,6 +1458,8 @@ static void emit_generate_val_1222_base() {
   emit_indented("ROT C1 R_ROT");
   emit_indented("OPR 0t2 R_OPR");
   emit_opr_var(VAL_1222);
+
+  emit_rotwidth_loop_always();
   emit_rot_var(VAL_1222); ////
   emit_rotwidth_loop_end();
 
@@ -1496,12 +1497,19 @@ static void emit_test_var(int var) {
 static void emit_rotwidth_loop_begin() {
   num_rotwidth_loop_calls++;
   emit_indented("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
-  emit_indented("MOVD loop");
+  emit_indented("MOVD init_loop");
 
   emit_unindented("");
   emit_unindented("rotwidth_loop_inner%u:",num_rotwidth_loop_calls);
 
   emit_indented("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
+}
+static void emit_rotwidth_loop_always() {
+  emit_indented("MOVD end_of_inner_loop_body");
+  emit_unindented("");
+  emit_unindented("rotwidth_loop_inner_always%u:",num_rotwidth_loop_calls);
+  emit_indented("R_ROTWIDTH_LOOP%u",num_rotwidth_loop_calls);
+
 }
 static void emit_rotwidth_loop_end() {
   emit_indented("MOVD end_of_loop_body");
@@ -1547,38 +1555,78 @@ static void emit_rotwidth_loop_base() {
   }
 
   emit_unindented("");
-  emit_unindented("loop:");
-
+  emit_unindented("init_loop:");
+  // reset 20-iterations-counter
   emit_indented("R_MOVD");
+  emit_indented("LOOP5_rw reset_loop5_successful");
+  emit_indented("MOVD init_loop");
+
+  emit_unindented("restore_loop4:");
+  emit_indented("R_MOVD");
+  emit_unindented("reset_loop5_successful:");
+  emit_indented("LOOP4_rw reset_loop4_successful");
+  emit_indented("MOVD restore_loop4");
+
+  emit_unindented("reset_loop4_successful:");
+  emit_indented("SKIP_rw_FLAG rw_flag_is_reset");
+  emit_indented("SKIP_rw_FLAG rw_flag_is_reset");
+
+  emit_unindented("loop:");
+  emit_indented("R_MOVD");
+  emit_unindented("rw_flag_is_reset:");
+
+  emit_indented("SKIP_rw_FLAG skip_inner_loop R_SKIP_rw_FLAG");
+
+  /// TODO: IF 20 iterations have been executed already, skip to end_of_inner_loop_body
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
     emit_indented("ROTWIDTH_LOOP%u rotwidth_loop_inner%u R_ROTWIDTH_LOOP%u",i,i,i);
   }
-  // emit_indented("MOVD end_of_loop_body");
+
   emit_unindented("");
-
-  emit_unindented("end_of_loop_body:");
-
+  emit_unindented("skip_inner_loop:");
+  emit_indented("R_SKIP_rw_FLAG");
   emit_indented("R_MOVD");
+  emit_unindented("end_of_inner_loop_body:");
+  emit_indented("R_MOVD");
+  for (int i=1;i<=num_rotwidth_loop_calls;i++){
+    emit_indented("ROTWIDTH_LOOP%u rotwidth_loop_inner_always%u R_ROTWIDTH_LOOP%u",i,i,i);
+  }
+
+  emit_unindented("");
+  emit_unindented("end_of_loop_body:");
+  emit_indented("SKIP_rw_FLAG set_skip_flag R_SKIP_rw_FLAG");
+  emit_indented("LOOP5_rw maybe_set_skipflag");
+  emit_unindented("update_skip_flag_finished:");
+  emit_indented("R_MOVD");
+
   emit_indented("ROT C1 R_ROT");
-
   emit_unindented("reset_loop_tmp_loop:");
-
   emit_indented("R_FLAG%u",flag_base+1);
   emit_indented("MOVD opr_loop_tmp");
+
+//
   emit_unindented("");
+  emit_unindented("maybe_set_skipflag:");
+  emit_indented("LOOP4_rw set_skip_flag");
+  emit_indented("R_MOVD MOVD update_skip_flag_finished");
+  emit_unindented("");
+  emit_unindented("set_skip_flag:");
+  emit_indented("R_SKIP_rw_FLAG");
+  emit_indented("R_MOVD MOVD update_skip_flag_finished");
 
+//
+
+  emit_unindented("");
   emit_unindented("loop_tmp_ret1:");
-
   emit_indented("LOOP2 reset_loop_tmp_loop");
 
   emit_unindented("do_twice:");
-
   emit_indented("ROT C1 R_ROT");
+
   emit_indented("OPR C02 R_OPR");
   emit_indented("R_FLAG%u",flag_base+2);
   emit_indented("MOVD opr_loop_tmp");
   emit_unindented("");
-
   emit_unindented("loop_tmp_ret2:");
 
   emit_indented("R_LOOP2");
@@ -1588,19 +1636,16 @@ static void emit_rotwidth_loop_base() {
   emit_unindented("");
 
   emit_unindented("loop_tmp_ret3:");
-
   emit_indented("ROT C12 R_ROT");
   emit_indented("R_FLAG%u",flag_base+4);
   emit_indented("MOVD opr_loop_tmp");
   emit_unindented("");
 
   emit_unindented("loop_tmp_ret4:");
-
   emit_indented("LOOP2 do_twice");
   emit_unindented("");
 
   emit_unindented("leave_loop:");
-
   emit_indented("R_MOVD");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
     emit_indented("ROTWIDTH_LOOP%u rotwidth_loop_ret%u R_ROTWIDTH_LOOP%u",i,i,i);
@@ -1611,12 +1656,26 @@ static void emit_rotwidth_loop_base() {
   emit_unindented(".CODE");
   for (int i=1;i<=num_rotwidth_loop_calls;i++){
     emit_unindented("ROTWIDTH_LOOP%u:",i);
-
     emit_indented("Nop/MovD");
     emit_indented("Jmp");
-
     emit_unindented("");
   }
+
+  emit_unindented("LOOP4_rw:");
+  emit_indented("Nop/Nop/Nop/MovD");
+  emit_indented("Jmp");
+  emit_unindented("");
+
+  emit_unindented("LOOP5_rw:");
+  emit_indented("Nop/Nop/Nop/Nop/MovD");
+  emit_indented("Jmp");
+  emit_unindented("");
+
+  emit_unindented("SKIP_rw_FLAG:");
+  emit_indented("Nop/MovD");
+  emit_indented("Jmp");
+  emit_unindented("");
+
   emit_unindented("");
   emit_unindented(".DATA");
 /** END: LOOP over rotwidth */
