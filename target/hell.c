@@ -1,8 +1,6 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-// FIXME: 07mem.eir crashes: "cannot apply xlat2" --> comes from rotwidth-limit...?
-
 // TODO: reduce size of generated HeLL file even more
 
 /*
@@ -1344,6 +1342,7 @@ static void emit_add_base() {
   emit_rotwidth_loop_always();
   emit_rot_var(ALU_DST); // rot dest
   emit_rot_var(ALU_SRC); // rot src
+  emit_rot_var(VAL_1222); // rot 1t22..22 value (22..22-tail must bé kept in operational range)
   emit_rotwidth_loop_end();
 
   emit_function_footer(HELL_ADD);
@@ -1438,6 +1437,7 @@ static void emit_sub_base() {
   emit_rotwidth_loop_always();
   emit_rot_var(ALU_DST); // rot dest
   emit_rot_var(ALU_SRC); // rot src
+  emit_rot_var(VAL_1222); // rot 1t22..22 value (22..22-tail must bé kept in operational range)
   emit_rotwidth_loop_end();
 
   emit_function_footer(HELL_SUB);
