@@ -8,8 +8,14 @@
 
 char* vformat(const char* fmt, va_list ap) {
   char buf[256];
-  vsnprintf(buf, 255, fmt, ap);
-  buf[255] = 0;
+  va_list va_cpy;
+  va_copy(va_cpy, ap);
+  int n = vsnprintf(buf, 256, fmt, ap) + 1;
+  if (n > 256) {
+    char* buf2 = (char*) malloc(n * sizeof(char));
+    vsnprintf(buf2, n, fmt, va_cpy);
+    return buf2;
+  }
   return strdup(buf);
 }
 

@@ -111,6 +111,7 @@ ELC_SRCS := \
 	js.c \
 	lua.c \
 	ll.c \
+	mcfunction.c \
 	oct.c \
 	php.c \
 	piet.c \
