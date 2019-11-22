@@ -27,10 +27,15 @@
 #define ELVM_TMP "ELVM elvm_tmp "
 #define ELVM_PARAM "ELVM elvm_param "
 
+#define CACHE_SIZE 32
+#define CACHE_DEPTH 5
+#define CACHE_COUNT 2
+
 static const char* MCFUNCTION_REG_NAMES[7] = { "elvm_a", "elvm_b", "elvm_c", "elvm_d", "elvm_bp", "elvm_sp", "elvm_pc" };
 
 static bool used_chr_function = 0;
 static bool used_flush_function = 0;
+static bool used_cache_function = 0;
 
 static void mcf_char_to_string(char c, char* out) {
   if ((c >= 0 && c < 32) || c == 127)
@@ -50,33 +55,29 @@ static void mcf_char_to_string(char c, char* out) {
   }
 }
 
-static void mcf_static_read_mem_loc(int loc, char* res) {
-  res[0] = 'm';
-  res[1] = 'e';
-  res[2] = 'm';
-  for (int i = 0; i < 24; i++) {
-    res[3 + 2 * i] = '.';
-    res[4 + 2 * i] = (loc & (1 << (23 - i))) ? (char)'r' : (char)'l';
+static void mcf_static_read_mem_loc(int loc, const char* mem_name, char* res, int mem_size) {
+  strcpy(res, mem_name);
+  for (int i = 0; i < mem_size; i++) {
+    if (loc & (1 << (mem_size - 1 - i)))
+      strcat(res, ".r");
+    else
+      strcat(res, ".l");
   }
-  res[51] = '\0';
 }
 
-static void mcf_static_write_mem_loc(int loc, char* res) {
-  res[0] = '{';
-  res[1] = '"';
-  res[2] = 'm';
-  res[3] = 'e';
-  res[4] = 'm';
-  res[5] = '"';
-  res[6] = ':';
-  for (int i = 0; i < 24; i++) {
-    res[7 + 5 * i] = '{';
-    res[8 + 5 * i] = '"';
-    res[9 + 5 * i] = (loc & (1 << (23 - i))) ? (char)'r' : (char)'l';
-    res[10 + 5 * i] = '"';
-    res[11 + 5 * i] = ':';
+static void mcf_static_write_mem_loc(int loc, const char* mem_name, const char* value, char* res, int mem_size) {
+  strcpy(res, "{\"");
+  strcat(res, mem_name);
+  strcat(res, "\":");
+  for (int i = 0; i < mem_size; i++) {
+    if (loc & (1 << (mem_size - 1 - i)))
+      strcat(res, "{\"r\":");
+    else
+      strcat(res, "{\"l\":");
   }
-  res[127] = '\0';
+  strcat(res, value);
+  for (int i = 0; i <= mem_size; i++)
+    strcat(res, "}");
 }
 
 static void mcf_emit_function_header(const char *name) {
@@ -95,68 +96,183 @@ static void mcf_emit_set_reg(const char *reg, Value *value) {
 
 static void mcf_emit_mem_table_store(Value *addr, Value *value) {
   if (addr->type == IMM) {
-    char write_mem_loc[128];
-    mcf_static_write_mem_loc(addr->imm, write_mem_loc);
+    char write_mem_loc[164];
     if (value->type == IMM) {
-      emit_line(DMES "%s%d}}}}}}}}}}}}}}}}}}}}}}}}}", write_mem_loc, value->imm);
+      mcf_static_write_mem_loc(addr->imm, "mem", format("%d", value->imm), write_mem_loc, 24);
+      emit_line(DMES "%s", write_mem_loc);
+      for (int i = 0; i < CACHE_COUNT; i++) {
+        mcf_static_write_mem_loc(addr->imm, format("cache%d", i), format("%d", value->imm), write_mem_loc, CACHE_DEPTH);
+        emit_line(EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d run " DMES "%s",
+                  i, addr->imm & ~(CACHE_SIZE - 1), i, (addr->imm & ~(CACHE_SIZE - 1)) + CACHE_SIZE, write_mem_loc);
+      }
     } else {
-      emit_line(DMES "%s0}}}}}}}}}}}}}}}}}}}}}}}}}", write_mem_loc);
-      mcf_static_read_mem_loc(addr->imm, write_mem_loc);
+      mcf_static_write_mem_loc(addr->imm, "mem", "0", write_mem_loc, 24);
+      emit_line(DMES "%s", write_mem_loc);
+      mcf_static_read_mem_loc(addr->imm, "mem", write_mem_loc, 24);
       emit_line(E SRST "%s int 1 run " SPG "ELVM %s",
                 write_mem_loc, reg_names[value->reg]);
+      for (int i = 0; i < CACHE_COUNT; i++) {
+        mcf_static_write_mem_loc(addr->imm, format("cache%d", i), "0", write_mem_loc, CACHE_DEPTH);
+        emit_line(EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d run " DMES "%s",
+                  i, addr->imm & ~(CACHE_SIZE - 1), i, (addr->imm & ~(CACHE_SIZE - 1)) + CACHE_SIZE, write_mem_loc);
+        mcf_static_read_mem_loc(addr->imm, format("cache%d", i), write_mem_loc, CACHE_DEPTH);
+        emit_line(EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d " SRST "%s int 1 run " SPG "ELVM %s",
+                  i, addr->imm & ~(CACHE_SIZE - 1), i, (addr->imm & ~(CACHE_SIZE - 1)) + CACHE_SIZE, write_mem_loc, reg_names[value->reg]);
+      }
     }
   } else {
-    emit_line(DMS "mem_tmp set value [{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]");
+    used_cache_function = 1;
     mcf_emit_set_reg("elvm_mem_addr", addr);
-    emit_line(EIS ELVM_MEM_ADDR "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.l");
-    emit_line(EUS ELVM_MEM_ADDR "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.r");
-    emit_line(EUS ELVM_MEM_ADDR "matches ..8388607 run " SPR ELVM_MEM_ADDR "8388608");
-    for (int i = 1; i < 23; i++) {
-      emit_line(EIS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].l", (1 << (23 - i)) - 1, i, i - 1);
-      emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].r", (1 << (23 - i)) - 1, i, i - 1);
-      emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " SPR ELVM_MEM_ADDR "%d", (1 << (23 - i)) - 1, 1 << (23 - i));
-    }
-    if (value->type == IMM) {
-      emit_line(EIS ELVM_MEM_ADDR "matches 0 run " DMS "mem_tmp[22].l set value %d", value->imm);
-      emit_line(EUS ELVM_MEM_ADDR "matches 0 run " DMS "mem_tmp[22].r set value %d", value->imm);
-    } else {
-      emit_line(EIS ELVM_MEM_ADDR "matches 0 " SRST "mem_tmp[22].l int 1 run " SPG "ELVM %s", reg_names[value->reg]);
-      emit_line(EUS ELVM_MEM_ADDR "matches 0 " SRST "mem_tmp[22].r int 1 run " SPG "ELVM %s", reg_names[value->reg]);
-    }
-    mcf_emit_set_reg("elvm_mem_addr", addr);
-    for (int i = 22; i >= 1; i--) {
-      emit_line(SPO ELVM_MEM_ADDR "/= ELVM elvm_two");
-      emit_line(SPO ELVM_TMP "= ELVM elvm_mem_addr");
-      emit_line(SPO ELVM_TMP "%%= ELVM elvm_two");
-      emit_line(EIS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].l " SFS "mem_tmp[%d]", i - 1, i);
-      emit_line(EUS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].r " SFS "mem_tmp[%d]", i - 1, i);
-    }
-    emit_line(SPO ELVM_MEM_ADDR "/= ELVM elvm_two");
-    emit_line(SPO ELVM_MEM_ADDR "%%= ELVM elvm_two");
-    emit_line(EIS ELVM_MEM_ADDR "matches 0 run " DMS "mem.l " SFS "mem_tmp[0]");
-    emit_line(EUS ELVM_MEM_ADDR "matches 0 run " DMS "mem.r " SFS "mem_tmp[0]");
+    mcf_emit_set_reg("elvm_param", value);
+    emit_line(SPS "ELVM elvm_success 0");
+    emit_line(EIS ELVM_MEM_ADDR ">= ELVM elvm_cache0_lo if score " ELVM_MEM_ADDR "< ELVM elvm_cache0_hi run " F "elvm:storecached0");
+    for (int i = 1; i < CACHE_COUNT; i++)
+      emit_line(EIS "ELVM elvm_success matches 0 if score " ELVM_MEM_ADDR ">= ELVM elvm_cache%d_lo if score " ELVM_MEM_ADDR "< ELVM elvm_cache%d_hi run " F "elvm:storecached%d", i, i, i);
+    emit_line(EIS "ELVM elvm_success matches 0 run " F "elvm:recache");
+    emit_line(EIS "ELVM elvm_success matches 0 run " F "elvm:storecached0");
   }
 }
 
 static void mcf_emit_mem_table_load(const char* dst_reg, Value* addr) {
   if (addr->type == IMM) {
     char read_mem_loc[52];
-    mcf_static_read_mem_loc(addr->imm, read_mem_loc);
+    mcf_static_read_mem_loc(addr->imm, "mem", read_mem_loc, 24);
     emit_line(E SRSC "ELVM %s run " DGS "%s", dst_reg, read_mem_loc);
-  } else {
-    mcf_emit_set_reg("elvm_mem_addr", addr);
-    emit_line(DMS "mem_tmp set value {}");
-    emit_line(EIS ELVM_MEM_ADDR "matches ..8388607 run " DMS "mem_tmp " SFS "mem.l");
-    emit_line(EUS ELVM_MEM_ADDR "matches ..8388607 run " DMS "mem_tmp " SFS "mem.r");
-    emit_line(EUS ELVM_MEM_ADDR "matches ..8388607 run " SPR ELVM_MEM_ADDR "8388608");
-    for (int i = 1; i < 23; i++) {
-      emit_line(EIS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp " SFS "mem_tmp.l", (1 << (23 - i)) - 1);
-      emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp " SFS "mem_tmp.r", (1 << (23 - i)) - 1);
-      emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " SPR ELVM_MEM_ADDR "%d", (1 << (23 - i)) - 1, 1 << (23 - i));
+    for (int i = 0; i < CACHE_COUNT; i++) {
+      mcf_static_read_mem_loc(addr->imm, format("cache%d", i), read_mem_loc, CACHE_DEPTH);
+      emit_line(EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d " SRSC "ELVM %s run " DGS "%s",
+                i, addr->imm & ~(CACHE_SIZE - 1), i, (addr->imm & ~(CACHE_SIZE - 1)) + CACHE_SIZE, dst_reg, read_mem_loc);
     }
-    emit_line(EIS ELVM_MEM_ADDR "matches 0 " SRSC "ELVM %s run " DGS "mem_tmp.l", dst_reg);
-    emit_line(EUS ELVM_MEM_ADDR "matches 0 " SRSC "ELVM %s run " DGS "mem_tmp.r", dst_reg);
+  } else {
+    used_cache_function = 1;
+    mcf_emit_set_reg("elvm_mem_addr", addr);
+    emit_line(SPS "ELVM elvm_success 0");
+    emit_line(EIS ELVM_MEM_ADDR ">= ELVM elvm_cache0_lo if score " ELVM_MEM_ADDR "< ELVM elvm_cache0_hi run " F "elvm:loadcached0");
+    for (int i = 1; i < CACHE_COUNT; i++)
+      emit_line(EIS "ELVM elvm_success matches 0 if score " ELVM_MEM_ADDR ">= ELVM elvm_cache%d_lo if score " ELVM_MEM_ADDR "< ELVM elvm_cache%d_hi run " F "elvm:loadcached%d", i, i, i);
+    emit_line(EIS "ELVM elvm_success matches 0 run " F "elvm:recache");
+    emit_line(EIS "ELVM elvm_success matches 0 run " F "elvm:loadcached0");
+    emit_line(SPO "ELVM %s = ELVM elvm_mem_res", dst_reg);
   }
+}
+
+static void define_storecached_function(int cache_id) {
+  mcf_emit_function_header(format("elvm:storecached%d", cache_id));
+  emit_line(SPS "ELVM elvm_success 1");
+  emit_line(SPO ELVM_MEM_ADDR "-= ELVM elvm_cache%d_lo", cache_id);
+  char mem_val[3 * (CACHE_DEPTH - 1)];
+  strcpy(mem_val, "{}");
+  for (int i = 1; i < CACHE_DEPTH - 1; i++)
+    strcat(mem_val, ",{}");
+  emit_line(DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(SPO ELVM_TMP "= ELVM elvm_mem_addr");
+  emit_line(EIS ELVM_TMP "matches ..%d run " DMS "mem_tmp[0] " SFS "cache%d.l", CACHE_SIZE / 2 - 1, cache_id);
+  emit_line(EUS ELVM_TMP "matches ..%d run " DMS "mem_tmp[0] " SFS "cache%d.r", CACHE_SIZE / 2 - 1, cache_id);
+  emit_line(EUS ELVM_TMP "matches ..%d run " SPR ELVM_TMP "%d", CACHE_SIZE / 2 - 1, CACHE_SIZE / 2);
+  for (int i = 1; i < CACHE_DEPTH - 1; i++) {
+    emit_line(EIS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].l",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].r",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " SPR ELVM_TMP "%d",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, 1 << (CACHE_DEPTH - 1 - i));
+  }
+  emit_line(EIS ELVM_TMP "matches 0 " SRST "mem_tmp[%d].l int 1 run " SPG ELVM_PARAM, CACHE_DEPTH - 2);
+  emit_line(EUS ELVM_TMP "matches 0 " SRST "mem_tmp[%d].r int 1 run " SPG ELVM_PARAM, CACHE_DEPTH - 2);
+  for (int i = CACHE_DEPTH - 2; i >= 1; i--) {
+    emit_line(SPO ELVM_MEM_ADDR "/= ELVM elvm_two");
+    emit_line(SPO ELVM_TMP "= ELVM elvm_mem_addr");
+    emit_line(SPO ELVM_TMP "%%= ELVM elvm_two");
+    emit_line(EIS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].l " SFS "mem_tmp[%d]", i - 1, i);
+    emit_line(EUS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].r " SFS "mem_tmp[%d]", i - 1, i);
+  }
+  emit_line(SPO ELVM_MEM_ADDR "/= ELVM elvm_two");
+  emit_line(SPO ELVM_MEM_ADDR "%%= ELVM elvm_two");
+  emit_line(EIS ELVM_MEM_ADDR "matches 0 run " DMS "cache%d.l " SFS "mem_tmp[0]", cache_id);
+  emit_line(EUS ELVM_MEM_ADDR "matches 0 run " DMS "cache%d.r " SFS "mem_tmp[0]", cache_id);
+}
+
+static void define_loadcached_function(int cache_id) {
+  mcf_emit_function_header(format("elvm:loadcached%d", cache_id));
+  emit_line(SPS "ELVM elvm_success 1");
+  emit_line(SPO ELVM_MEM_ADDR "-= ELVM elvm_cache%d_lo", cache_id);
+  char mem_val[3 * (CACHE_DEPTH - 1)];
+  strcpy(mem_val, "{}");
+  for (int i = 1; i < CACHE_DEPTH - 1; i++)
+    strcat(mem_val, ",{}");
+  emit_line(DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(EIS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[0] " SFS "cache%d.l", CACHE_SIZE / 2 - 1, cache_id);
+  emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[0] " SFS "cache%d.r", CACHE_SIZE / 2 - 1, cache_id);
+  emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " SPR ELVM_MEM_ADDR "%d", CACHE_SIZE / 2 - 1, CACHE_SIZE / 2);
+  for (int i = 1; i < CACHE_DEPTH - 1; i++) {
+    emit_line(EIS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].l",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].r",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_MEM_ADDR "matches ..%d run " SPR ELVM_MEM_ADDR "%d",
+              (1 << (CACHE_DEPTH - 1 - i)) - 1, 1 << (CACHE_DEPTH - 1 - i));
+  }
+  emit_line(EIS ELVM_MEM_ADDR "matches 0 " SRSC "ELVM elvm_mem_res run " DGS "mem_tmp[%d].l", CACHE_DEPTH - 2);
+  emit_line(EUS ELVM_MEM_ADDR "matches 0 " SRSC "ELVM elvm_mem_res run " DGS "mem_tmp[%d].r", CACHE_DEPTH - 2);
+}
+
+static void define_recache_function() {
+  mcf_emit_function_header(format("elvm:recache"));
+  char mem_val[3 * (23 - CACHE_DEPTH)];
+  strcpy(mem_val, "{}");
+  for (int i = 1; i < 23 - CACHE_DEPTH; i++)
+    strcat(mem_val, ",{}");
+  emit_line(DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(SPO ELVM_TMP "= ELVM elvm_cache%d_lo", CACHE_COUNT - 1);
+  emit_line(EIS ELVM_TMP "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.l");
+  emit_line(EUS ELVM_TMP "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.r");
+  emit_line(EUS ELVM_TMP "matches ..8388607 run " SPR ELVM_TMP "8388608");
+  for (int i = 1; i < 23 - CACHE_DEPTH; i++) {
+    emit_line(EIS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].l", (1 << (23 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].r", (1 << (23 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " SPR ELVM_TMP "%d", (1 << (23 - i)) - 1, 1 << (23 - i));
+  }
+  emit_line(EIS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d].l " SFS "cache%d",
+            CACHE_SIZE - 1, 22 - CACHE_DEPTH, CACHE_COUNT - 1);
+  emit_line(EUS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d].r " SFS "cache%d",
+            CACHE_SIZE - 1, 22 - CACHE_DEPTH, CACHE_COUNT - 1);
+  for (int i = 22 - CACHE_DEPTH; i >= 1; i--) {
+    emit_line(SPO "ELVM elvm_cache%d_lo /= ELVM %s", CACHE_COUNT - 1, i == 22 - CACHE_DEPTH ? "elvm_2cache_size" : "elvm_two");
+    emit_line(SPO ELVM_TMP "= ELVM elvm_cache%d_lo", CACHE_COUNT - 1);
+    emit_line(SPO ELVM_TMP "%%= ELVM elvm_two");
+    emit_line(EIS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].l " SFS "mem_tmp[%d]", i - 1, i);
+    emit_line(EUS ELVM_TMP "matches 0 run " DMS "mem_tmp[%d].r " SFS "mem_tmp[%d]", i - 1, i);
+  }
+  emit_line(SPO "ELVM elvm_cache%d_lo /= ELVM elvm_two", CACHE_COUNT - 1);
+  emit_line(SPO "ELVM elvm_cache%d_lo %%= ELVM elvm_two", CACHE_COUNT - 1);
+  emit_line(EIS "ELVM elvm_cache%d_lo matches 0 run " DMS "mem.l " SFS "mem_tmp[0]", CACHE_COUNT - 1);
+  emit_line(EUS "ELVM elvm_cache%d_lo matches 0 run " DMS "mem.r " SFS "mem_tmp[0]", CACHE_COUNT - 1);
+
+  for (int i = CACHE_COUNT - 1; i > 0; i--) {
+    emit_line(DMS "cache%d " SFS "cache%d", i, i - 1);
+    emit_line(SPO "ELVM elvm_cache%d_lo = ELVM elvm_cache%d_lo", i, i - 1);
+    emit_line(SPO "ELVM elvm_cache%d_hi = ELVM elvm_cache%d_hi", i, i - 1);
+  }
+  emit_line(SPO "ELVM elvm_cache0_lo = ELVM elvm_mem_addr");
+  emit_line(SPO "ELVM elvm_cache0_lo /= ELVM elvm_cache_size");
+  emit_line(SPO "ELVM elvm_cache0_lo *= ELVM elvm_cache_size");
+  emit_line(SPO "ELVM elvm_cache0_hi = ELVM elvm_cache0_lo");
+  emit_line(SPA "ELVM elvm_cache0_hi %d", CACHE_SIZE);
+
+  emit_line(DMS "cache0 set value {}");
+  emit_line(SPO ELVM_TMP "= ELVM elvm_mem_addr");
+  emit_line(DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(EIS ELVM_TMP "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.l");
+  emit_line(EUS ELVM_TMP "matches ..8388607 run " DMS "mem_tmp[0] " SFS "mem.r");
+  emit_line(EUS ELVM_TMP "matches ..8388607 run " SPR ELVM_TMP "8388608");
+  for (int i = 1; i < 23 - CACHE_DEPTH; i++) {
+    emit_line(EIS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].l", (1 << (23 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " DMS "mem_tmp[%d] " SFS "mem_tmp[%d].r", (1 << (23 - i)) - 1, i, i - 1);
+    emit_line(EUS ELVM_TMP "matches ..%d run " SPR ELVM_TMP "%d",
+              (1 << (23 - i)) - 1, 1 << (23 - i));
+  }
+  emit_line(EIS ELVM_TMP "matches ..%d run " DMS "cache0 " SFS "mem_tmp[%d].l", CACHE_SIZE - 1, 22 - CACHE_DEPTH);
+  emit_line(EUS ELVM_TMP "matches ..%d run " DMS "cache0 " SFS "mem_tmp[%d].r", CACHE_SIZE - 1, 22 - CACHE_DEPTH);
 }
 
 static void define_chr_function(int min, int max) {
@@ -492,6 +608,7 @@ static void emit_main_function(Data* data) {
   }
 
   emit_line(SOA "elvm_tmp dummy");
+  emit_line(SOA "elvm_success dummy");
 
   emit_memory_initialization(data);
 
@@ -505,6 +622,27 @@ static void emit_main_function(Data* data) {
   emit_line(SPS "ELVM elvm_two 2");
 
   emit_line(DMS "stdout set value []");
+
+  Data* cache_data = data;
+  for (int i = 0; i < CACHE_COUNT; i++) {
+    emit_line(SOA "elvm_cache%d_lo dummy", i);
+    emit_line(SPS "ELVM elvm_cache%d_lo %d", i, i * CACHE_SIZE);
+    emit_line(SOA "elvm_cache%d_hi dummy", i);
+    emit_line(SPS "ELVM elvm_cache%d_hi %d", i, (i + 1) * CACHE_SIZE);
+
+    Node* root = (Node*) calloc(1, sizeof(*root));
+    for (int p = 0; cache_data && p < CACHE_SIZE; cache_data = cache_data->next, p++) {
+      if (cache_data->v) {
+        set_in_tree(root, CACHE_DEPTH, p, cache_data->v);
+      }
+    }
+    emit_line(DMS "cache%d set value %s", i, tree_to_nbt(root, CACHE_DEPTH));
+    free_tree(root, CACHE_DEPTH);
+  }
+  emit_line(SOA "elvm_cache_size dummy");
+  emit_line(SPS "ELVM elvm_cache_size %d", CACHE_SIZE);
+  emit_line(SOA "elvm_2cache_size dummy");
+  emit_line(SPS "ELVM elvm_2cache_size %d", CACHE_SIZE * 2);
 
   emit_line(EIS ELVM_PC "matches 0.. run " F "elvm:loop");
 }
@@ -536,6 +674,13 @@ static void define_utility_functions() {
     define_chr_function(0, 256);
   if (used_flush_function)
     define_flush_function();
+  if (used_cache_function) {
+    for (int i = 0; i < CACHE_COUNT; i++) {
+      define_loadcached_function(i);
+      define_storecached_function(i);
+    }
+    define_recache_function();
+  }
 }
 
 void target_mcfunction(Module* module) {
