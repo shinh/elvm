@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define SOA "scoreboard objectives add "
+#define SOR "scoreboard objectives remove "
 #define SPG "scoreboard players get "
 #define SPS "scoreboard players set "
 #define SPA "scoreboard players add "
@@ -398,6 +399,7 @@ static void mcf_emit_test(Inst* inst,
 }
 
 bool was_jump = 1;
+int* adj_pcs;
 
 static void mcf_emit_inst(Inst* inst) {
   was_jump = 0;
@@ -478,7 +480,17 @@ static void mcf_emit_inst(Inst* inst) {
     }
 
     case GETC: {
-      /* TODO: implement */
+      was_jump = 1;
+      emit_line(E SRSC ELVM_TMP "run " DGS "stdin");
+      emit_line(EIS ELVM_TMP "matches 0 run schedule function elvm:func_%d 1", inst->pc);
+      emit_line(EIS ELVM_TMP "matches 0 run " SOA "elvm_getc_pc dummy");
+      emit_line(EIS ELVM_TMP "matches 0 run " SPS "ELVM elvm_getc_pc %d", inst->pc);
+      emit_line(EIS ELVM_TMP "matches 0 run " SPS ELVM_PC "-1");
+      emit_line(EUS ELVM_TMP "matches 0 run " SOR "elvm_getc_pc");
+      emit_line(EUS ELVM_TMP "matches 0 " SRSC "ELVM %s run " DGS "stdin[0]", reg_names[inst->dst.reg]);
+      emit_line(EUS ELVM_TMP "matches 0 run " DRS "stdin[0]");
+      emit_line(EUS ELVM_TMP "matches 0 run " SPS ELVM_PC "%d", inst->jmp.imm);
+      emit_line(EUS ELVM_TMP "matches 0 run " F "elvm:func_%d", inst->jmp.imm);
       break;
     }
 
@@ -514,14 +526,15 @@ static void mcf_emit_inst(Inst* inst) {
     case JGT:
     case JGE: {
       was_jump = 1;
-      const char* cmd_when_false = format(SPS ELVM_PC "%d", inst->pc + 1);
+      const char* cmd_when_false = format(SPS ELVM_PC "%d", adj_pcs[inst->pc]);
       const char* cmd_when_true;
       if (inst->jmp.type == IMM)
         cmd_when_true = format(SPS ELVM_PC "%d", inst->jmp.imm);
       else
         cmd_when_true = format(SPO ELVM_PC "= ELVM %s", reg_names[inst->jmp.reg]);
       mcf_emit_test(inst, 1, &cmd_when_false, 1, &cmd_when_true, 0);
-      emit_line(EIS ELVM_PC "matches %d run " F "elvm:func_%d", inst->pc + 1, inst->pc + 1);
+      if (adj_pcs[inst->pc] != -1)
+        emit_line(EIS ELVM_PC "matches %d run " F "elvm:func_%d", adj_pcs[inst->pc], adj_pcs[inst->pc]);
       if (inst->jmp.type == IMM)
         emit_line(EIS ELVM_PC "matches %d run " F "elvm:func_%d", inst->jmp.imm, inst->jmp.imm);
       break;
@@ -599,13 +612,14 @@ static void emit_memory_initialization(Data* data) {
   free_tree(root, 24);
 }
 
-static void emit_main_function(Data* data) {
+static void emit_main_function(Data* data, int pc_count) {
 
   mcf_emit_function_header("elvm:main");
   for (int i = 0; i < 7; i++) {
     emit_line(SOA "%s dummy", reg_names[i]);
     emit_line(SPS "ELVM %s 0", reg_names[i]);
   }
+  emit_line(SPO ELVM_PC "= ELVM elvm_getc_pc");
 
   emit_line(SOA "elvm_tmp dummy");
   emit_line(SOA "elvm_success dummy");
@@ -644,13 +658,13 @@ static void emit_main_function(Data* data) {
   emit_line(SOA "elvm_2cache_size dummy");
   emit_line(SPS "ELVM elvm_2cache_size %d", CACHE_SIZE * 2);
 
-  emit_line(EIS ELVM_PC "matches 0.. run " F "elvm:loop");
+  emit_line(EIS ELVM_PC "matches 0..%d run " F "elvm:loop", pc_count - 1);
 }
 
 static void emit_loop_function(int pc_count) {
   mcf_emit_function_header("elvm:loop");
   emit_line(F "elvm:func_0_%d", pc_count);
-  emit_line(EIS ELVM_PC "matches 0.. run " F "elvm:loop");
+  emit_line(EIS ELVM_PC "matches 0..%d run " F "elvm:loop", pc_count - 1);
 }
 
 static void emit_pc_search_function(int min, int max) {
@@ -683,24 +697,122 @@ static void define_utility_functions() {
   }
 }
 
+static void preprocess_code(Inst* code) {
+  if (!code)
+    return;
+
+  typedef struct Block_ {
+    int pc;
+    Inst* code;
+    int adj_pc;
+    struct Block_* next;
+  } Block;
+
+  int block_count = 1;
+  Block* first_block = (Block*) malloc(sizeof(*first_block));
+  first_block->pc = code->pc;
+  first_block->code = code;
+  first_block->adj_pc = -1;
+  first_block->next = NULL;
+  Block* last_block = first_block;
+
+  Inst* prev_inst = NULL;
+  for (Inst* inst = code; inst; inst = inst->next) {
+    if (inst->pc != last_block->pc) {
+      if (prev_inst)
+        prev_inst->next = NULL;
+      block_count++;
+      Block* new_block = (Block*) malloc(sizeof(*new_block));
+      new_block->pc = inst->pc;
+      new_block->code = inst;
+      new_block->adj_pc = -1;
+      new_block->next = NULL;
+      last_block->adj_pc = inst->pc;
+      last_block->next = new_block;
+      last_block = new_block;
+    }
+    prev_inst = inst;
+  }
+
+  for (Block* block = first_block; block; block = block->next) {
+    prev_inst = NULL;
+    for (Inst* inst = block->code; inst; inst = inst->next) {
+      // there should be no instructions before getc (so it can schedule itself)
+      if (prev_inst && inst->op == GETC) {
+        block_count++;
+        Block* new_block = (Block*) malloc(sizeof(*new_block));
+        new_block->pc = last_block->pc + 1;
+        new_block->code = inst;
+        new_block->adj_pc = block->adj_pc;
+        new_block->next = NULL;
+        last_block->next = new_block;
+        last_block = new_block;
+        block->adj_pc = new_block->pc;
+        prev_inst->next = NULL;
+        break;
+      }
+
+      // there should be no instructions after getc or exit (they count as jump instructions for our purposes)
+      if (inst->next && (inst->op == GETC || inst->op == EXIT)) {
+        block_count++;
+        Block* new_block = (Block*) malloc(sizeof(*new_block));
+        new_block->pc = last_block->pc + 1;
+        new_block->code = inst->next;
+        new_block->adj_pc = block->adj_pc;
+        new_block->next = NULL;
+        last_block->next = new_block;
+        last_block = new_block;
+        inst->next = NULL;
+        inst->jmp.type = IMM;
+        inst->jmp.imm = new_block->pc;
+        break;
+      }
+
+      prev_inst = inst;
+    }
+  }
+
+  adj_pcs = (int*) malloc(block_count * sizeof(int));
+
+  Inst* tail = NULL;
+  for (Block* block = first_block; block; block = block->next) {
+    for (Inst* inst = block->code; inst; inst = inst->next) {
+      inst->pc = block->pc;
+      if (tail)
+        tail->next = inst;
+      tail = inst;
+    }
+    adj_pcs[block->pc] = block->adj_pc;
+  }
+
+  while (first_block) {
+    Block* next = first_block->next;
+    free(first_block);
+    first_block = next;
+  }
+}
+
 void target_mcfunction(Module* module) {
   reg_names = MCFUNCTION_REG_NAMES;
+
+  preprocess_code(module->text);
 
   int pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (inst->pc != pc) {
-      pc = inst->pc;
       if (!was_jump) {
-        emit_line(SPA ELVM_PC "1");
-        emit_line(F "elvm:func_%d", inst->pc);
+        emit_line(SPS ELVM_PC "%d", adj_pcs[pc]);
+        if (adj_pcs[pc] != -1)
+          emit_line(F "elvm:func_%d", adj_pcs[pc]);
       }
+      pc = inst->pc;
       mcf_emit_function_header(format("elvm:func_%d", pc));
     }
     mcf_emit_inst(inst);
   }
 
   emit_pc_search_function(0, pc+1);
-  emit_main_function(module->data);
+  emit_main_function(module->data, pc+1);
   emit_loop_function(pc+1);
   define_utility_functions();
 
