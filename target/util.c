@@ -252,7 +252,7 @@ void emit_elf_header(uint16_t machine, uint32_t filesz) {
 }
 
 bool handle_chunked_func_size_arg(const char* key, const char* value) {
-  if (!strcmp(key, "-chunked_func_size")) {
+  if (!strcmp(key, "chunked_func_size")) {
     CHUNKED_FUNC_SIZE = atoi(value);
     return true;
   }

@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
     if (arg[0] == '-') {
       if (target_func) {
         handle_args_func_t handle_args = get_handle_args_func(ext);
-        if (!handle_args || !handle_args(arg, argv[++i])) {
+        if (!handle_args || !handle_args(arg + 1, argv[++i])) {
           error("unknown flag");
         }
       } else {
