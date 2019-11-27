@@ -105,6 +105,15 @@ static target_func_t get_target_func(const char* ext) {
   error("unknown flag: %s", ext);
 }
 
+typedef bool (*handle_args_func_t)(const char*, const char*);
+
+static handle_args_func_t get_handle_args_func(const char* ext) {
+  if (!strcmp(ext, "rb")) {
+    return handle_chunked_func_size_arg;
+  }
+  return NULL;
+}
+
 int main(int argc, char* argv[]) {
 #if defined(NOFILE) || defined(__eir__)
   char buf[32];
@@ -120,11 +129,20 @@ int main(int argc, char* argv[]) {
   Module* module = load_eir(stdin);
 #else
   target_func_t target_func = NULL;
+  const char* ext = NULL;
   const char* filename = NULL;
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
     if (arg[0] == '-') {
-      target_func = get_target_func(arg + 1);
+      if (target_func) {
+        handle_args_func_t handle_args = get_handle_args_func(ext);
+        if (!handle_args || !handle_args(arg, argv[++i])) {
+          error("unknown flag");
+        }
+      } else {
+        ext = arg + 1;
+        target_func = get_target_func(ext);
+      }
     } else {
       filename = arg;
     }

@@ -250,3 +250,11 @@ void emit_elf_header(uint16_t machine, uint32_t filesz) {
   fwrite(ehdr, 52, 1, stdout);
   fwrite(phdr, 32, 1, stdout);
 }
+
+bool handle_chunked_func_size_arg(const char* key, const char* value) {
+  if (!strcmp(key, "-chunked_func_size")) {
+    CHUNKED_FUNC_SIZE = atoi(value);
+    return true;
+  }
+  return false;
+}
