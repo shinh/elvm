@@ -531,15 +531,13 @@ static void mcf_emit_chr_function(int min, int max) {
   }
 }
 
-char json_string[11156];
-
 /* Gets the json text component that can print len characters from stdout. Stores the result in out */
-static void mcf_get_json_string(int len, char* out) {
-  strcpy(out, "[");
+static char* mcf_get_json_string(int len) {
+  const char* out = "[";
   for (int j = 0; j < len; j++) {
-    strcat(out, format("%s{\"storage\":\"%s:elvm\",\"nbt\":\"stdout[%d]\"}", j == 0 ? "" : ",", MCF_NAMESPACE, j));
+    out = format("%s%s{\"storage\":\"%s:elvm\",\"nbt\":\"stdout[%d]\"}", out, j == 0 ? "" : ",", MCF_NAMESPACE, j);
   }
-  strcat(out, "]");
+  return format("%s]", out);
 }
 
 /*
@@ -555,14 +553,14 @@ static void mcf_emit_flush_function_recursive(int min, int max) {
   if (min == 0 && range == 4) {
     /* 1-3 characters (no need to do anything about 0 characters) */
     for (int i = 1; i < 4; i++) {
-      mcf_get_json_string(i, json_string);
+      const char* json_string = mcf_get_json_string(i);
       emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, i, json_string);
     }
   } else if (range == 2) {
     /* leaf nodes */
-    mcf_get_json_string(min, json_string);
+    const char* json_string = mcf_get_json_string(min);
     emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, min, json_string);
-    mcf_get_json_string(mid, json_string);
+    json_string = mcf_get_json_string(mid);
     emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, mid, json_string);
   } else {
     /* call sub-functions and recursively emit them */
