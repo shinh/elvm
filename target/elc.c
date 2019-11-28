@@ -107,12 +107,13 @@ static target_func_t get_target_func(const char* ext) {
   error("unknown flag: %s", ext);
 }
 
+bool handle_mcfunction_args(const char* arg, const char* value);
+
 typedef bool (*handle_args_func_t)(const char*, const char*);
 
 static handle_args_func_t get_handle_args_func(const char* ext) {
-  if (!strcmp(ext, "rb")) {
-    return handle_chunked_func_size_arg;
-  }
+  if (!strcmp(ext, "mcfunction")) return handle_mcfunction_args;
+  if (!strcmp(ext, "rb")) return handle_chunked_func_size_arg;
   return NULL;
 }
 

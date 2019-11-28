@@ -53,6 +53,7 @@ int emit_chunked_main_loop(Inst* inst,
 
 void emit_elf_header(uint16_t machine, uint32_t filesz);
 
+bool parse_bool_value(const char* value);
 bool handle_chunked_func_size_arg(const char* key, const char* value);
 
 #endif  // ELVM_UTIL_H_

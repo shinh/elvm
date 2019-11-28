@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 char* vformat(const char* fmt, va_list ap) {
   char buf[256];
@@ -255,6 +256,10 @@ void emit_elf_header(uint16_t machine, uint32_t filesz) {
   };
   fwrite(ehdr, 52, 1, stdout);
   fwrite(phdr, 32, 1, stdout);
+}
+
+bool parse_bool_value(const char* value) {
+  return *value == '1' || *value == 't' || *value == 'T';
 }
 
 bool handle_chunked_func_size_arg(const char* key, const char* value) {

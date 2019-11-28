@@ -5,36 +5,39 @@
 #include <string.h>
 
 #define MCF_SOA "scoreboard objectives add "
-#define MCF_SOR "scoreboard objectives remove "
 #define MCF_SPG "scoreboard players get "
 #define MCF_SPS "scoreboard players set "
 #define MCF_SPA "scoreboard players add "
 #define MCF_SPR "scoreboard players remove "
 #define MCF_SPO "scoreboard players operation "
-#define MCF_DMS "data modify storage elvm:elvm "
-#define MCF_DGS "data get storage elvm:elvm "
-#define MCF_DRS "data remove storage elvm:elvm "
-#define MCF_DMES "data merge storage elvm:elvm "
+#define MCF_DMS "data modify storage "
+#define MCF_DGS "data get storage "
+#define MCF_DRS "data remove storage "
+#define MCF_DMES "data merge storage "
 #define MCF_EIS "execute if score "
 #define MCF_EUS "execute unless score "
 #define MCF_E "execute "
-#define MCF_SRST "store result storage elvm:elvm "
+#define MCF_SRST "store result storage "
 #define MCF_SRSC "store result score "
-#define MCF_SFS "set from storage elvm:elvm "
+#define MCF_SFS "set from storage "
 #define MCF_F "function "
 
-#define MCF_ELVM_PC "ELVM elvm_pc "
-#define MCF_ELVM_MEM_ADDR "ELVM elvm_mem_addr "
-#define MCF_ELVM_TMP "ELVM elvm_tmp "
-#define MCF_ELVM_PARAM "ELVM elvm_param "
+static int MCF_CACHE_DEPTH = 5;
+static int MCF_CACHE_SIZE;
+static int MCF_CACHE_COUNT = 2;
 
-#define MCF_CACHE_SIZE 32
-#define MCF_CACHE_DEPTH 5
-#define MCF_CACHE_COUNT 2
+static const char* MCF_NAMESPACE = "elvm";
+
+static int MCF_FLUSH_CHAR = 10; // newline
+static bool MCF_STDOUT_CHARS = 1;
+static const char* MCF_STDOUT_CALLBACK = NULL;
+
+static bool MCF_STDIN_WAIT = 1;
+static const char* MCF_STDIN_CALLBACK = NULL;
 
 /*
  * NBT STORAGE SLOTS:
- * All data stored in NBT storage is stored in the namespace "elvm:elvm".
+ * All data stored in NBT storage is stored in the namespace "MCF_NAMESPACE:elvm".
  * - mem: the main memory
  * - cache0: the first cache slot
  * - cache1: the second cache slot
@@ -47,7 +50,7 @@
  *        string.
  *
  * SCOREBOARD OBJECTIVES:
- * All data stored on the scoreboard are stored inside a fake player called "ELVM".
+ * All data stored on the scoreboard are stored inside a fake player with the same name as MCF_NAMESPACE.
  * - elvm_reg_name: The register called reg_name (there's 7 of these)
  * - elvm_tmp: A temporary value used by various operations. If an operation modifies
  *             elvm_tmp, it should state so.
@@ -62,13 +65,12 @@
  * - elvm_two: The constant 2
  * - elvm_cache_size: The constant MCF_CACHE_SIZE
  * - elvm_2cache_size: The constant 2 * MCF_CACHE_SIZE
- * - elvm_getc_pc: If getc is waiting for input, stores the pc of the getc instruction to jump back
- *                 to. The objective is removed completely if not in a getc operation
+ * - elvm_getc_pc: If getc is waiting for input, stores the pc of the getc instruction to jump back to.
  *
  *
  * MEMORY MODEL:
  *
- * Main memory is stored in NBT storage with the namespace "elvm:elvm" and the NBT compound key "mem".
+ * Main memory is stored in NBT storage with the namespace "MCF_NAMESPACE:elvm" and the NBT compound key "mem".
  * It is constructed as a binary tree, where each node is an NBT compound with optional "l" and "r"
  * keys pointing to the left and right child. The leaves are NBT integers containing the value at
  * that memory address. Each layer of the tree corresponds to a bit of the memory address, and since
@@ -84,7 +86,7 @@
  * corresponding to the new address will be copied into a cache slot, before the actual memory access
  * occurs on this cache slot. While an address range is being cached, the values in main memory for
  * that range may be outdated. The cache slots are stored in NBT storage with the namespace
- * "elvm:elvm" and the NBT compound key "cache%d" where "%d" is the cache slot ID.
+ * "MCF_NAMESPACE:elvm" and the NBT compound key "cache%d" where "%d" is the cache slot ID.
  *
  * To load a value from a cached slot, we recursively copy either the left or right subtree into
  * temporary memory, which is initialized to a set of {} so that in case the memory is asbent, it
@@ -93,6 +95,22 @@
  * subtree, then recursively copy the subtrees back into their parents. This process is called
  * "rewinding" the tree, and emulates the behaviour of the "data merge" command but for a dynamic
  * value.
+ *
+ * COMMAND LINE OPTIONS:
+ * - cache_count: the number of cache slots
+ * - cache_depth: the depth of a cache subtree. The address range of a cache is 2^cache_depth
+ * - namespace: the namespace everything is done in. A program with a different namespace can run at the
+ *              same time and independently of other programs.
+ * - flush_char: the character which flushes stdout, defaults to 10 ('\n'). Set to -1 for no auto-flushing.
+ * - stdout_chars: whether stdout is a stream made up of characters (true, default), or integers (false).
+ * - stdout_callback: a function to be called directly after something is added to stdout. The integer value
+ *                    will be stored in elvm_param, and (if applicable) the character value will be stored in
+ *                    NBT storage chr.
+ * - stdin_wait: whether to wait for more input when stdin is empty and a getc instruction is reached
+ *               (default = true). If false, the behaviour of getc when stdin is empty is undefined.
+ * - stdin_callback: a function to be called directly at the start of a getc instruction. May be used to put
+ *                   values in stdin before they are read.
+ *
  */
 
 static const char* MCF_REG_NAMES[7] = { "elvm_a", "elvm_b", "elvm_c", "elvm_d", "elvm_bp", "elvm_sp", "elvm_pc" };
@@ -103,6 +121,7 @@ typedef struct {
   bool used_flush_function;
   bool used_dyn_load;
   bool used_dyn_store;
+  bool used_getc_function;
 
   /*
    * Whether the last instruction was a jump instruction, used to determine whether the default jump
@@ -174,9 +193,9 @@ static void mcf_emit_function_header(const char* name) {
 /* Sets the value of the register reg to value, if we don't know whether value is a constant or another register */
 static void mcf_emit_set_reg(const char* reg, Value* value) {
   if (value->type == REG)
-    emit_line(MCF_SPO "ELVM %s = ELVM %s", reg, reg_names[value->reg]);
+    emit_line(MCF_SPO "%s %s = %s %s", MCF_NAMESPACE, reg, MCF_NAMESPACE, reg_names[value->reg]);
   else if (value->type == IMM)
-    emit_line(MCF_SPS "ELVM %s %d", reg, value->imm);
+    emit_line(MCF_SPS "%s %s %d", MCF_NAMESPACE, reg, value->imm);
   else
     error("invalid value");
 }
@@ -189,34 +208,35 @@ static void mcf_emit_mem_table_store(Value* addr, Value* value) {
       /* static value */
       /* put value in main memory */
       mcf_static_write_mem_loc(addr->imm, "mem", format("%d", value->imm), write_mem_loc, 24);
-      emit_line(MCF_DMES "%s", write_mem_loc);
+      emit_line(MCF_DMES "%s:elvm %s", MCF_NAMESPACE, write_mem_loc);
       /* put value in caches if need be */
       for (int i = 0; i < MCF_CACHE_COUNT; i++) {
         mcf_static_write_mem_loc(addr->imm, format("cache%d", i), format("%d", value->imm), write_mem_loc,
                                  MCF_CACHE_DEPTH);
-        emit_line(MCF_EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d run " MCF_DMES "%s",
-                  i, addr->imm & ~(MCF_CACHE_SIZE - 1), i, (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE,
-                  write_mem_loc);
+        emit_line(MCF_EIS "%s elvm_cache%d_lo matches %d if score %s elvm_cache%d_hi matches %d run " MCF_DMES "%s:elvm %s",
+                  MCF_NAMESPACE, i, addr->imm & ~(MCF_CACHE_SIZE - 1), MCF_NAMESPACE, i,
+                  (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE, MCF_NAMESPACE, write_mem_loc);
       }
     } else {
       /* dynamic value */
       /* put value in main memory. Merge in 0 first to ensure the path exists in the tree */
       mcf_static_write_mem_loc(addr->imm, "mem", "0", write_mem_loc, 24);
-      emit_line(MCF_DMES "%s", write_mem_loc);
+      emit_line(MCF_DMES "%s:elvm %s", MCF_NAMESPACE, write_mem_loc);
       mcf_static_read_mem_loc(addr->imm, "mem", write_mem_loc, 24);
-      emit_line(MCF_E MCF_SRST "%s int 1 run " MCF_SPG "ELVM %s",
-                write_mem_loc, reg_names[value->reg]);
+      emit_line(MCF_E MCF_SRST "%s:elvm %s int 1 run " MCF_SPG "%s %s",
+                MCF_NAMESPACE, write_mem_loc, MCF_NAMESPACE, reg_names[value->reg]);
       /* put value in caches if need be, in the same way */
       for (int i = 0; i < MCF_CACHE_COUNT; i++) {
         mcf_static_write_mem_loc(addr->imm, format("cache%d", i), "0", write_mem_loc, MCF_CACHE_DEPTH);
-        emit_line(MCF_EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d run " MCF_DMES "%s",
-                  i, addr->imm & ~(MCF_CACHE_SIZE - 1), i, (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE,
-                  write_mem_loc);
+        emit_line(MCF_EIS "%s elvm_cache%d_lo matches %d if score %s elvm_cache%d_hi matches %d run " MCF_DMES "%s:elvm %s",
+                  MCF_NAMESPACE, i, addr->imm & ~(MCF_CACHE_SIZE - 1), MCF_NAMESPACE, i,
+                  (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE, MCF_NAMESPACE, write_mem_loc);
         mcf_static_read_mem_loc(addr->imm, format("cache%d", i), write_mem_loc, MCF_CACHE_DEPTH);
         emit_line(
-            MCF_EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d " MCF_SRST "%s int 1 run " MCF_SPG "ELVM %s",
-            i, addr->imm & ~(MCF_CACHE_SIZE - 1), i, (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE,
-            write_mem_loc, reg_names[value->reg]);
+            MCF_EIS "%s elvm_cache%d_lo matches %d if score %s elvm_cache%d_hi matches %d " MCF_SRST "%s:elvm %s int 1 run " MCF_SPG "%s %s",
+            MCF_NAMESPACE, i, addr->imm & ~(MCF_CACHE_SIZE - 1), MCF_NAMESPACE, i,
+            (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE, MCF_NAMESPACE, write_mem_loc, MCF_NAMESPACE,
+            reg_names[value->reg]);
       }
     }
   } else {
@@ -225,15 +245,15 @@ static void mcf_emit_mem_table_store(Value* addr, Value* value) {
     mcf_emit_set_reg("elvm_mem_addr", addr);
     mcf_emit_set_reg("elvm_param", value);
     /* try storing in each cache in turn. The elvm:storedcachedn function sets elvm_success to 1 */
-    emit_line(MCF_SPS "ELVM elvm_success 0");
-    emit_line(MCF_EIS MCF_ELVM_MEM_ADDR ">= ELVM elvm_cache0_lo if score " MCF_ELVM_MEM_ADDR "< ELVM elvm_cache0_hi run " MCF_F "elvm:storecached0");
+    emit_line(MCF_SPS "%s elvm_success 0", MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_mem_addr >= %s elvm_cache0_lo if score %s elvm_mem_addr < %s elvm_cache0_hi run " MCF_F "%s:storecached0",
+              MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
     for (int i = 1; i < MCF_CACHE_COUNT; i++)
-      emit_line(
-          MCF_EIS "ELVM elvm_success matches 0 if score " MCF_ELVM_MEM_ADDR ">= ELVM elvm_cache%d_lo if score " MCF_ELVM_MEM_ADDR "< ELVM elvm_cache%d_hi run " MCF_F "elvm:storecached%d",
-          i, i, i);
+      emit_line(MCF_EIS "%s elvm_success matches 0 if score %s elvm_mem_addr >= %s elvm_cache%d_lo if score %s elvm_mem_addr < %s elvm_cache%d_hi run " MCF_F "%s:storecached%d",
+          MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, i, MCF_NAMESPACE, MCF_NAMESPACE, i, MCF_NAMESPACE, i);
     /* if no caches cover this memory address, do a recache, which frees up cache slot 0, then store in cache 0 */
-    emit_line(MCF_EIS "ELVM elvm_success matches 0 run " MCF_F "elvm:recache");
-    emit_line(MCF_EIS "ELVM elvm_success matches 0 run " MCF_F "elvm:storecached0");
+    emit_line(MCF_EIS "%s elvm_success matches 0 run " MCF_F "%s:recache", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_success matches 0 run " MCF_F "%s:storecached0", MCF_NAMESPACE, MCF_NAMESPACE);
   }
 }
 
@@ -243,31 +263,30 @@ static void mcf_emit_mem_table_load(const char* dst_reg, Value* addr) {
     /* try loading from main memory. Minecraft conveniently returns 0 if the memory path doesn't exist */
     char read_mem_loc[52];
     mcf_static_read_mem_loc(addr->imm, "mem", read_mem_loc, 24);
-    emit_line(MCF_E MCF_SRSC "ELVM %s run " MCF_DGS "%s", dst_reg, read_mem_loc);
+    emit_line(MCF_E MCF_SRSC "%s %s run " MCF_DGS "%s:elvm %s", MCF_NAMESPACE, dst_reg, MCF_NAMESPACE, read_mem_loc);
     /* try loading from each of the caches, overwriting the value from main memory if necesary */
     for (int i = 0; i < MCF_CACHE_COUNT; i++) {
       mcf_static_read_mem_loc(addr->imm, format("cache%d", i), read_mem_loc, MCF_CACHE_DEPTH);
       emit_line(
-          MCF_EIS "ELVM elvm_cache%d_lo matches %d if score ELVM elvm_cache%d_hi matches %d " MCF_SRSC "ELVM %s run " MCF_DGS "%s",
-          i, addr->imm & ~(MCF_CACHE_SIZE - 1), i, (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE, dst_reg,
-          read_mem_loc);
+          MCF_EIS "%s elvm_cache%d_lo matches %d if score %s elvm_cache%d_hi matches %d " MCF_SRSC "%s %s run " MCF_DGS "%s:elvm %s",
+          MCF_NAMESPACE, i, addr->imm & ~(MCF_CACHE_SIZE - 1), MCF_NAMESPACE, i,
+          (addr->imm & ~(MCF_CACHE_SIZE - 1)) + MCF_CACHE_SIZE, MCF_NAMESPACE, dst_reg, MCF_NAMESPACE, read_mem_loc);
     }
   } else {
     /* dynamic address */
     mcf.used_dyn_load = 1;
     mcf_emit_set_reg("elvm_mem_addr", addr);
     /* try loading from each cache in turn. The elvm:loadcachedn function sets elvm_success to 1 */
-    emit_line(MCF_SPS "ELVM elvm_success 0");
-    emit_line(
-        MCF_EIS MCF_ELVM_MEM_ADDR ">= ELVM elvm_cache0_lo if score " MCF_ELVM_MEM_ADDR "< ELVM elvm_cache0_hi run " MCF_F "elvm:loadcached0");
+    emit_line(MCF_SPS "%s elvm_success 0", MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_mem_addr >= %s elvm_cache0_lo if score %s elvm_mem_addr < %s elvm_cache0_hi run " MCF_F "%s:loadcached0",
+        MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
     for (int i = 1; i < MCF_CACHE_COUNT; i++)
-      emit_line(
-          MCF_EIS "ELVM elvm_success matches 0 if score " MCF_ELVM_MEM_ADDR ">= ELVM elvm_cache%d_lo if score " MCF_ELVM_MEM_ADDR "< ELVM elvm_cache%d_hi run " MCF_F "elvm:loadcached%d",
-          i, i, i);
+      emit_line(MCF_EIS "%s elvm_success matches 0 if score %s elvm_mem_addr >= %s elvm_cache%d_lo if score %s elvm_mem_addr < %s elvm_cache%d_hi run " MCF_F "%s:loadcached%d",
+          MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, i, MCF_NAMESPACE, MCF_NAMESPACE, i, MCF_NAMESPACE, i);
     /* if no caches cover this memory address, do a recache, which frees up cache slot 0, then load from cache 0 */
-    emit_line(MCF_EIS "ELVM elvm_success matches 0 run " MCF_F "elvm:recache");
-    emit_line(MCF_EIS "ELVM elvm_success matches 0 run " MCF_F "elvm:loadcached0");
-    emit_line(MCF_SPO "ELVM %s = ELVM elvm_mem_res", dst_reg);
+    emit_line(MCF_EIS "%s elvm_success matches 0 run " MCF_F "%s:recache", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_success matches 0 run " MCF_F "%s:loadcached0", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_SPO "%s %s = %s elvm_mem_res", MCF_NAMESPACE, dst_reg, MCF_NAMESPACE);
   }
 }
 
@@ -276,55 +295,60 @@ static void mcf_emit_mem_table_load(const char* dst_reg, Value* addr) {
  * Modifies elvm_tmp in the process
  */
 static void mcf_emit_storecached_function(int cache_id) {
-  mcf_emit_function_header(format("elvm:storecached%d", cache_id));
+  mcf_emit_function_header(format("%s:storecached%d", MCF_NAMESPACE, cache_id));
 
-  emit_line(MCF_SPS "ELVM elvm_success 1");
+  emit_line(MCF_SPS "%s elvm_success 1", MCF_NAMESPACE);
 
   /* make the address relative to the start of the mapped memory */
-  emit_line(MCF_SPO MCF_ELVM_MEM_ADDR "-= ELVM elvm_cache%d_lo", cache_id);
+  emit_line(MCF_SPO "%s elvm_mem_addr -= %s elvm_cache%d_lo", MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
 
   /* initialize temporary array */
-  char mem_val[3 * (MCF_CACHE_DEPTH - 1)];
+  char* mem_val = (char*) malloc(3 * (MCF_CACHE_DEPTH - 1) * sizeof(char));
   strcpy(mem_val, "{}");
   for (int i = 1; i < MCF_CACHE_DEPTH - 1; i++)
     strcat(mem_val, ",{}");
-  emit_line(MCF_DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(MCF_DMS "%s:elvm mem_tmp set value [%s]", MCF_NAMESPACE, mem_val);
+  free(mem_val);
 
   /* unwind the tree */
-  emit_line(MCF_SPO MCF_ELVM_TMP "= ELVM elvm_mem_addr");
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[0] " MCF_SFS "cache%d.l",
-            MCF_CACHE_SIZE / 2 - 1, cache_id);
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[0] " MCF_SFS "cache%d.r",
-            MCF_CACHE_SIZE / 2 - 1, cache_id);
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_SPR MCF_ELVM_TMP "%d",
-            MCF_CACHE_SIZE / 2 - 1, MCF_CACHE_SIZE / 2);
+  emit_line(MCF_SPO "%s elvm_tmp = %s elvm_mem_addr", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm cache%d.l",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm cache%d.r",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_SPR "%s elvm_tmp %d",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_CACHE_SIZE / 2);
   for (int i = 1; i < MCF_CACHE_DEPTH - 1; i++) {
-    emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].l",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].r",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_SPR MCF_ELVM_TMP "%d",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, 1 << (MCF_CACHE_DEPTH - 1 - i));
+    emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].l",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].r",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_SPR "%s elvm_tmp %d",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, 1 << (MCF_CACHE_DEPTH - 1 - i));
   }
 
   /* store the value */
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 " MCF_SRST "mem_tmp[%d].l int 1 run " MCF_SPG MCF_ELVM_PARAM,
-            MCF_CACHE_DEPTH - 2);
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 " MCF_SRST "mem_tmp[%d].r int 1 run " MCF_SPG MCF_ELVM_PARAM,
-            MCF_CACHE_DEPTH - 2);
+  emit_line(MCF_EIS "%s elvm_tmp matches 0 " MCF_SRST "%s:elvm mem_tmp[%d].l int 1 run " MCF_SPG "%s elvm_param",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_DEPTH - 2, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_tmp matches 0 " MCF_SRST "%s:elvm mem_tmp[%d].r int 1 run " MCF_SPG "%s elvm_param",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_DEPTH - 2, MCF_NAMESPACE);
 
   /* rewind the tree */
   for (int i = MCF_CACHE_DEPTH - 2; i >= 1; i--) {
-    emit_line(MCF_SPO MCF_ELVM_MEM_ADDR "/= ELVM elvm_two");
-    emit_line(MCF_SPO MCF_ELVM_TMP "= ELVM elvm_mem_addr");
-    emit_line(MCF_SPO MCF_ELVM_TMP "%%= ELVM elvm_two");
-    emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run " MCF_DMS "mem_tmp[%d].l " MCF_SFS "mem_tmp[%d]", i - 1, i);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_DMS "mem_tmp[%d].r " MCF_SFS "mem_tmp[%d]", i - 1, i);
+    emit_line(MCF_SPO "%s elvm_mem_addr /= %s elvm_two", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_SPO "%s elvm_tmp = %s elvm_mem_addr", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_SPO "%s elvm_tmp %%= %s elvm_two", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_tmp matches 0 run " MCF_DMS "%s:elvm mem_tmp[%d].l " MCF_SFS "%s:elvm mem_tmp[%d]",
+              MCF_NAMESPACE, MCF_NAMESPACE, i - 1, MCF_NAMESPACE, i);
+    emit_line(MCF_EUS "%s elvm_tmp matches 0 run " MCF_DMS "%s:elvm mem_tmp[%d].r " MCF_SFS "%s:elvm mem_tmp[%d]",
+              MCF_NAMESPACE, MCF_NAMESPACE, i - 1, MCF_NAMESPACE, i);
   }
-  emit_line(MCF_SPO MCF_ELVM_MEM_ADDR "/= ELVM elvm_two");
-  emit_line(MCF_SPO MCF_ELVM_MEM_ADDR "%%= ELVM elvm_two");
-  emit_line(MCF_EIS MCF_ELVM_MEM_ADDR "matches 0 run " MCF_DMS "cache%d.l " MCF_SFS "mem_tmp[0]", cache_id);
-  emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches 0 run " MCF_DMS "cache%d.r " MCF_SFS "mem_tmp[0]", cache_id);
+  emit_line(MCF_SPO "%s elvm_mem_addr /= %s elvm_two", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_SPO "%s elvm_mem_addr %%= %s elvm_two", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_mem_addr matches 0 run " MCF_DMS "%s:elvm cache%d.l " MCF_SFS "%s:elvm mem_tmp[0]",
+            MCF_NAMESPACE, MCF_NAMESPACE, cache_id, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_mem_addr matches 0 run " MCF_DMS "%s:elvm cache%d.r " MCF_SFS "%s:elvm mem_tmp[0]",
+            MCF_NAMESPACE, MCF_NAMESPACE, cache_id, MCF_NAMESPACE);
 }
 
 /*
@@ -332,41 +356,42 @@ static void mcf_emit_storecached_function(int cache_id) {
  * Modifies elvm_tmp in the process.
  */
 static void mcf_emit_loadcached_function(int cache_id) {
-  mcf_emit_function_header(format("elvm:loadcached%d", cache_id));
+  mcf_emit_function_header(format("%s:loadcached%d", MCF_NAMESPACE, cache_id));
 
-  emit_line(MCF_SPS "ELVM elvm_success 1");
+  emit_line(MCF_SPS "%s elvm_success 1", MCF_NAMESPACE);
 
   /* make the address relative to the start of the mapped memory */
-  emit_line(MCF_SPO MCF_ELVM_MEM_ADDR "-= ELVM elvm_cache%d_lo", cache_id);
+  emit_line(MCF_SPO "%s elvm_mem_addr -= %s elvm_cache%d_lo", MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
 
   /* initialize temporary array */
-  char mem_val[3 * (MCF_CACHE_DEPTH - 1)];
+  char* mem_val = (char*) malloc(3 * (MCF_CACHE_DEPTH - 1) * sizeof(char));
   strcpy(mem_val, "{}");
   for (int i = 1; i < MCF_CACHE_DEPTH - 1; i++)
     strcat(mem_val, ",{}");
-  emit_line(MCF_DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(MCF_DMS "%s:elvm mem_tmp set value [%s]", MCF_NAMESPACE, mem_val);
+  free(mem_val);
 
   /* unwind the tree */
-  emit_line(MCF_EIS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_DMS "mem_tmp[0] " MCF_SFS "cache%d.l",
-            MCF_CACHE_SIZE / 2 - 1, cache_id);
-  emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_DMS "mem_tmp[0] " MCF_SFS "cache%d.r",
-            MCF_CACHE_SIZE / 2 - 1, cache_id);
-  emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_SPR MCF_ELVM_MEM_ADDR "%d",
-            MCF_CACHE_SIZE / 2 - 1, MCF_CACHE_SIZE / 2);
+  emit_line(MCF_EIS "%s elvm_mem_addr matches ..%d run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm cache%d.l",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
+  emit_line(MCF_EUS "%s elvm_mem_addr matches ..%d run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm cache%d.r",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_NAMESPACE, cache_id);
+  emit_line(MCF_EUS "%s elvm_mem_addr matches ..%d run " MCF_SPR "%s elvm_mem_addr %d",
+            MCF_NAMESPACE, MCF_CACHE_SIZE / 2 - 1, MCF_NAMESPACE, MCF_CACHE_SIZE / 2);
   for (int i = 1; i < MCF_CACHE_DEPTH - 1; i++) {
-    emit_line(MCF_EIS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].l",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].r",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches ..%d run " MCF_SPR MCF_ELVM_MEM_ADDR "%d",
-              (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, 1 << (MCF_CACHE_DEPTH - 1 - i));
+    emit_line(MCF_EIS "%s elvm_mem_addr matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].l",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_mem_addr matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].r",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_mem_addr matches ..%d run " MCF_SPR "%s elvm_mem_addr %d",
+              MCF_NAMESPACE, (1 << (MCF_CACHE_DEPTH - 1 - i)) - 1, MCF_NAMESPACE, 1 << (MCF_CACHE_DEPTH - 1 - i));
   }
 
   /* get the value and put it in elvm_mem_res */
-  emit_line(MCF_EIS MCF_ELVM_MEM_ADDR "matches 0 " MCF_SRSC "ELVM elvm_mem_res run " MCF_DGS "mem_tmp[%d].l",
-            MCF_CACHE_DEPTH - 2);
-  emit_line(MCF_EUS MCF_ELVM_MEM_ADDR "matches 0 " MCF_SRSC "ELVM elvm_mem_res run " MCF_DGS "mem_tmp[%d].r",
-            MCF_CACHE_DEPTH - 2);
+  emit_line(MCF_EIS "%s elvm_mem_addr matches 0 " MCF_SRSC "%s elvm_mem_res run " MCF_DGS "%s:elvm mem_tmp[%d].l",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_DEPTH - 2);
+  emit_line(MCF_EUS "%s elvm_mem_addr matches 0 " MCF_SRSC "%s elvm_mem_res run " MCF_DGS "%s:elvm mem_tmp[%d].r",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_DEPTH - 2);
 }
 
 /*
@@ -374,86 +399,97 @@ static void mcf_emit_loadcached_function(int cache_id) {
  * Modifies elvm_tmp in the process.
  */
 static void mcf_emit_recache_function() {
-  mcf_emit_function_header(format("elvm:recache"));
+  mcf_emit_function_header(format("%s:recache", MCF_NAMESPACE));
 
   /* Store the last cache back into main memory */
 
   /* initialize temporary array */
-  char mem_val[3 * (23 - MCF_CACHE_DEPTH)];
+  char* mem_val = (char*) malloc(3 * (23 - MCF_CACHE_DEPTH) * sizeof(char));
   strcpy(mem_val, "{}");
   for (int i = 1; i < 23 - MCF_CACHE_DEPTH; i++)
     strcat(mem_val, ",{}");
-  emit_line(MCF_DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(MCF_DMS "%s:elvm mem_tmp set value [%s]", MCF_NAMESPACE, mem_val);
   /* unwind main memory down to the cached layer */
-  emit_line(MCF_SPO MCF_ELVM_TMP "= ELVM elvm_cache%d_lo", MCF_CACHE_COUNT - 1);
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches ..8388607 run " MCF_DMS "mem_tmp[0] " MCF_SFS "mem.l");
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..8388607 run " MCF_DMS "mem_tmp[0] " MCF_SFS "mem.r");
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..8388607 run " MCF_SPR MCF_ELVM_TMP "8388608");
+  emit_line(MCF_SPO "%s elvm_tmp = %s elvm_cache%d_lo", MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_COUNT - 1);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..8388607 run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm mem.l",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..8388607 run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm mem.r",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..8388607 run " MCF_SPR "%s elvm_tmp 8388608", MCF_NAMESPACE, MCF_NAMESPACE);
   for (int i = 1; i < 23 - MCF_CACHE_DEPTH; i++) {
-    emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].l",
-              (1 << (23 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].r",
-              (1 << (23 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_SPR MCF_ELVM_TMP "%d", (1 << (23 - i)) - 1, 1 << (23 - i));
+    emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].l",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].r",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_SPR "%s elvm_tmp %d",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, 1 << (23 - i));
   }
   /* put the cache there */
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d].l " MCF_SFS "cache%d",
-            MCF_CACHE_SIZE - 1, 22 - MCF_CACHE_DEPTH, MCF_CACHE_COUNT - 1);
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d].r " MCF_SFS "cache%d",
-            MCF_CACHE_SIZE - 1, 22 - MCF_CACHE_DEPTH, MCF_CACHE_COUNT - 1);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d].l " MCF_SFS "%s:elvm cache%d",
+            MCF_NAMESPACE, MCF_CACHE_SIZE - 1, MCF_NAMESPACE, 22 - MCF_CACHE_DEPTH, MCF_NAMESPACE, MCF_CACHE_COUNT - 1);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d].r " MCF_SFS "%s:elvm cache%d",
+            MCF_NAMESPACE, MCF_CACHE_SIZE - 1, MCF_NAMESPACE, 22 - MCF_CACHE_DEPTH, MCF_NAMESPACE, MCF_CACHE_COUNT - 1);
   /* rewind main memory */
   for (int i = 22 - MCF_CACHE_DEPTH; i >= 1; i--) {
-    emit_line(MCF_SPO "ELVM elvm_cache%d_lo /= ELVM %s",
-              MCF_CACHE_COUNT - 1, i == 22 - MCF_CACHE_DEPTH ? "elvm_2cache_size" : "elvm_two");
-    emit_line(MCF_SPO MCF_ELVM_TMP "= ELVM elvm_cache%d_lo", MCF_CACHE_COUNT - 1);
-    emit_line(MCF_SPO MCF_ELVM_TMP "%%= ELVM elvm_two");
-    emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run " MCF_DMS "mem_tmp[%d].l " MCF_SFS "mem_tmp[%d]", i - 1, i);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_DMS "mem_tmp[%d].r " MCF_SFS "mem_tmp[%d]", i - 1, i);
+    emit_line(MCF_SPO "%s elvm_cache%d_lo /= %s %s",
+              MCF_NAMESPACE, MCF_CACHE_COUNT - 1, MCF_NAMESPACE,
+              i == 22 - MCF_CACHE_DEPTH ? "elvm_2cache_size" : "elvm_two");
+    emit_line(MCF_SPO "%s elvm_tmp = %s elvm_cache%d_lo", MCF_NAMESPACE, MCF_NAMESPACE, MCF_CACHE_COUNT - 1);
+    emit_line(MCF_SPO "%s elvm_tmp %%= %s elvm_two", MCF_NAMESPACE, MCF_NAMESPACE);
+    emit_line(MCF_EIS "%s elvm_tmp matches 0 run " MCF_DMS "%s:elvm mem_tmp[%d].l " MCF_SFS "%s:elvm mem_tmp[%d]",
+              MCF_NAMESPACE, MCF_NAMESPACE, i - 1, MCF_NAMESPACE, i);
+    emit_line(MCF_EUS "%s elvm_tmp matches 0 run " MCF_DMS "%s:elvm mem_tmp[%d].r " MCF_SFS "%s:elvm mem_tmp[%d]",
+              MCF_NAMESPACE, MCF_NAMESPACE, i - 1, MCF_NAMESPACE, i);
   }
-  emit_line(MCF_SPO "ELVM elvm_cache%d_lo /= ELVM elvm_two", MCF_CACHE_COUNT - 1);
-  emit_line(MCF_SPO "ELVM elvm_cache%d_lo %%= ELVM elvm_two", MCF_CACHE_COUNT - 1);
-  emit_line(MCF_EIS "ELVM elvm_cache%d_lo matches 0 run " MCF_DMS "mem.l " MCF_SFS "mem_tmp[0]", MCF_CACHE_COUNT - 1);
-  emit_line(MCF_EUS "ELVM elvm_cache%d_lo matches 0 run " MCF_DMS "mem.r " MCF_SFS "mem_tmp[0]", MCF_CACHE_COUNT - 1);
+  emit_line(MCF_SPO "%s elvm_cache%d_lo /= %s elvm_two", MCF_NAMESPACE, MCF_CACHE_COUNT - 1, MCF_NAMESPACE);
+  emit_line(MCF_SPO "%s elvm_cache%d_lo %%= %s elvm_two", MCF_NAMESPACE, MCF_CACHE_COUNT - 1, MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_cache%d_lo matches 0 run " MCF_DMS "%s:elvm mem.l " MCF_SFS "%s:elvm mem_tmp[0]",
+            MCF_NAMESPACE, MCF_CACHE_COUNT - 1, MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_cache%d_lo matches 0 run " MCF_DMS "%s:elvm mem.r " MCF_SFS "%s:elvm mem_tmp[0]",
+            MCF_NAMESPACE, MCF_CACHE_COUNT - 1, MCF_NAMESPACE, MCF_NAMESPACE);
 
   /* Shift the cache slots up by 1 */
 
   for (int i = MCF_CACHE_COUNT - 1; i > 0; i--) {
-    emit_line(MCF_DMS "cache%d " MCF_SFS "cache%d", i, i - 1);
-    emit_line(MCF_SPO "ELVM elvm_cache%d_lo = ELVM elvm_cache%d_lo", i, i - 1);
-    emit_line(MCF_SPO "ELVM elvm_cache%d_hi = ELVM elvm_cache%d_hi", i, i - 1);
+    emit_line(MCF_DMS "%s:elvm cache%d " MCF_SFS "%s:elvm cache%d", MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_SPO "%s elvm_cache%d_lo = %s elvm_cache%d_lo", MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_SPO "%s elvm_cache%d_hi = %s elvm_cache%d_hi", MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
   }
 
   /* Establish cache slot 0's address range */
 
-  emit_line(MCF_SPO "ELVM elvm_cache0_lo = ELVM elvm_mem_addr");
-  emit_line(MCF_SPO "ELVM elvm_cache0_lo /= ELVM elvm_cache_size");
-  emit_line(MCF_SPO "ELVM elvm_cache0_lo *= ELVM elvm_cache_size");
-  emit_line(MCF_SPO "ELVM elvm_cache0_hi = ELVM elvm_cache0_lo");
-  emit_line(MCF_SPA "ELVM elvm_cache0_hi %d", MCF_CACHE_SIZE);
-  emit_line(MCF_DMS "cache0 set value {}");
+  emit_line(MCF_SPO "%s elvm_cache0_lo = %s elvm_mem_addr", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_SPO "%s elvm_cache0_lo /= %s elvm_cache_size", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_SPO "%s elvm_cache0_lo *= %s elvm_cache_size", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_SPO "%s elvm_cache0_hi = %s elvm_cache0_lo", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_SPA "%s elvm_cache0_hi %d", MCF_NAMESPACE, MCF_CACHE_SIZE);
+  emit_line(MCF_DMS "%s:elvm cache0 set value {}", MCF_NAMESPACE);
 
   /* Load cache slot 0 from main memory */
 
   /* initialize temporary array */
-  emit_line(MCF_DMS "mem_tmp set value [%s]", mem_val);
+  emit_line(MCF_DMS "%s:elvm mem_tmp set value [%s]", MCF_NAMESPACE, mem_val);
+  free(mem_val);
   /* unwind main memory down to cache layer */
-  emit_line(MCF_SPO MCF_ELVM_TMP "= ELVM elvm_mem_addr");
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches ..8388607 run " MCF_DMS "mem_tmp[0] " MCF_SFS "mem.l");
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..8388607 run " MCF_DMS "mem_tmp[0] " MCF_SFS "mem.r");
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..8388607 run " MCF_SPR MCF_ELVM_TMP "8388608");
+  emit_line(MCF_SPO "%s elvm_tmp = %s elvm_mem_addr", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..8388607 run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm mem.l",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..8388607 run " MCF_DMS "%s:elvm mem_tmp[0] " MCF_SFS "%s:elvm mem.r",
+            MCF_NAMESPACE, MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..8388607 run " MCF_SPR "%s elvm_tmp 8388608", MCF_NAMESPACE, MCF_NAMESPACE);
   for (int i = 1; i < 23 - MCF_CACHE_DEPTH; i++) {
-    emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].l",
-              (1 << (23 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "mem_tmp[%d] " MCF_SFS "mem_tmp[%d].r",
-              (1 << (23 - i)) - 1, i, i - 1);
-    emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_SPR MCF_ELVM_TMP "%d",
-              (1 << (23 - i)) - 1, 1 << (23 - i));
+    emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].l",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm mem_tmp[%d] " MCF_SFS "%s:elvm mem_tmp[%d].r",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, i, MCF_NAMESPACE, i - 1);
+    emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_SPR "%s elvm_tmp %d",
+              MCF_NAMESPACE, (1 << (23 - i)) - 1, MCF_NAMESPACE, 1 << (23 - i));
   }
   /* put it in cache0 */
-  emit_line(MCF_EIS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "cache0 " MCF_SFS "mem_tmp[%d].l", MCF_CACHE_SIZE - 1,
-            22 - MCF_CACHE_DEPTH);
-  emit_line(MCF_EUS MCF_ELVM_TMP "matches ..%d run " MCF_DMS "cache0 " MCF_SFS "mem_tmp[%d].r", MCF_CACHE_SIZE - 1,
-            22 - MCF_CACHE_DEPTH);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm cache0 " MCF_SFS "%s:elvm mem_tmp[%d].l",
+            MCF_NAMESPACE, MCF_CACHE_SIZE - 1, MCF_NAMESPACE, MCF_NAMESPACE, 22 - MCF_CACHE_DEPTH);
+  emit_line(MCF_EUS "%s elvm_tmp matches ..%d run " MCF_DMS "%s:elvm cache0 " MCF_SFS "%s:elvm mem_tmp[%d].r",
+            MCF_NAMESPACE, MCF_CACHE_SIZE - 1, MCF_NAMESPACE, MCF_NAMESPACE, 22 - MCF_CACHE_DEPTH);
 }
 
 /*
@@ -464,26 +500,31 @@ static void mcf_emit_chr_function(int min, int max) {
   int range = max - min;
   int mid = min + range / 2;
   if (range == 256)
-    mcf_emit_function_header("elvm:chr");
+    mcf_emit_function_header(format("%s:chr", MCF_NAMESPACE));
   else
-    mcf_emit_function_header(format("elvm:chr_%d_%d", min, max));
+    mcf_emit_function_header(format("%s:chr_%d_%d", MCF_NAMESPACE, min, max));
 
   if (range == 2) {
     /* emit leaf nodes */
     char ch[3];
     mcf_char_to_string((char) min, ch);
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d run " MCF_DMS "chr set value \"%s\"", min, ch);
+    emit_line(MCF_EIS "%s elvm_param matches %d run " MCF_DMS "%s:elvm chr set value \"%s\"",
+              MCF_NAMESPACE, min, MCF_NAMESPACE, ch);
     mcf_char_to_string((char) mid, ch);
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d run " MCF_DMS "chr set value \"%s\"", mid, ch);
+    emit_line(MCF_EIS "%s elvm_param matches %d run " MCF_DMS "%s:elvm chr set value \"%s\"",
+              MCF_NAMESPACE, mid, MCF_NAMESPACE, ch);
   } else {
     /* emit sub-function calls, and recursively emit the corresponding sub-functions */
 
     /* everything <= 32 will be a space anyway, so there's no need to search the subtree */
     if (mid <= 32)
-      emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d..%d run " MCF_DMS "chr set value \" \"", min, mid - 1);
+      emit_line(MCF_EIS "%s elvm_param matches %d..%d run " MCF_DMS "%s:elvm chr set value \" \"",
+                MCF_NAMESPACE, min, mid - 1, MCF_NAMESPACE);
     else
-      emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d..%d run " MCF_F "elvm:chr_%d_%d", min, mid - 1, min, mid);
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d..%d run " MCF_F "elvm:chr_%d_%d", mid, max - 1, mid, max);
+      emit_line(MCF_EIS "%s elvm_param matches %d..%d run " MCF_F "%s:chr_%d_%d",
+                MCF_NAMESPACE, min, mid - 1, MCF_NAMESPACE, min, mid);
+    emit_line(MCF_EIS "%s elvm_param matches %d..%d run " MCF_F "%s:chr_%d_%d",
+              MCF_NAMESPACE, mid, max - 1, MCF_NAMESPACE, mid, max);
     if (mid > 32)
       mcf_emit_chr_function(min, mid);
     mcf_emit_chr_function(mid, max);
@@ -496,70 +537,78 @@ char json_string[11156];
 static void mcf_get_json_string(int len, char* out) {
   strcpy(out, "[");
   for (int j = 0; j < len; j++) {
-    strcat(out, format("%s{\"storage\":\"elvm:elvm\",\"nbt\":\"stdout[%d]\"}", j == 0 ? "" : ",", j));
+    strcat(out, format("%s{\"storage\":\"%s:elvm\",\"nbt\":\"stdout[%d]\"}", j == 0 ? "" : ",", MCF_NAMESPACE, j));
   }
   strcat(out, "]");
 }
 
 /*
  * Recursively emits a function which will print between min (inclusive) and max (exclusive) from stdout
- * to chat.
+ * to chat. Expects the length of stdout to be in elvm_tmp
  */
 static void mcf_emit_flush_function_recursive(int min, int max) {
   int range = max - min;
   int mid = min + range / 2;
 
-  mcf_emit_function_header(format("elvm:flush_%d_%d", min, max));
+  mcf_emit_function_header(format("%s:flush_%d_%d", MCF_NAMESPACE, min, max));
 
   if (min == 0 && range == 4) {
     /* 1-3 characters (no need to do anything about 0 characters) */
     for (int i = 1; i < 4; i++) {
       mcf_get_json_string(i, json_string);
-      emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d run tellraw @a %s", i, json_string);
+      emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, i, json_string);
     }
   } else if (range == 2) {
     /* leaf nodes */
     mcf_get_json_string(min, json_string);
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d run tellraw @a %s", min, json_string);
+    emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, min, json_string);
     mcf_get_json_string(mid, json_string);
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d run tellraw @a %s", mid, json_string);
+    emit_line(MCF_EIS "%s elvm_tmp matches %d run tellraw @a %s", MCF_NAMESPACE, mid, json_string);
   } else {
     /* call sub-functions and recursively emit them */
-    emit_line(MCF_EIS MCF_ELVM_PARAM "matches %d..%d run " MCF_F "elvm:flush_%d_%d", min, mid - 1, min, mid);
-    emit_line(MCF_EUS MCF_ELVM_PARAM "matches %d..%d run " MCF_F "elvm:flush_%d_%d", min, mid - 1, mid, max);
+    emit_line(MCF_EIS "%s elvm_tmp matches %d..%d run " MCF_F "%s:flush_%d_%d",
+              MCF_NAMESPACE, min, mid - 1, MCF_NAMESPACE, min, mid);
+    emit_line(MCF_EUS "%s elvm_tmp matches %d..%d run " MCF_F "%s:flush_%d_%d",
+              MCF_NAMESPACE, min, mid - 1, MCF_NAMESPACE, mid, max);
     mcf_emit_flush_function_recursive(min, mid);
     mcf_emit_flush_function_recursive(mid, max);
   }
 }
 
 /*
- * Emit a function that removes the first 256 characters from stdout
- * (used if there were more than 256 characters that need flushing)
+ * Emit a function that removes the first 255 characters from stdout
+ * (used if there were more than 255 characters that need flushing)
  */
 static void mcf_emit_flush256() {
-  mcf_emit_function_header("elvm:flush256");
-  emit_line(MCF_DRS "stdout[0]");
-  emit_line(MCF_SPR MCF_ELVM_PARAM "1");
-  emit_line(MCF_EIS MCF_ELVM_PARAM "matches -256.. run " MCF_F "elvm:flush256");
+  mcf_emit_function_header(format("%s:flush256", MCF_NAMESPACE));
+  emit_line(MCF_DRS "%s:elvm stdout[0]", MCF_NAMESPACE);
+  emit_line(MCF_SPA "%s elvm_tmp 1", MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_tmp matches ..509 run " MCF_F "%s:flush256", MCF_NAMESPACE, MCF_NAMESPACE);
 }
 
-/* Takes the list of characters in the stdout buffer and prints them to chat */
+/* Takes the list of characters in the stdout buffer and prints them to chat. Modifies elvm_tmp */
 static void mcf_emit_flush_function() {
-  mcf_emit_function_header("elvm:flush");
+  mcf_emit_function_header(format("%s:flush", MCF_NAMESPACE));
 
   /* get the length of stdout */
-  emit_line(MCF_E MCF_SRSC MCF_ELVM_PARAM "run " MCF_DGS "stdout");
-  /* flush up to 256 characters from stdout */
-  emit_line(MCF_F "elvm:flush_0_256");
-  /* if there were 256 or more characters in stdout, remove them and keep flushing again until stdout is empty */
-  emit_line(MCF_EIS MCF_ELVM_PARAM "matches 256.. run " MCF_SPS MCF_ELVM_PARAM "-1");
-  emit_line(MCF_EIS MCF_ELVM_PARAM "matches -1 run " MCF_F "elvm:flush256");
-  emit_line(MCF_EIS MCF_ELVM_PARAM "matches ..-1 run " MCF_F "elvm:flush");
+  emit_line(MCF_E MCF_SRSC "%s elvm_tmp run " MCF_DGS "%s:elvm stdout", MCF_NAMESPACE, MCF_NAMESPACE);
+  /* flush up to 255 characters from stdout */
+  emit_line(MCF_EIS "%s elvm_tmp matches 255.. run " MCF_SPS "%s elvm_tmp 255", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_F "%s:flush_0_256", MCF_NAMESPACE);
+  /* if there were 255 or more characters in stdout, remove them and keep flushing again until stdout is empty */
+  emit_line(MCF_EIS "%s elvm_tmp matches 255 run " MCF_F "%s:flush256", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_EIS "%s elvm_tmp matches 255.. run " MCF_F "%s:flush", MCF_NAMESPACE, MCF_NAMESPACE);
   /* empty stdout */
-  emit_line(MCF_DMS "stdout set value []");
+  emit_line(MCF_DMS "%s:elvm stdout set value []", MCF_NAMESPACE);
 
   mcf_emit_flush256();
   mcf_emit_flush_function_recursive(0, 256);
+}
+
+static void mcf_emit_getc_reenter_function() {
+  mcf_emit_function_header(format("%s:getc_reenter", MCF_NAMESPACE));
+  emit_line(MCF_SPO "%s elvm_pc = %s elvm_getc_pc", MCF_NAMESPACE, MCF_NAMESPACE);
+  emit_line(MCF_F "%s:loop", MCF_NAMESPACE);
 }
 
 
@@ -593,17 +642,17 @@ static void mcf_emit_test(Inst* inst,
     /* we're comparing against a static value */
     const char* left_dots = op == JLE ? ".." : "";
     const char* right_dots = op == JGE ? ".." : "";
-    false_test = format(MCF_E "%s score ELVM %s matches %s%d%s run ",
-                        unless, reg_names[inst->dst.reg], left_dots, inst->src.imm, right_dots);
-    true_test = format(MCF_E "%s score ELVM %s matches %s%d%s run ",
-                       if_, reg_names[inst->dst.reg], left_dots, inst->src.imm, right_dots);
+    false_test = format(MCF_E "%s score %s %s matches %s%d%s run ",
+                        unless, MCF_NAMESPACE, reg_names[inst->dst.reg], left_dots, inst->src.imm, right_dots);
+    true_test = format(MCF_E "%s score %s %s matches %s%d%s run ",
+                       if_, MCF_NAMESPACE, reg_names[inst->dst.reg], left_dots, inst->src.imm, right_dots);
   } else {
     /* we're comparing against a dynamic value */
     const char* op_str = op == JEQ ? "=" : op == JLE ? "<=" : ">=";
-    false_test = format(MCF_E "%s score ELVM %s %s ELVM %s run ",
-                        unless, reg_names[inst->dst.reg], op_str, reg_names[inst->src.reg]);
-    true_test = format(MCF_E "%s score ELVM %s %s ELVM %s run ",
-                       if_, reg_names[inst->dst.reg], op_str, reg_names[inst->src.reg]);
+    false_test = format(MCF_E "%s score %s %s %s %s %s run ",
+                        unless, MCF_NAMESPACE, reg_names[inst->dst.reg], op_str, MCF_NAMESPACE, reg_names[inst->src.reg]);
+    true_test = format(MCF_E "%s score %s %s %s %s %s run ",
+                       if_, MCF_NAMESPACE, reg_names[inst->dst.reg], op_str, MCF_NAMESPACE, reg_names[inst->src.reg]);
   }
 
 
@@ -636,16 +685,16 @@ static void mcf_emit_inst(Inst* inst) {
         /* static value */
         if (inst->src.imm & UINT_MAX) { /* is there actually any addition to do? Also guard against -2^31 */
           if (inst->src.imm < 0)
-            emit_line(MCF_SPR "ELVM %s %d", dst, -inst->src.imm);
+            emit_line(MCF_SPR "%s %s %d", MCF_NAMESPACE, dst, -inst->src.imm);
           else
-            emit_line(MCF_SPA "ELVM %s %d", dst, inst->src.imm);
+            emit_line(MCF_SPA "%s %s %d", MCF_NAMESPACE, dst, inst->src.imm);
         }
       } else {
         /* dynamic value */
-        emit_line(MCF_SPO "ELVM %s += ELVM %s", dst, reg_names[inst->src.reg]);
+        emit_line(MCF_SPO "%s %s += %s %s", MCF_NAMESPACE, dst, MCF_NAMESPACE, reg_names[inst->src.reg]);
       }
       /* stay within the word size */
-      emit_line(MCF_SPO "ELVM %s %%= ELVM elvm_uint_max", dst);
+      emit_line(MCF_SPO "%s %s %%= %s elvm_uint_max", MCF_NAMESPACE, dst, MCF_NAMESPACE);
       break;
     }
 
@@ -655,16 +704,16 @@ static void mcf_emit_inst(Inst* inst) {
         /* static value */
         if (inst->src.imm & UINT_MAX) { /* is there actually any subtraction to do? Also guard against -2^31 */
           if (inst->src.imm < 0)
-            emit_line(MCF_SPA "ELVM %s %d", dst, -inst->src.imm);
+            emit_line(MCF_SPA "%s %s %d", MCF_NAMESPACE, dst, -inst->src.imm);
           else
-            emit_line(MCF_SPR "ELVM %s %d", dst, inst->src.imm);
+            emit_line(MCF_SPR "%s %s %d", MCF_NAMESPACE, dst, inst->src.imm);
         }
       } else {
         /* dynamic value */
-        emit_line(MCF_SPO "ELVM %s -= ELVM %s", dst, reg_names[inst->src.reg]);
+        emit_line(MCF_SPO "%s %s -= %s %s", MCF_NAMESPACE, dst, MCF_NAMESPACE, reg_names[inst->src.reg]);
       }
       /* stay within the word size */
-      emit_line(MCF_SPO "ELVM %s %%= ELVM elvm_uint_max", dst);
+      emit_line(MCF_SPO "%s %s %%= %s elvm_uint_max", MCF_NAMESPACE, dst, MCF_NAMESPACE);
       break;
     }
 
@@ -680,7 +729,7 @@ static void mcf_emit_inst(Inst* inst) {
 
     case EXIT: {
       mcf.was_jump = 1;
-      emit_line(MCF_SPS MCF_ELVM_PC "-1");
+      emit_line(MCF_SPS "%s elvm_pc -1", MCF_NAMESPACE);
       break;
     }
 
@@ -688,49 +737,99 @@ static void mcf_emit_inst(Inst* inst) {
       if (inst->src.type == IMM) {
         /* static value */
         int val = inst->src.imm;
-        if (val == '\n') {
+        if (val == MCF_FLUSH_CHAR) {
           mcf.used_flush_function = 1;
-          emit_line(MCF_F "elvm:flush");
+          emit_line(MCF_F "%s:flush", MCF_NAMESPACE);
         } else {
-          char ch[3];
-          mcf_char_to_string((char) val, ch);
-          emit_line(MCF_DMS "stdout append value \"%s\"", ch);
+          if (MCF_STDOUT_CHARS) {
+            char ch[3];
+            mcf_char_to_string((char) val, ch);
+            emit_line(MCF_DMS "%s:elvm stdout append value \"%s\"", MCF_NAMESPACE, ch);
+            if (MCF_STDOUT_CALLBACK) {
+              emit_line(MCF_DMS "%s:elvm chr set value \"%s\"", MCF_NAMESPACE, ch);
+            }
+          } else {
+            emit_line(MCF_DMS "%s:elvm stdout append value %d", MCF_NAMESPACE, val);
+          }
+        }
+        if (MCF_STDOUT_CALLBACK) {
+          emit_line(MCF_SPS "%s elvm_param %d", MCF_NAMESPACE, val);
+          emit_line(MCF_F "%s", MCF_STDOUT_CALLBACK);
         }
       } else {
         /* dynamic value */
-        mcf.used_dyn_int2chr = 1;
-        mcf.used_flush_function = 1;
-        mcf_emit_set_reg("elvm_param", &inst->src);
-        emit_line(MCF_EUS MCF_ELVM_PARAM "matches 10 run " MCF_F "elvm:chr");
-        emit_line(MCF_EUS MCF_ELVM_PARAM "matches 10 run " MCF_DMS "stdout append from storage elvm:elvm chr");
-        emit_line(MCF_EIS MCF_ELVM_PARAM "matches 10 run " MCF_F "elvm:flush");
+        if (MCF_STDOUT_CHARS || MCF_STDOUT_CALLBACK) {
+          mcf_emit_set_reg("elvm_param", &inst->src);
+        }
+        if (MCF_FLUSH_CHAR >= 0) {
+          mcf.used_flush_function = 1;
+          if (MCF_STDOUT_CHARS) {
+            mcf.used_dyn_int2chr = 1;
+            emit_line(MCF_EUS "%s %s matches %d run " MCF_F "%s:chr",
+                      MCF_NAMESPACE, reg_names[inst->src.reg], MCF_FLUSH_CHAR, MCF_NAMESPACE);
+            emit_line(MCF_EUS "%s %s matches %d run " MCF_DMS "%s:elvm stdout append from storage %s:elvm chr",
+                      MCF_NAMESPACE, reg_names[inst->src.reg], MCF_FLUSH_CHAR, MCF_NAMESPACE, MCF_NAMESPACE);
+          } else {
+            emit_line(MCF_EUS "%s %s matches %d run " MCF_DMS "%s:elvm stdout append value 0",
+                      MCF_NAMESPACE, reg_names[inst->src.reg], MCF_FLUSH_CHAR, MCF_NAMESPACE);
+            emit_line(MCF_EUS "%s %s matches %d " MCF_SRST "%s:elvm stdout[-1] int 1 run " MCF_SPG "%s %s",
+                      MCF_NAMESPACE, reg_names[inst->src.reg], MCF_FLUSH_CHAR, MCF_NAMESPACE, MCF_NAMESPACE,
+                      reg_names[inst->src.reg]);
+          }
+          emit_line(MCF_EIS "%s %s matches %d run " MCF_F "%s:flush",
+                    MCF_NAMESPACE, reg_names[inst->src.reg], MCF_FLUSH_CHAR, MCF_NAMESPACE);
+        } else {
+          if (MCF_STDOUT_CHARS) {
+            mcf.used_dyn_int2chr = 1;
+            emit_line(MCF_F "%s:chr", MCF_NAMESPACE);
+            emit_line(MCF_DMS "%s:elvm stdout append from storage %s:elvm chr", MCF_NAMESPACE, MCF_NAMESPACE);
+          } else {
+            emit_line(MCF_DMS "%s:elvm stdout append value 0", MCF_NAMESPACE);
+            emit_line(MCF_E MCF_SRST "%s:elvm stdout[-1] int 1 run " MCF_SPG "%s %s",
+                      MCF_NAMESPACE, MCF_NAMESPACE, reg_names[inst->src.reg]);
+          }
+        }
+        if (MCF_STDOUT_CALLBACK) {
+          emit_line(MCF_F "%s", MCF_STDOUT_CALLBACK);
+        }
       }
       break;
     }
 
     case GETC: {
-      mcf.was_jump = 1;
-      /* get the length of stdin */
-      emit_line(MCF_E MCF_SRSC MCF_ELVM_TMP "run " MCF_DGS "stdin");
+      if (MCF_STDIN_CALLBACK) {
+        emit_line(MCF_F "%s", MCF_STDIN_CALLBACK);
+      }
+      if (MCF_STDIN_WAIT) {
+        mcf.was_jump = 1;
+        mcf.used_getc_function = 1;
+        /* get the length of stdin */
+        emit_line(MCF_E MCF_SRSC "%s elvm_tmp run " MCF_DGS "%s:elvm stdin", MCF_NAMESPACE, MCF_NAMESPACE);
 
-      /*
-       * If stdin is empty, schedule code to be run next tick when it might not be empty, and tell it to return
-       * to this instruction.
-       */
-      emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run schedule function elvm:main 1");
-      emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run " MCF_SOA "elvm_getc_pc dummy");
-      emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run " MCF_SPS "ELVM elvm_getc_pc %d", inst->pc);
-      emit_line(MCF_EIS MCF_ELVM_TMP "matches 0 run " MCF_SPS MCF_ELVM_PC "-1");
+        /*
+         * If stdin is empty, schedule code to be run next tick when it might not be empty, and tell it to return
+         * to this instruction.
+         */
+        emit_line(MCF_EIS "%s elvm_tmp matches 0 run schedule function %s:getc_reenter 1", MCF_NAMESPACE, MCF_NAMESPACE);
+        emit_line(MCF_EIS "%s elvm_tmp matches 0 run " MCF_SPS "%s elvm_getc_pc %d",
+                  MCF_NAMESPACE, MCF_NAMESPACE, inst->pc);
+        emit_line(MCF_EIS "%s elvm_tmp matches 0 run " MCF_SPS "%s elvm_pc -1", MCF_NAMESPACE, MCF_NAMESPACE);
 
-      /*
-       * Otherwise, remove elvm_getc_pc to ensure we aren't waiting for a character, and move it into the
-       * destination register.
-       */
-      emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_SOR "elvm_getc_pc");
-      emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 " MCF_SRSC "ELVM %s run " MCF_DGS "stdin[0]", reg_names[inst->dst.reg]);
-      emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_DRS "stdin[0]");
-      emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_SPS MCF_ELVM_PC "%d", inst->jmp.imm);
-      emit_line(MCF_EUS MCF_ELVM_TMP "matches 0 run " MCF_F "elvm:func_%d", inst->jmp.imm);
+        /*
+         * Otherwise, remove elvm_getc_pc to ensure we aren't waiting for a character, and move it into the
+         * destination register.
+         */
+        emit_line(MCF_EUS "%s elvm_tmp matches 0 " MCF_SRSC "%s %s run " MCF_DGS "%s:elvm stdin[0]",
+                  MCF_NAMESPACE, MCF_NAMESPACE, reg_names[inst->dst.reg], MCF_NAMESPACE);
+        emit_line(MCF_EUS "%s elvm_tmp matches 0 run " MCF_DRS "%s:elvm stdin[0]", MCF_NAMESPACE, MCF_NAMESPACE);
+        emit_line(MCF_EUS "%s elvm_tmp matches 0 run " MCF_SPS "%s elvm_pc %d",
+                  MCF_NAMESPACE, MCF_NAMESPACE, inst->jmp.imm);
+        emit_line(MCF_EUS "%s elvm_tmp matches 0 run " MCF_F "%s:func_%d", MCF_NAMESPACE, MCF_NAMESPACE, inst->jmp.imm);
+      } else {
+        emit_line(MCF_E MCF_SRSC "%s %s run " MCF_DGS "%s:elvm stdin[0]",
+                  MCF_NAMESPACE, reg_names[inst->dst.reg], MCF_NAMESPACE);
+        emit_line(MCF_DRS "%s:elvm stdin[0]", MCF_NAMESPACE);
+      }
       break;
     }
 
@@ -744,10 +843,10 @@ static void mcf_emit_inst(Inst* inst) {
     case LE:
     case GT:
     case GE: {
-      const char* cmd_when_false = MCF_SPS MCF_ELVM_TMP "0";
-      const char* cmd_when_true = MCF_SPS MCF_ELVM_TMP "1";
+      const char* cmd_when_false = format(MCF_SPS "%s elvm_tmp 0", MCF_NAMESPACE);
+      const char* cmd_when_true = format(MCF_SPS "%s elvm_tmp 1", MCF_NAMESPACE);
       mcf_emit_test(inst, 1, &cmd_when_false, 1, &cmd_when_true, 0);
-      emit_line(MCF_SPO "ELVM %s = ELVM elvm_tmp", reg_names[inst->dst.reg]);
+      emit_line(MCF_SPO "%s %s = %s elvm_tmp", MCF_NAMESPACE, reg_names[inst->dst.reg], MCF_NAMESPACE);
       break;
     }
 
@@ -755,7 +854,7 @@ static void mcf_emit_inst(Inst* inst) {
       mcf.was_jump = 1;
       mcf_emit_set_reg("elvm_pc", &inst->jmp);
       if (inst->jmp.type == IMM)
-        emit_line(MCF_F "elvm:func_%d", inst->jmp.imm);
+        emit_line(MCF_F "%s:func_%d", MCF_NAMESPACE, inst->jmp.imm);
       break;
     }
 
@@ -770,20 +869,21 @@ static void mcf_emit_inst(Inst* inst) {
        * Here we set the pc based on the condition first, then run the functions based on the pc.
        * Doing this in a different order can mess up the outcome of the test or which functions are run.
        */
-      const char* cmd_when_false = format(MCF_SPS MCF_ELVM_PC "%d", mcf.adj_pcs[inst->pc]);
+      const char* cmd_when_false = format(MCF_SPS "%s elvm_pc %d", MCF_NAMESPACE, mcf.adj_pcs[inst->pc]);
       const char* cmd_when_true;
       if (inst->jmp.type == IMM)
-        cmd_when_true = format(MCF_SPS MCF_ELVM_PC "%d", inst->jmp.imm);
+        cmd_when_true = format(MCF_SPS "%s elvm_pc %d", MCF_NAMESPACE, inst->jmp.imm);
       else
-        cmd_when_true = format(MCF_SPO MCF_ELVM_PC "= ELVM %s", reg_names[inst->jmp.reg]);
+        cmd_when_true = format(MCF_SPO "%s elvm_pc = %s %s", MCF_NAMESPACE, MCF_NAMESPACE, reg_names[inst->jmp.reg]);
 
       mcf_emit_test(inst, 1, &cmd_when_false, 1, &cmd_when_true, 0);
 
       if (mcf.adj_pcs[inst->pc] != -1)
-        emit_line(MCF_EIS MCF_ELVM_PC "matches %d run " MCF_F "elvm:func_%d",
-                  mcf.adj_pcs[inst->pc], mcf.adj_pcs[inst->pc]);
+        emit_line(MCF_EIS "%s elvm_pc matches %d run " MCF_F "%s:func_%d",
+                  MCF_NAMESPACE, mcf.adj_pcs[inst->pc], MCF_NAMESPACE, mcf.adj_pcs[inst->pc]);
       if (inst->jmp.type == IMM)
-        emit_line(MCF_EIS MCF_ELVM_PC "matches %d run " MCF_F "elvm:func_%d", inst->jmp.imm, inst->jmp.imm);
+        emit_line(MCF_EIS "%s elvm_pc matches %d run " MCF_F "%s:func_%d",
+                  MCF_NAMESPACE, inst->jmp.imm, MCF_NAMESPACE, inst->jmp.imm);
       break;
     }
 
@@ -856,22 +956,20 @@ static void mcf_emit_memory_initialization(Data* data) {
     }
   }
 
-  emit_line(MCF_DMS "mem set value %s", mcf_tree_to_nbt(root, 24));
+  emit_line(MCF_DMS "%s:elvm mem set value %s", MCF_NAMESPACE, mcf_tree_to_nbt(root, 24));
 
   mcf_free_tree(root, 24);
 }
 
 static void mcf_emit_main_function(Data* data, int pc_count) {
-  mcf_emit_function_header("elvm:main");
+  mcf_emit_function_header(format("%s:main", MCF_NAMESPACE));
 
   /* register the registers */
   for (int i = 0; i < 7; i++) {
     emit_line(MCF_SOA "%s dummy", reg_names[i]);
-    emit_line(MCF_SPS "ELVM %s 0", reg_names[i]);
+    emit_line(MCF_SPS "%s %s 0", MCF_NAMESPACE, reg_names[i]);
   }
-  /* set the pc to the location of the getc instruction */
-  /* if there is no getc instruction running, the command fails and has no effect */
-  emit_line(MCF_SPO MCF_ELVM_PC "= ELVM elvm_getc_pc");
+  emit_line(MCF_SOA "elvm_getc_pc dummy");
 
   emit_line(MCF_SOA "elvm_tmp dummy");
   emit_line(MCF_SOA "elvm_success dummy");
@@ -883,19 +981,19 @@ static void mcf_emit_main_function(Data* data, int pc_count) {
   emit_line(MCF_SOA "elvm_mem_res dummy");
 
   emit_line(MCF_SOA "elvm_uint_max dummy");
-  emit_line(MCF_SPS "ELVM elvm_uint_max %d", UINT_MAX + 1);
+  emit_line(MCF_SPS "%s elvm_uint_max %d", MCF_NAMESPACE, UINT_MAX + 1);
   emit_line(MCF_SOA "elvm_two dummy");
-  emit_line(MCF_SPS "ELVM elvm_two 2");
+  emit_line(MCF_SPS "%s elvm_two 2", MCF_NAMESPACE);
 
-  emit_line(MCF_DMS "stdout set value []");
+  emit_line(MCF_DMS "%s:elvm stdout set value []", MCF_NAMESPACE);
 
   /* cache slots are initialized to the start of memory. The caching code breaks if the caches don't point somewhere. */
   Data* cache_data = data;
   for (int i = 0; i < MCF_CACHE_COUNT; i++) {
     emit_line(MCF_SOA "elvm_cache%d_lo dummy", i);
-    emit_line(MCF_SPS "ELVM elvm_cache%d_lo %d", i, i * MCF_CACHE_SIZE);
+    emit_line(MCF_SPS "%s elvm_cache%d_lo %d", MCF_NAMESPACE, i, i * MCF_CACHE_SIZE);
     emit_line(MCF_SOA "elvm_cache%d_hi dummy", i);
-    emit_line(MCF_SPS "ELVM elvm_cache%d_hi %d", i, (i + 1) * MCF_CACHE_SIZE);
+    emit_line(MCF_SPS "%s elvm_cache%d_hi %d", MCF_NAMESPACE, i, (i + 1) * MCF_CACHE_SIZE);
 
     Node* root = (Node*) calloc(1, sizeof(*root));
     for (int p = 0; cache_data && p < MCF_CACHE_SIZE; cache_data = cache_data->next, p++) {
@@ -903,39 +1001,41 @@ static void mcf_emit_main_function(Data* data, int pc_count) {
         mcf_set_in_tree(root, MCF_CACHE_DEPTH, p, cache_data->v);
       }
     }
-    emit_line(MCF_DMS "cache%d set value %s", i, mcf_tree_to_nbt(root, MCF_CACHE_DEPTH));
+    emit_line(MCF_DMS "%s:elvm cache%d set value %s", MCF_NAMESPACE, i, mcf_tree_to_nbt(root, MCF_CACHE_DEPTH));
     mcf_free_tree(root, MCF_CACHE_DEPTH);
   }
   emit_line(MCF_SOA "elvm_cache_size dummy");
-  emit_line(MCF_SPS "ELVM elvm_cache_size %d", MCF_CACHE_SIZE);
+  emit_line(MCF_SPS "%s elvm_cache_size %d", MCF_NAMESPACE, MCF_CACHE_SIZE);
   emit_line(MCF_SOA "elvm_2cache_size dummy");
-  emit_line(MCF_SPS "ELVM elvm_2cache_size %d", MCF_CACHE_SIZE * 2);
+  emit_line(MCF_SPS "%s elvm_2cache_size %d", MCF_NAMESPACE, MCF_CACHE_SIZE * 2);
 
   /* start the loop */
-  emit_line(MCF_EIS MCF_ELVM_PC "matches 0..%d run " MCF_F "elvm:loop", pc_count - 1);
+  emit_line(MCF_EIS "%s elvm_pc matches 0..%d run " MCF_F "%s:loop", MCF_NAMESPACE, pc_count - 1, MCF_NAMESPACE);
 }
 
 static void mcf_emit_loop_function(int pc_count) {
-  mcf_emit_function_header("elvm:loop");
-  emit_line(MCF_F "elvm:func_0_%d", pc_count);
-  emit_line(MCF_EIS MCF_ELVM_PC "matches 0..%d run " MCF_F "elvm:loop", pc_count - 1);
+  mcf_emit_function_header(format("%s:loop", MCF_NAMESPACE));
+  emit_line(MCF_F "%s:func_0_%d", MCF_NAMESPACE, pc_count);
+  emit_line(MCF_EIS "%s elvm_pc matches 0..%d run " MCF_F "%s:loop", MCF_NAMESPACE, pc_count - 1, MCF_NAMESPACE);
 }
 
 /* Recursively emits functions which search for the right function to call based on the value of elvm_pc */
 static void mcf_emit_pc_search_function(int min, int max) {
   int range = max - min;
   int mid = min + range / 2;
-  mcf_emit_function_header(format("elvm:func_%d_%d", min, max));
+  mcf_emit_function_header(format("%s:func_%d_%d", MCF_NAMESPACE, min, max));
 
   if (range < 4) {
     /* leaf nodes */
     for (int i = 0; i < range; i++) {
-      emit_line(MCF_EIS MCF_ELVM_PC "matches %d run " MCF_F "elvm:func_%d", min + i, min + i);
+      emit_line(MCF_EIS "%s elvm_pc matches %d run " MCF_F "%s:func_%d", MCF_NAMESPACE, min + i, MCF_NAMESPACE, min + i);
     }
   } else {
     /* call sub-functions and recursively emit them */
-    emit_line(MCF_EIS MCF_ELVM_PC "matches %d..%d run " MCF_F "elvm:func_%d_%d", min, mid - 1, min, mid);
-    emit_line(MCF_EIS MCF_ELVM_PC "matches %d..%d run " MCF_F "elvm:func_%d_%d", mid, max - 1, mid, max);
+    emit_line(MCF_EIS "%s elvm_pc matches %d..%d run " MCF_F "%s:func_%d_%d",
+              MCF_NAMESPACE, min, mid - 1, MCF_NAMESPACE, min, mid);
+    emit_line(MCF_EIS "%s elvm_pc matches %d..%d run " MCF_F "%s:func_%d_%d",
+              MCF_NAMESPACE, mid, max - 1, MCF_NAMESPACE, mid, max);
     mcf_emit_pc_search_function(min, mid);
     mcf_emit_pc_search_function(mid, max);
   }
@@ -958,6 +1058,9 @@ static void mcf_emit_utility_functions() {
   }
   if (mcf.used_dyn_load || mcf.used_dyn_store)
     mcf_emit_recache_function();
+
+  if (mcf.used_getc_function)
+    mcf_emit_getc_reenter_function();
 }
 
 /*
@@ -1009,7 +1112,7 @@ static void mcf_preprocess_code(Inst* code) {
     prev_inst = NULL;
     for (Inst* inst = block->code; inst; inst = inst->next) {
       /* there should be no instructions before getc (so it can schedule itself) */
-      if (prev_inst && inst->op == GETC) {
+      if (MCF_STDIN_WAIT && prev_inst && inst->op == GETC) {
         block_count++;
         Block* new_block = (Block*) malloc(sizeof(*new_block));
         new_block->pc = last_block->pc + 1;
@@ -1024,7 +1127,7 @@ static void mcf_preprocess_code(Inst* code) {
       }
 
       /* there should be no instructions after getc or exit (they count as jump instructions for our purposes) */
-      if (inst->next && (inst->op == GETC || inst->op == EXIT)) {
+      if (inst->next && ((MCF_STDIN_WAIT && inst->op == GETC) || inst->op == EXIT)) {
         block_count++;
         Block* new_block = (Block*) malloc(sizeof(*new_block));
         new_block->pc = last_block->pc + 1;
@@ -1066,11 +1169,13 @@ static void mcf_preprocess_code(Inst* code) {
 
 void target_mcfunction(Module* module) {
   reg_names = MCF_REG_NAMES;
+  MCF_CACHE_SIZE = 1 << MCF_CACHE_DEPTH;
 
   mcf.used_dyn_int2chr = 0;
   mcf.used_flush_function = 0;
   mcf.used_dyn_load = 0;
   mcf.used_dyn_store = 0;
+  mcf.used_getc_function = 0;
   mcf.was_jump = 1;
 
   mcf_preprocess_code(module->text);
@@ -1079,12 +1184,12 @@ void target_mcfunction(Module* module) {
   for (Inst* inst = module->text; inst; inst = inst->next) {
     if (inst->pc != pc) {
       if (!mcf.was_jump) {
-        emit_line(MCF_SPS MCF_ELVM_PC "%d", mcf.adj_pcs[pc]);
+        emit_line(MCF_SPS "%s elvm_pc %d", MCF_NAMESPACE, mcf.adj_pcs[pc]);
         if (mcf.adj_pcs[pc] != -1)
-          emit_line(MCF_F "elvm:func_%d", mcf.adj_pcs[pc]);
+          emit_line(MCF_F "%s:func_%d", MCF_NAMESPACE, mcf.adj_pcs[pc]);
       }
       pc = inst->pc;
-      mcf_emit_function_header(format("elvm:func_%d", pc));
+      mcf_emit_function_header(format("%s:func_%d", MCF_NAMESPACE, pc));
     }
     mcf_emit_inst(inst);
   }
@@ -1094,4 +1199,49 @@ void target_mcfunction(Module* module) {
   mcf_emit_loop_function(pc + 1);
   mcf_emit_utility_functions();
 
+}
+
+bool handle_mcfunction_args(const char* arg, const char* value) {
+  if (!strcmp(arg, "cache_count")) {
+    MCF_CACHE_COUNT = atoi(value);
+    if (MCF_CACHE_COUNT < 1)
+      MCF_CACHE_COUNT = 1;
+    return true;
+  }
+  if (!strcmp(arg, "cache_depth")) {
+    MCF_CACHE_DEPTH = atoi(value);
+    if (MCF_CACHE_DEPTH < 2)
+      MCF_CACHE_DEPTH = 2;
+    else if (MCF_CACHE_DEPTH > 22)
+      MCF_CACHE_DEPTH = 22;
+    return true;
+  }
+  if (!strcmp(arg, "namespace")) {
+    if (*value)
+      MCF_NAMESPACE = value;
+    return true;
+  }
+  if (!strcmp(arg, "flush_char")) {
+    MCF_FLUSH_CHAR = atoi(value);
+    return true;
+  }
+  if (!strcmp(arg, "stdout_chars")) {
+    MCF_STDOUT_CHARS = parse_bool_value(value);
+    return true;
+  }
+  if (!strcmp(arg, "stdout_callback")) {
+    if (*value)
+      MCF_STDOUT_CALLBACK = value;
+    return true;
+  }
+  if (!strcmp(arg, "stdin_wait")) {
+    MCF_STDIN_WAIT = parse_bool_value(value);
+    return true;
+  }
+  if (!strcmp(arg, "stdin_callback")) {
+    if (*value)
+      MCF_STDIN_CALLBACK = value;
+    return true;
+  }
+  return false;
 }
