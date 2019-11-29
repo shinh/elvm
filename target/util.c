@@ -5,11 +5,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 char* vformat(const char* fmt, va_list ap) {
   char buf[256];
-  vsnprintf(buf, 255, fmt, ap);
-  buf[255] = 0;
+  va_list va_cpy;
+  va_copy(va_cpy, ap);
+  int n = vsnprintf(buf, 256, fmt, ap) + 1;
+  if (n > 256) {
+    char* buf2 = (char*) malloc(n * sizeof(char));
+    vsnprintf(buf2, n, fmt, va_cpy);
+    return buf2;
+  }
   return strdup(buf);
 }
 
@@ -249,6 +256,10 @@ void emit_elf_header(uint16_t machine, uint32_t filesz) {
   };
   fwrite(ehdr, 52, 1, stdout);
   fwrite(phdr, 32, 1, stdout);
+}
+
+bool parse_bool_value(const char* value) {
+  return *value == '1' || *value == 't' || *value == 'T';
 }
 
 bool handle_chunked_func_size_arg(const char* key, const char* value) {
