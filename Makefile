@@ -29,7 +29,7 @@ ELC := out/elc
 	8cc/set.c \
 	8cc/vector.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/cmake_putc_helper
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/cmake_putc_helper out/whirl
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -71,6 +71,9 @@ out/cmake_putc_helper: tools/cmake_putc_helper.c
 
 out/tm: tools/tm.c
 	$(CC) $(CFLAGS) $< -o $@
+
+out/whirl: tools/whirl.cc
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 tinycc/tcc: tinycc/config.h
 	$(MAKE) -C tinycc tcc libtcc1.a
@@ -133,6 +136,7 @@ ELC_SRCS := \
 	unl.c \
 	vim.c \
 	wasm.c \
+	whirl.c \
 	ws.c \
 	x86.c \
 
@@ -498,6 +502,10 @@ include target.mk
 TARGET := cmake
 RUNNER := tools/runcmake.sh
 TOOL := cmake
+include target.mk
+
+TARGET := whirl
+RUNNER := out/whirl
 include target.mk
 
 test: $(TEST_RESULTS)
