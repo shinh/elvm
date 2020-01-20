@@ -1,6 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef enum {
     OP_NOOP,
@@ -54,6 +55,8 @@ typedef struct {
     RingDirection op_dir;
 
     RingDirection math_dir;
+
+    bool last_is_zero;
 } RingState;
 
 typedef struct CodeSegment_ {
@@ -68,7 +71,7 @@ typedef struct CodeSegment_ {
 
 #define INIT_CODE_ALLOC 32
 
-WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
+static WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
     WhirlCodeSegment *segment = malloc(sizeof(WhirlCodeSegment));
     segment->inst = inst;
     segment->code = malloc(sizeof(char) * INIT_CODE_ALLOC);
@@ -82,7 +85,7 @@ WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
     return segment;
 }
 
-void output_segments(const WhirlCodeSegment *segment) {
+static void output_segments(const WhirlCodeSegment *segment) {
     static const char* op_strs[] = {
         "mov", "add", "sub", "load", "store", "putc", "getc", "exit",
         "jeq", "jne", "jlt", "jgt", "jle", "jge", "jmp", "xxx",
@@ -100,7 +103,7 @@ void output_segments(const WhirlCodeSegment *segment) {
     }
 }
 
-void free_segments(WhirlCodeSegment *head) {
+static void free_segments(WhirlCodeSegment *head) {
     while (head != NULL) {
         WhirlCodeSegment *tmp = head;
         head = head->next;
@@ -109,15 +112,158 @@ void free_segments(WhirlCodeSegment *head) {
     }
 }
 
-void generate_segment(WhirlCodeSegment *segment, RingState *state) {
-    (void) state;
+static void emit_instruction(WhirlCodeSegment *segment, char c) {
+    if (segment->len == segment->alloc) {
+        char *old_str = segment->code;
+        segment->alloc *= 2;
+        segment->code = malloc(sizeof(char) * segment->alloc);
+        memcpy(segment->code, old_str, segment->len * sizeof(char));
+        free(old_str);
+    }
+    segment->code[segment->len] = c;
+    segment->len++;
+}
 
+static void emit_one(WhirlCodeSegment *segment, RingState *state) {
+    if (state->active_ring == MATH_RING) {
+        if (state->math_dir == CLOCKWISE) {
+            state->cur_math_pos++;
+            if (state->cur_math_pos == NUM_CMDS_PER_RING) {
+                state->cur_math_pos = 0;
+            }
+        }
+        else {
+            if (state->cur_math_pos == 0) {
+                state->cur_math_pos = NUM_CMDS_PER_RING;
+            }
+            state->cur_math_pos--;
+        }
+    }
+    else {
+        if (state->op_dir == CLOCKWISE) {
+            state->cur_op_pos++;
+            if (state->cur_op_pos == NUM_CMDS_PER_RING) {
+                state->cur_op_pos = 0;
+            }
+        }
+        else {
+            if (state->cur_op_pos == 0) {
+                state->cur_op_pos = NUM_CMDS_PER_RING;
+            }
+            state->cur_op_pos--;
+        }
+    }
+
+    state->last_is_zero = false;
+    emit_instruction(segment, '1');    
+}
+
+static RingDirection reverse_direction(RingDirection dir) {
+    return dir == CLOCKWISE ? COUNTERCLOCKWISE : CLOCKWISE;
+}
+
+static void emit_zero(WhirlCodeSegment *segment, RingState *state) {
+    if (state->active_ring == MATH_RING) {
+        state->math_dir = reverse_direction(state->math_dir);
+    }
+    else {
+        state->op_dir = reverse_direction(state->op_dir);
+    }
+
+    if (state->last_is_zero) {
+        state->active_ring = (state->active_ring == MATH_RING ? OPERATION_RING :
+                                                                MATH_RING);
+    }
+
+    state->last_is_zero = !state->last_is_zero;
+    emit_instruction(segment, '0');
+}
+
+static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd);
+
+static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpCmd cmd) {
+    if (state->active_ring == MATH_RING) {
+        generate_math_command(segment, state, OP_NOOP);
+    }
+
+    while (state->cur_op_pos != cmd) {
+        emit_one(segment, state);
+    }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
+}
+
+static void reset_rings(WhirlCodeSegment *segment, RingState *state) {
+    if (state->cur_math_pos != MATH_NOOP || state->math_dir != CLOCKWISE) {
+        if (state->active_ring == OPERATION_RING) {
+            emit_zero(segment, state);
+            emit_zero(segment, state);
+        }
+        if (state->cur_math_pos == MATH_NOOP) {
+            emit_one(segment, state);
+            emit_zero(segment, state);
+            emit_one(segment, state);
+        }
+        else {
+            if (state->math_dir == COUNTERCLOCKWISE) {
+                emit_zero(segment, state);
+            }
+            while (state->cur_math_pos != MATH_NOOP) {
+                emit_one(segment, state);
+            }
+        }
+        emit_zero(segment, state);
+        emit_zero(segment, state);
+    }
+
+    if (state->active_ring == MATH_RING) {
+        emit_zero(segment, state);
+        emit_zero(segment, state);
+    }
+
+    if (state->op_dir != CLOCKWISE) {
+        if (state->cur_op_pos == OP_NOOP) {
+            emit_one(segment, state);
+            emit_zero(segment, state);
+            emit_one(segment, state);
+        }
+        else {
+            emit_zero(segment, state);
+        }
+    }
+
+    while (state->cur_op_pos != OP_NOOP) {
+        emit_one(segment, state);
+    }
+}
+
+static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd) {
+    if (state->active_ring == OPERATION_RING) {
+        generate_op_command(segment, state, MATH_NOOP);
+    }
+
+    while (state->cur_math_pos != cmd) {
+        emit_one(segment, state);
+    }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
+}
+
+static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
     switch (segment->inst->op) {
+        case EXIT:
+            generate_op_command(segment, state, OP_EXIT);
+            break;
+
         case DUMP:
         default:
             // Do nothing
             break;
     }
+
+    reset_rings(segment, state);
 }
 
 void target_whirl(Module *module) {
