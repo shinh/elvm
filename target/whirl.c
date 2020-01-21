@@ -384,6 +384,30 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             }
             break;
 
+        case SUB:
+            if (inst->src.type == REG) {
+                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_LOAD);
+                generate_math_command(segment, state, MATH_NEG);
+                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_ADD);
+                generate_math_command(segment, state, MATH_STORE);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            else {
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                generate_op_command(segment, state, OP_LOAD);
+                set_mem(segment, state, inst->src.imm);
+                generate_math_command(segment, state, MATH_LOAD);
+                generate_math_command(segment, state, MATH_NEG);
+                generate_op_command(segment, state, OP_STORE);
+                generate_math_command(segment, state, MATH_ADD);
+                generate_math_command(segment, state, MATH_STORE);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            break;
+
         case PUTC:
             if (inst->src.type == IMM) {
                 set_mem(segment, state, inst->src.imm);
