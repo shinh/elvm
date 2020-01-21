@@ -74,6 +74,13 @@ bool next_instruction = true;   // lame
 
 bool op_ring::execute()
 {
+
+#ifdef WHIRL_DEBUG
+    if (pos != 0) {
+        printf("Executing operations cmd %d ", pos);
+    }
+#endif
+
     if( pos != 0 ) switch( pos )
     {
         // One
@@ -184,11 +191,25 @@ bool op_ring::execute()
             return false;
     }
 
+#ifdef WHIRL_DEBUG
+    if (pos != 0) {
+        printf("(val is %d, mem[%d] is %d)\n",
+               value, (int)(mem_pos - memory.begin()), *mem_pos);
+    }
+#endif
+
     return true;
 }
 
 bool math_ring::execute()
 {
+
+#ifdef WHIRL_DEBUG
+    if (pos != 0) {
+        printf("Executing math cmd %d ", pos);
+    }
+#endif
+
     if( pos != 0 ) switch( pos )
     {
         // Load
@@ -250,6 +271,13 @@ bool math_ring::execute()
         default:
             return false;
     }
+
+#ifdef WHIRL_DEBUG
+    if (pos != 0) {
+        printf("(val is %d, mem[%d] is %d)\n",
+               value, (int)(mem_pos - memory.begin()), *mem_pos);
+    }
+#endif
 
     return true;
 }

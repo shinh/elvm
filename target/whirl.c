@@ -71,6 +71,25 @@ typedef struct CodeSegment_ {
 
 #define INIT_CODE_ALLOC 32
 
+// Memory layout:
+// TMP PC A B C D BP SP TMP TMP MEM0 TMP MEM1 TMP MEM2 ...
+/*
+static const int PC_POS     = 1;
+*/
+static const int REG_A_POS  = 2;
+/*
+static const int REG_B_POS  = 3;
+static const int REG_C_POS  = 4;
+static const int REG_D_POS  = 5;
+static const int REG_BP_POS = 6;
+static const int REG_SP_POS = 7;
+*/
+static const int EXTRA_TMP1 = 8;
+/*
+static const int EXTRA_TMP2 = 9; 
+static const int DATA_START = 10;
+*/
+
 static WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
     WhirlCodeSegment *segment = malloc(sizeof(WhirlCodeSegment));
     segment->inst = inst;
@@ -251,8 +270,111 @@ static void generate_math_command(WhirlCodeSegment *segment, RingState *state, M
     emit_zero(segment, state);
 }
 
+// Sets the current memory position to a specific value
+static void set_mem(WhirlCodeSegment *segment, RingState *state, int val) {
+    generate_math_command(segment, state, MATH_ZERO);
+    generate_math_command(segment, state, MATH_STORE);
+
+    if (val == 0) {
+        return;
+    }
+
+    generate_math_command(segment, state, MATH_EQUAL);
+    generate_math_command(segment, state, MATH_STORE);
+
+    if (val == 1) {
+        return;
+    }
+
+    int highest_set_bit = 0;
+    for (int i = val; i != 0; i >>= 1) {
+        highest_set_bit++;
+    }
+
+    // We subtract two from the highest bit because we shift one less than
+    // the highest bit to get to the most significant bit, and we have
+    // already handled the first bit, so we subtract one again
+    highest_set_bit -= 2;
+
+    for (int mask = 1 << highest_set_bit; mask != 0; mask >>= 1) {
+        generate_math_command(segment, state, MATH_ZERO);
+        if ((val & mask) != 0) {
+            generate_math_command(segment, state, MATH_LESS);
+        }
+        generate_math_command(segment, state, MATH_ADD);
+        generate_math_command(segment, state, MATH_ADD);
+        generate_math_command(segment, state, MATH_STORE);
+    }
+}
+
+// Starting from the first memory position, move to a specific memory position,
+// preserving the value in the math ring
+static void move_to_pos(WhirlCodeSegment *segment, RingState *state, int pos) {
+    generate_op_command(segment, state, OP_ONE);
+
+    for (int i = 0; i < pos; i++) {
+        generate_op_command(segment, state, OP_DADD);
+    }
+}
+
+// Starting from the given memory position, move back to a specific memory position,
+// preserving the value in the math ring. Only works from the register positions
+static void move_back_from_pos(WhirlCodeSegment *segment, RingState *state, int pos) {
+    generate_op_command(segment, state, OP_ONE);
+
+    for (int i = pos; i < EXTRA_TMP1; i++) {
+        generate_op_command(segment, state, OP_DADD);
+    }
+
+    generate_math_command(segment, state, MATH_STORE);
+    generate_op_command(segment, state, OP_DADD);
+    generate_op_command(segment, state, OP_STORE);
+    generate_math_command(segment, state, MATH_LOAD);
+    generate_math_command(segment, state, MATH_NEG);
+    generate_math_command(segment, state, MATH_STORE);
+    generate_op_command(segment, state, OP_LOAD);
+    generate_op_command(segment, state, OP_DADD);
+    generate_math_command(segment, state, MATH_LOAD);
+
+    for (int i = 0; i < EXTRA_TMP1; i++) {
+        generate_op_command(segment, state, OP_DADD);
+    }
+}
+
 static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
-    switch (segment->inst->op) {
+    const Inst *inst = segment->inst;
+
+    switch (inst->op) {
+        case MOV:
+            if (inst->src.type == REG) {
+                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_LOAD);
+                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_STORE);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            else {
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                set_mem(segment, state, inst->src.imm);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            break;
+
+        case PUTC:
+            if (inst->src.type == IMM) {
+                set_mem(segment, state, inst->src.imm);
+                generate_op_command(segment, state, OP_ONE);
+                generate_op_command(segment, state, OP_ASC_IO);
+            }
+            else {
+                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                generate_op_command(segment, state, OP_ONE);
+                generate_op_command(segment, state, OP_ASC_IO);
+                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
+            }
+            break;
+
         case EXIT:
             generate_op_command(segment, state, OP_EXIT);
             break;
