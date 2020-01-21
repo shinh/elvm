@@ -270,7 +270,8 @@ static void generate_math_command(WhirlCodeSegment *segment, RingState *state, M
     emit_zero(segment, state);
 }
 
-// Sets the current memory position to a specific value
+// Sets the current memory position to a specific value. Preserves the value in
+// the operations ring
 static void set_mem(WhirlCodeSegment *segment, RingState *state, int val) {
     generate_math_command(segment, state, MATH_ZERO);
     generate_math_command(segment, state, MATH_STORE);
@@ -357,6 +358,28 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             else {
                 move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
                 set_mem(segment, state, inst->src.imm);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            break;
+
+        case ADD:
+            if (inst->src.type == REG) {
+                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_LOAD);
+                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                generate_math_command(segment, state, MATH_ADD);
+                generate_math_command(segment, state, MATH_STORE);
+                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+            }
+            else {
+                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                generate_op_command(segment, state, OP_LOAD);
+                set_mem(segment, state, inst->src.imm);
+                generate_math_command(segment, state, MATH_LOAD);
+                generate_op_command(segment, state, OP_STORE);
+                generate_math_command(segment, state, MATH_ADD);
+                generate_math_command(segment, state, MATH_STORE);
                 move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
             }
             break;
