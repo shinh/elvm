@@ -1,5 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
+
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -200,9 +202,27 @@ static void emit_zero(WhirlCodeSegment *segment, RingState *state) {
 
 static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd);
 
+bool should_switch(int cur_pos, int target_pos, RingDirection dir) {
+    int ones_required;
+    if (dir == CLOCKWISE) {
+        ones_required = target_pos - cur_pos;
+    }
+    else {
+        ones_required = cur_pos - target_pos;
+    }
+    if (ones_required < 0) {
+        ones_required += NUM_CMDS_PER_RING;
+    }
+    return ones_required > (NUM_CMDS_PER_RING / 2);
+}
+
 static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpCmd cmd) {
     if (state->active_ring == MATH_RING) {
         generate_math_command(segment, state, OP_NOOP);
+    }
+
+    if (should_switch(state->cur_op_pos, cmd, state->op_dir)) {
+        emit_zero(segment, state);
     }
 
     while (state->cur_op_pos != cmd) {
@@ -216,6 +236,10 @@ static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpC
 static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd) {
     if (state->active_ring == OPERATION_RING) {
         generate_op_command(segment, state, MATH_NOOP);
+    }
+
+    if (should_switch(state->cur_math_pos, cmd, state->math_dir)) {
+        emit_zero(segment, state);
     }
 
     while (state->cur_math_pos != cmd) {
