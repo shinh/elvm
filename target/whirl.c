@@ -1,7 +1,6 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -88,9 +87,9 @@ static const int REG_SP_POS = 7;
 */
 static const int EXTRA_TMP1 = 8;
 /*
-static const int EXTRA_TMP2 = 9; 
-static const int DATA_START = 10;
+static const int EXTRA_TMP2 = 9;
 */
+static const int DATA_START = 10;
 
 static WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
     WhirlCodeSegment *segment = malloc(sizeof(WhirlCodeSegment));
@@ -114,10 +113,14 @@ static void output_segments(const WhirlCodeSegment *segment) {
     };
 
     while (segment != NULL) {
-        printf("%s: ", op_strs[segment->inst->op]);
+        if (segment->inst != NULL) {
+            printf("%s: ", op_strs[segment->inst->op]);
+        }
+
         for (size_t i = 0; i < segment->len; i++) {
             putchar(segment->code[i]);
         }
+
         putchar('\n');
 
         segment = segment->next;
@@ -304,10 +307,19 @@ static void set_mem(WhirlCodeSegment *segment, RingState *state, int val) {
         return;
     }
 
+    bool is_negative = val < 0;
+    if (is_negative) {
+        val = -val;
+    }
+
     generate_math_command(segment, state, MATH_EQUAL);
     generate_math_command(segment, state, MATH_STORE);
 
     if (val == 1) {
+        if (is_negative) {
+            generate_math_command(segment, state, MATH_NEG);
+            generate_math_command(segment, state, MATH_STORE);
+        }
         return;
     }
 
@@ -330,6 +342,11 @@ static void set_mem(WhirlCodeSegment *segment, RingState *state, int val) {
         generate_math_command(segment, state, MATH_ADD);
         generate_math_command(segment, state, MATH_STORE);
     }
+
+    if (is_negative) {
+        generate_math_command(segment, state, MATH_NEG);
+        generate_math_command(segment, state, MATH_STORE);
+    }
 }
 
 // Starting from the first memory position, move to a specific register,
@@ -342,8 +359,8 @@ static void move_to_reg(WhirlCodeSegment *segment, RingState *state, Reg reg) {
     }
 }
 
-// Starting from the given memory position, move back from a specific memory register,
-// preserving the value in the math ring. Only works from the register positions
+// Starting from the given register, move back to the first memory position.
+// preserving the value in the math ring. 
 static void move_back_from_reg(WhirlCodeSegment *segment, RingState *state, Reg reg) {
     generate_op_command(segment, state, OP_ONE);
 
@@ -364,6 +381,37 @@ static void move_back_from_reg(WhirlCodeSegment *segment, RingState *state, Reg 
     for (int i = 0; i < EXTRA_TMP1; i++) {
         generate_op_command(segment, state, OP_DADD);
     }
+}
+
+static WhirlCodeSegment *generate_data_initialization(RingState *state, Data *data) {
+    WhirlCodeSegment *segment = new_segment(NULL, NULL);
+
+    if (data == NULL) {
+        return segment;
+    }
+
+    set_mem(segment, state, DATA_START);
+    generate_op_command(segment, state, OP_LOAD);
+    generate_op_command(segment, state, OP_DADD);
+    generate_op_command(segment, state, OP_ONE);
+
+    int mem_pos = DATA_START;
+
+    while (data != NULL) {
+        generate_op_command(segment, state, OP_DADD);
+        set_mem(segment, state, data->v);
+        generate_op_command(segment, state, OP_DADD);
+        data = data->next;
+        mem_pos += 2;
+    }
+
+    set_mem(segment, state, -mem_pos);
+    generate_op_command(segment, state, OP_LOAD);
+    generate_op_command(segment, state, OP_DADD);
+
+    reset_rings(segment, state);
+
+    return segment;
 }
 
 static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
@@ -513,6 +561,8 @@ void target_whirl(Module *module) {
     WhirlCodeSegment *head_segment = NULL;
     WhirlCodeSegment *cur_segment = NULL;
 
+    WhirlCodeSegment *data_init = generate_data_initialization(ring_state, module->data);
+
     // First thing: create a linked list of all the code segments
     for (Inst *inst = module->text; inst != NULL; inst = inst->next) {
         cur_segment = new_segment(inst, cur_segment);
@@ -530,6 +580,9 @@ void target_whirl(Module *module) {
         generate_segment(segment, ring_state);
     }
 
-    output_segments(head_segment);
+    data_init->next = head_segment;
+    head_segment->prev = data_init;
+
+    output_segments(data_init);
     free_segments(head_segment);
 }
