@@ -213,6 +213,19 @@ static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpC
     emit_zero(segment, state);
 }
 
+static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd) {
+    if (state->active_ring == OPERATION_RING) {
+        generate_op_command(segment, state, MATH_NOOP);
+    }
+
+    while (state->cur_math_pos != cmd) {
+        emit_one(segment, state);
+    }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
+}
+
 static void reset_rings(WhirlCodeSegment *segment, RingState *state) {
     if (state->cur_math_pos != MATH_NOOP || state->math_dir != CLOCKWISE) {
         if (state->active_ring == OPERATION_RING) {
@@ -255,19 +268,6 @@ static void reset_rings(WhirlCodeSegment *segment, RingState *state) {
     while (state->cur_op_pos != OP_NOOP) {
         emit_one(segment, state);
     }
-}
-
-static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd) {
-    if (state->active_ring == OPERATION_RING) {
-        generate_op_command(segment, state, MATH_NOOP);
-    }
-
-    while (state->cur_math_pos != cmd) {
-        emit_one(segment, state);
-    }
-
-    emit_zero(segment, state);
-    emit_zero(segment, state);
 }
 
 // Sets the current memory position to a specific value. Preserves the value in
