@@ -332,22 +332,22 @@ static void set_mem(WhirlCodeSegment *segment, RingState *state, int val) {
     }
 }
 
-// Starting from the first memory position, move to a specific memory position,
+// Starting from the first memory position, move to a specific register,
 // preserving the value in the math ring
-static void move_to_pos(WhirlCodeSegment *segment, RingState *state, int pos) {
+static void move_to_reg(WhirlCodeSegment *segment, RingState *state, Reg reg) {
     generate_op_command(segment, state, OP_ONE);
 
-    for (int i = 0; i < pos; i++) {
+    for (int i = 0; i < (int) reg + REG_A_POS; i++) {
         generate_op_command(segment, state, OP_DADD);
     }
 }
 
-// Starting from the given memory position, move back to a specific memory position,
+// Starting from the given memory position, move back from a specific memory register,
 // preserving the value in the math ring. Only works from the register positions
-static void move_back_from_pos(WhirlCodeSegment *segment, RingState *state, int pos) {
+static void move_back_from_reg(WhirlCodeSegment *segment, RingState *state, Reg reg) {
     generate_op_command(segment, state, OP_ONE);
 
-    for (int i = pos; i < EXTRA_TMP1; i++) {
+    for (int i = reg + REG_A_POS; i < EXTRA_TMP1; i++) {
         generate_op_command(segment, state, OP_DADD);
     }
 
@@ -372,55 +372,55 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
     switch (inst->op) {
         case MOV:
             if (inst->src.type == REG) {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_LOAD);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             else {
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->dst.reg);
                 set_mem(segment, state, inst->src.imm);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
         case ADD:
             if (inst->src.type == REG) {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_LOAD);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_ADD);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             else {
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_op_command(segment, state, OP_LOAD);
                 set_mem(segment, state, inst->src.imm);
                 generate_math_command(segment, state, MATH_LOAD);
                 generate_op_command(segment, state, OP_STORE);
                 generate_math_command(segment, state, MATH_ADD);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
         case SUB:
             if (inst->src.type == REG) {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_LOAD);
                 generate_math_command(segment, state, MATH_NEG);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_ADD);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             else {
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_op_command(segment, state, OP_LOAD);
                 set_mem(segment, state, inst->src.imm);
                 generate_math_command(segment, state, MATH_LOAD);
@@ -428,7 +428,7 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 generate_op_command(segment, state, OP_STORE);
                 generate_math_command(segment, state, MATH_ADD);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
@@ -439,52 +439,52 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 generate_op_command(segment, state, OP_ASC_IO);
             }
             else {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_op_command(segment, state, OP_ONE);
                 generate_op_command(segment, state, OP_ASC_IO);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
             }
             break;
 
         case EQ:
             if (inst->src.type == REG) {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_EQUAL);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             else {
                 set_mem(segment, state, inst->src.imm);
                 generate_math_command(segment, state, MATH_LOAD);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_EQUAL);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
         case NE:
             if (inst->src.type == REG) {
-                move_to_pos(segment, state, inst->src.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->src.reg + REG_A_POS);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->src.reg);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_EQUAL);
                 generate_math_command(segment, state, MATH_NOT);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             else {
                 set_mem(segment, state, inst->src.imm);
                 generate_math_command(segment, state, MATH_LOAD);
-                move_to_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_to_reg(segment, state, inst->dst.reg);
                 generate_math_command(segment, state, MATH_EQUAL);
                 generate_math_command(segment, state, MATH_NOT);
                 generate_math_command(segment, state, MATH_STORE);
-                move_back_from_pos(segment, state, inst->dst.reg + REG_A_POS);
+                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
