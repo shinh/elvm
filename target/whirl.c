@@ -545,12 +545,11 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 move_back_from_reg(segment, state, inst->src.reg);
                 generate_math_command(segment, state, MATH_ADD);
                 generate_math_command(segment, state, MATH_STORE);
-                generate_op_command(segment, state, OP_LOAD);
             }
             else {
                 set_mem(segment, state, inst->src.imm * 2 + DATA_START);
-                generate_op_command(segment, state, OP_LOAD);
             }
+            generate_op_command(segment, state, OP_LOAD);
             generate_op_command(segment, state, OP_DADD);
             generate_op_command(segment, state, OP_STORE);
             generate_math_command(segment, state, MATH_LOAD);
@@ -578,6 +577,43 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             move_to_reg(segment, state, inst->dst.reg);
             generate_math_command(segment, state, MATH_STORE);
             move_back_from_reg(segment, state, inst->dst.reg);
+            break;
+
+        case STORE:
+            if (inst->src.type == REG) {
+                set_mem(segment, state, DATA_START);
+                move_to_reg(segment, state, inst->src.reg);
+                generate_math_command(segment, state, MATH_LOAD);
+                generate_math_command(segment, state, MATH_ADD);
+                move_back_from_reg(segment, state, inst->src.reg);
+                generate_math_command(segment, state, MATH_ADD);
+                generate_math_command(segment, state, MATH_STORE);
+            }
+            else {
+                set_mem(segment, state, inst->src.imm * 2 + DATA_START);
+            }
+            move_to_reg(segment, state, inst->dst.reg);
+            generate_math_command(segment, state, MATH_LOAD);
+            move_back_from_reg(segment, state, inst->dst.reg);
+            generate_op_command(segment, state, OP_LOAD);
+            generate_op_command(segment, state, OP_DADD);
+            generate_op_command(segment, state, OP_STORE);
+            generate_op_command(segment, state, OP_ONE);
+            generate_op_command(segment, state, OP_DADD);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_DADD);
+            generate_op_command(segment, state, OP_STORE);
+            generate_math_command(segment, state, MATH_LOAD);
+            generate_math_command(segment, state, MATH_NEG);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_LOAD);
+            generate_op_command(segment, state, OP_DADD);
+            generate_op_command(segment, state, OP_DADD);
+            generate_math_command(segment, state, MATH_LOAD);
+            generate_math_command(segment, state, MATH_NEG);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_LOAD);
+            generate_op_command(segment, state, OP_DADD);
             break;
 
         case EXIT:
