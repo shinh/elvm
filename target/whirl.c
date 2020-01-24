@@ -253,7 +253,7 @@ static void generate_math_command(WhirlCodeSegment *segment, RingState *state, M
     emit_zero(segment, state);
 }
 
-static void reset_rings(WhirlCodeSegment *segment, RingState *state) {
+static void reset_to_after_jump(WhirlCodeSegment *segment, RingState *state) {
     if (state->cur_math_pos != MATH_NOOP || state->math_dir != CLOCKWISE) {
         if (state->active_ring == OPERATION_RING) {
             emit_zero(segment, state);
@@ -409,7 +409,7 @@ static WhirlCodeSegment *generate_data_initialization(RingState *state, Data *da
     generate_op_command(segment, state, OP_LOAD);
     generate_op_command(segment, state, OP_DADD);
 
-    reset_rings(segment, state);
+    reset_to_after_jump(segment, state);
 
     return segment;
 }
@@ -625,8 +625,44 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             // Do nothing
             break;
     }
+}
 
-    reset_rings(segment, state);
+static bool is_jump(Op op) {
+    const Op JUMP_OPS[] = {
+        JMP, JEQ, JNE, JLT, JLE, JGT, JGE,
+    };
+    for (int i = 0; i < 7; i++) {
+        if (op == JUMP_OPS[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void generate_code_segments(WhirlCodeSegment *last_segment, RingState *state) {
+    WhirlCodeSegment *first_segment = last_segment;
+
+    while (first_segment != NULL) {
+        last_segment = first_segment;
+        if (is_jump(first_segment->inst->op)) {
+            generate_segment(first_segment, state);
+        }
+        else {
+            while (first_segment->prev != NULL &&
+                   !is_jump(first_segment->prev->inst->op) &&
+                   first_segment->prev->inst->pc == first_segment->inst->pc)
+            {
+                first_segment = first_segment->prev;
+            }
+            WhirlCodeSegment *cur_segment = first_segment;
+            while (cur_segment != last_segment->next) {
+                generate_segment(cur_segment, state);
+                cur_segment = cur_segment->next;
+            }            
+        }
+        reset_to_after_jump(last_segment, state);
+        first_segment = first_segment->prev;
+    }
 }
 
 void target_whirl(Module *module) {
@@ -652,13 +688,7 @@ void target_whirl(Module *module) {
         }
     }
 
-    // Now, go through the list of code segments and generate the code for
-    // them. This MUST be done in reverse order, as the jump commands must
-    // know how far forward they must jump, and they can only know that if
-    // they know how long all of the following segments are
-    for (WhirlCodeSegment *segment = cur_segment; segment != NULL; segment = segment->prev) {
-        generate_segment(segment, ring_state);
-    }
+    generate_code_segments(cur_segment, ring_state);
 
     data_init->next = head_segment;
     head_segment->prev = data_init;
