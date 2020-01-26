@@ -964,6 +964,14 @@ void target_whirl(Module *module) {
         }
     }
 
+    Inst *exit_inst = &(Inst){
+        .op = EXIT,
+        .pc = cur_segment->inst->pc,
+        .next = NULL,
+    };
+
+    cur_segment = new_segment(exit_inst, cur_segment);
+
     WhirlCodeSegment *data_init = generate_data_initialization(ring_state, module->data);
 
     generate_code_segments(cur_segment, ring_state);
