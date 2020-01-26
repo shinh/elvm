@@ -507,6 +507,101 @@ static void generate_boolean_op(WhirlCodeSegment *segment, RingState *state) {
     move_back_from_reg(segment, state, inst->dst.reg);
 }
 
+static void generate_jump_inst(WhirlCodeSegment *segment, RingState *state) {
+    Inst *inst = segment->inst;
+
+    if (inst->jmp.type == REG) {
+        move_to_reg(segment, state, inst->jmp.reg);
+        generate_math_command(segment, state, MATH_LOAD);
+        move_back_from_reg(segment, state, inst->jmp.reg);
+        move_to_reg(segment, state, PC_REG_NUM);
+        generate_math_command(segment, state, MATH_STORE);
+        move_back_from_reg(segment, state, PC_REG_NUM);
+    }
+    else {
+        move_to_reg(segment, state, PC_REG_NUM);
+        set_mem(segment, state, inst->jmp.imm);
+        move_back_from_reg(segment, state, PC_REG_NUM);
+    }
+
+    if (segment->next != NULL) {
+        set_mem(segment, state, segment->next->total_code_len + 1);
+    }
+    else {
+        set_mem(segment, state, 1);
+    }
+
+    if (inst->op == JMP) {
+        // Unconditional jump, just load the address and store a 1 in the cell
+        generate_op_command(segment, state, OP_LOAD);
+        generate_math_command(segment, state, MATH_LOAD);
+        generate_math_command(segment, state, MATH_EQUAL);
+        generate_math_command(segment, state, MATH_STORE);
+    }
+    else {
+        generate_op_command(segment, state, OP_ONE);
+
+        // Otherwise, we have to do things the hard way
+        if (inst->src.type == REG) {
+            for (unsigned i = 0; i < inst->src.reg + REG_A_POS; i++) {
+                generate_op_command(segment, state, OP_DADD);
+            }
+            generate_math_command(segment, state, MATH_LOAD);
+            for (int i = inst->src.reg + REG_A_POS; i < EXTRA_TMP1; i++) {
+                generate_op_command(segment, state, OP_DADD);
+            }
+            generate_math_command(segment, state, MATH_STORE);
+        }
+        else {
+            for (int i = 0; i < EXTRA_TMP1; i++) {
+                generate_op_command(segment, state, OP_DADD);
+            }
+            set_mem(segment, state, inst->src.imm);
+        }
+        generate_op_command(segment, state, OP_DADD);
+        generate_op_command(segment, state, OP_STORE);
+        generate_math_command(segment, state, MATH_LOAD);
+        generate_math_command(segment, state, MATH_NEG);
+        generate_math_command(segment, state, MATH_STORE);
+        generate_op_command(segment, state, OP_LOAD);
+        generate_op_command(segment, state, OP_DADD);
+        generate_math_command(segment, state, MATH_LOAD);
+
+        for (unsigned i = EXTRA_TMP1; i > inst->dst.reg + REG_A_POS; i--) {
+            generate_op_command(segment, state, OP_DADD);
+        }
+
+        switch (inst->op) {
+            case JEQ: case JNE:
+                generate_math_command(segment, state, MATH_EQUAL);
+                break;
+            case JLT: case JGE:
+                generate_math_command(segment, state, MATH_GREATER);
+                break;
+            case JGT: case JLE:
+                generate_math_command(segment, state, MATH_LESS);
+                break;
+            default:
+                assert(false);
+                break;
+        }
+
+        if (inst->op == JNE || inst->op == JGE || inst->op == JLE) {
+            generate_math_command(segment, state, MATH_NOT);
+        }
+
+        for (int i = inst->dst.reg + REG_A_POS; i > 0; i--) {
+            generate_op_command(segment, state, OP_DADD);
+        }
+
+        generate_op_command(segment, state, OP_LOAD);
+        generate_math_command(segment, state, MATH_STORE);
+    }
+
+    set_math_ring_clockwise(segment, state);
+    do_op_command_clockwise(segment, state, OP_IF);
+}
+
 static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
     const Inst *inst = segment->inst;
 
@@ -515,6 +610,13 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
         case LE: case LT:
         case GE: case GT:
             generate_boolean_op(segment, state);
+            break;
+
+        case JEQ: case JNE:
+        case JLE: case JLT:
+        case JGE: case JGT:
+        case JMP:
+            generate_jump_inst(segment, state);
             break;
 
         case MOV:
@@ -671,34 +773,6 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             generate_math_command(segment, state, MATH_STORE);
             generate_op_command(segment, state, OP_LOAD);
             generate_op_command(segment, state, OP_DADD);
-            break;
-
-        case JMP:
-            if (inst->jmp.type == REG) {
-                move_to_reg(segment, state, inst->jmp.reg);
-                generate_math_command(segment, state, MATH_LOAD);
-                move_back_from_reg(segment, state, inst->jmp.reg);
-                move_to_reg(segment, state, PC_REG_NUM);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, PC_REG_NUM);
-            }
-            else {
-                move_to_reg(segment, state, PC_REG_NUM);
-                set_mem(segment, state, inst->jmp.imm);
-                move_back_from_reg(segment, state, PC_REG_NUM);
-            }
-            if (segment->next != NULL) {
-                set_mem(segment, state, segment->next->total_code_len + 1);
-            }
-            else {
-                set_mem(segment, state, 1);
-            }
-            generate_op_command(segment, state, OP_LOAD);
-            generate_math_command(segment, state, MATH_STORE);
-            generate_math_command(segment, state, MATH_EQUAL);
-            generate_math_command(segment, state, MATH_STORE);
-            set_math_ring_clockwise(segment, state);
-            do_op_command_clockwise(segment, state, OP_IF);
             break;
 
         case EXIT:
