@@ -179,7 +179,6 @@ bool op_ring::execute()
             {
                 // read character
                 (*mem_pos) = getchar();
-                while( getchar() != '\n' );
             }
             else
                 printf( "%c", *mem_pos );
