@@ -468,10 +468,55 @@ static void do_op_command_clockwise(WhirlCodeSegment *segment, RingState *state,
     emit_zero(segment, state);
 }
 
+static void generate_boolean_op(WhirlCodeSegment *segment, RingState *state) {
+    Inst *inst = segment->inst;
+
+    if (inst->src.type == REG) {
+        move_to_reg(segment, state, inst->src.reg);
+        generate_math_command(segment, state, MATH_LOAD);
+        move_back_from_reg(segment, state, inst->src.reg);
+    }
+    else {
+        set_mem(segment, state, inst->src.imm);
+        generate_math_command(segment, state, MATH_LOAD);
+    }
+
+    move_to_reg(segment, state, inst->dst.reg);
+
+    switch (inst->op) {
+        case EQ: case NE:
+            generate_math_command(segment, state, MATH_EQUAL);
+            break;
+        case LT: case GE:
+            generate_math_command(segment, state, MATH_GREATER);
+            break;
+        case GT: case LE:
+            generate_math_command(segment, state, MATH_LESS);
+            break;
+        default:
+            // This function should only be called with a boolean function
+            assert(false);
+            break;
+    }
+
+    if (inst->op == NE || inst->op == GE || inst->op == LE) {
+        generate_math_command(segment, state, MATH_NOT);
+    }
+
+    generate_math_command(segment, state, MATH_STORE);
+    move_back_from_reg(segment, state, inst->dst.reg);
+}
+
 static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
     const Inst *inst = segment->inst;
 
     switch (inst->op) {
+        case EQ: case NE:
+        case LE: case LT:
+        case GE: case GT:
+            generate_boolean_op(segment, state);
+            break;
+
         case MOV:
             if (inst->src.type == REG) {
                 move_to_reg(segment, state, inst->src.reg);
@@ -545,48 +590,6 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 generate_op_command(segment, state, OP_ONE);
                 generate_op_command(segment, state, OP_ASC_IO);
                 move_back_from_reg(segment, state, inst->src.reg);
-            }
-            break;
-
-        case EQ:
-            if (inst->src.type == REG) {
-                move_to_reg(segment, state, inst->src.reg);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->src.reg);
-                move_to_reg(segment, state, inst->dst.reg);
-                generate_math_command(segment, state, MATH_EQUAL);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->dst.reg);
-            }
-            else {
-                set_mem(segment, state, inst->src.imm);
-                generate_math_command(segment, state, MATH_LOAD);
-                move_to_reg(segment, state, inst->dst.reg);
-                generate_math_command(segment, state, MATH_EQUAL);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->dst.reg);
-            }
-            break;
-
-        case NE:
-            if (inst->src.type == REG) {
-                move_to_reg(segment, state, inst->src.reg);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->src.reg);
-                move_to_reg(segment, state, inst->dst.reg);
-                generate_math_command(segment, state, MATH_EQUAL);
-                generate_math_command(segment, state, MATH_NOT);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->dst.reg);
-            }
-            else {
-                set_mem(segment, state, inst->src.imm);
-                generate_math_command(segment, state, MATH_LOAD);
-                move_to_reg(segment, state, inst->dst.reg);
-                generate_math_command(segment, state, MATH_EQUAL);
-                generate_math_command(segment, state, MATH_NOT);
-                generate_math_command(segment, state, MATH_STORE);
-                move_back_from_reg(segment, state, inst->dst.reg);
             }
             break;
 
