@@ -1,6 +1,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,6 +68,8 @@ typedef struct CodeSegment_ {
 
     size_t alloc, len;
 
+    size_t total_code_len;
+
     struct CodeSegment_ *next, *prev;
 } WhirlCodeSegment;
 
@@ -77,7 +80,7 @@ typedef struct CodeSegment_ {
 /*
 static const int PC_POS     = 1;
 */
-static const int REG_A_POS  = 2;
+static const int REG_A_POS  = 1;
 /*
 static const int REG_B_POS  = 3;
 static const int REG_C_POS  = 4;
@@ -85,6 +88,7 @@ static const int REG_D_POS  = 5;
 static const int REG_BP_POS = 6;
 static const int REG_SP_POS = 7;
 */
+static const int PC_REG_NUM = 6;
 static const int EXTRA_TMP1 = 8;
 /*
 static const int EXTRA_TMP2 = 9;
@@ -97,6 +101,7 @@ static WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
     segment->code = malloc(sizeof(char) * INIT_CODE_ALLOC);
     segment->alloc = INIT_CODE_ALLOC;
     segment->len = 0;
+    segment->total_code_len = 0;
     segment->next = NULL;
     segment->prev = prev;
     if (prev != NULL) {
@@ -112,19 +117,28 @@ static void output_segments(const WhirlCodeSegment *segment) {
         "eq", "ne", "lt", "gt", "le", "ge", "dump"
     };
 
+    int cur_col = 0;
+
     while (segment != NULL) {
         if (segment->inst != NULL) {
             printf("%s: ", op_strs[segment->inst->op]);
         }
 
         for (size_t i = 0; i < segment->len; i++) {
-            putchar(segment->code[i]);
+            putchar(segment->code[i]);    
+
+            cur_col++;
+/*            if (cur_col == 50) {
+                putchar('\n');
+                cur_col = 0;
+            }
+*/
         }
 
         putchar('\n');
-
         segment = segment->next;
     }
+
 }
 
 static void free_segments(WhirlCodeSegment *head) {
@@ -254,6 +268,9 @@ static void generate_math_command(WhirlCodeSegment *segment, RingState *state, M
 }
 
 static void reset_to_after_jump(WhirlCodeSegment *segment, RingState *state) {
+    generate_op_command(segment, state, OP_ZERO);
+    generate_op_command(segment, state, OP_STORE);
+
     if (state->cur_math_pos != MATH_NOOP || state->math_dir != CLOCKWISE) {
         if (state->active_ring == OPERATION_RING) {
             emit_zero(segment, state);
@@ -272,8 +289,6 @@ static void reset_to_after_jump(WhirlCodeSegment *segment, RingState *state) {
                 emit_one(segment, state);
             }
         }
-        emit_zero(segment, state);
-        emit_zero(segment, state);
     }
 
     if (state->active_ring == MATH_RING) {
@@ -282,7 +297,7 @@ static void reset_to_after_jump(WhirlCodeSegment *segment, RingState *state) {
     }
 
     if (state->op_dir != CLOCKWISE) {
-        if (state->cur_op_pos == OP_NOOP) {
+        if (state->cur_op_pos == OP_IF) {
             emit_one(segment, state);
             emit_zero(segment, state);
             emit_one(segment, state);
@@ -292,9 +307,12 @@ static void reset_to_after_jump(WhirlCodeSegment *segment, RingState *state) {
         }
     }
 
-    while (state->cur_op_pos != OP_NOOP) {
+    while (state->cur_op_pos != OP_IF) {
         emit_one(segment, state);
     }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
 }
 
 // Sets the current memory position to a specific value. Preserves the value in
@@ -412,6 +430,53 @@ static WhirlCodeSegment *generate_data_initialization(RingState *state, Data *da
     reset_to_after_jump(segment, state);
 
     return segment;
+}
+
+// Make it so the math ring is set to be clockwise, is set to MATH_NOOP, and switch
+// to the operations ring
+static void set_math_ring_clockwise(WhirlCodeSegment *segment, RingState *state) {
+    if (state->math_dir == CLOCKWISE && state->cur_math_pos == MATH_NOOP) {
+        return;
+    }
+
+    if (state->active_ring == OPERATION_RING) {
+        generate_op_command(segment, state, OP_NOOP);
+    }
+
+    if (state->math_dir != CLOCKWISE) {
+        if (state->cur_math_pos == MATH_NOOP) {
+            emit_one(segment, state);
+        }
+        emit_zero(segment, state);
+    }
+
+    while (state->cur_math_pos != MATH_NOOP) {
+        emit_one(segment, state);
+    }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
+}
+
+// Execute a command on the operation ring in a way such that the op
+// ring will be clockwise afterward. This expects that the current ring
+// is the operations ring
+static void do_op_command_clockwise(WhirlCodeSegment *segment, RingState *state, OpCmd cmd) {
+    assert(state->active_ring == OPERATION_RING);
+
+    if (state->op_dir != CLOCKWISE) {
+        if (state->cur_op_pos == cmd) {
+            emit_one(segment, state);
+        }
+        emit_zero(segment, state);
+    }
+
+    while (state->cur_op_pos != cmd) {
+        emit_one(segment, state);
+    }
+
+    emit_zero(segment, state);
+    emit_zero(segment, state);
 }
 
 static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
@@ -616,6 +681,34 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
             generate_op_command(segment, state, OP_DADD);
             break;
 
+        case JMP:
+            if (inst->jmp.type == REG) {
+                move_to_reg(segment, state, inst->jmp.reg);
+                generate_math_command(segment, state, MATH_LOAD);
+                move_back_from_reg(segment, state, inst->jmp.reg);
+                move_to_reg(segment, state, PC_REG_NUM);
+                generate_math_command(segment, state, MATH_STORE);
+                move_back_from_reg(segment, state, PC_REG_NUM);
+            }
+            else {
+                move_to_reg(segment, state, PC_REG_NUM);
+                set_mem(segment, state, inst->jmp.imm);
+                move_back_from_reg(segment, state, PC_REG_NUM);
+            }
+            if (segment->next != NULL) {
+                set_mem(segment, state, segment->next->total_code_len + 1);
+            }
+            else {
+                set_mem(segment, state, 1);
+            }
+            generate_op_command(segment, state, OP_LOAD);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_math_command(segment, state, MATH_EQUAL);
+            generate_math_command(segment, state, MATH_STORE);
+            set_math_ring_clockwise(segment, state);
+            do_op_command_clockwise(segment, state, OP_IF);
+            break;
+
         case EXIT:
             generate_op_command(segment, state, OP_EXIT);
             break;
@@ -654,30 +747,136 @@ static void generate_code_segments(WhirlCodeSegment *last_segment, RingState *st
             {
                 first_segment = first_segment->prev;
             }
-            WhirlCodeSegment *cur_segment = first_segment;
-            while (cur_segment != last_segment->next) {
-                generate_segment(cur_segment, state);
-                cur_segment = cur_segment->next;
-            }            
+            WhirlCodeSegment *segment = first_segment;
+            while (segment != last_segment->next) {
+                generate_segment(segment, state);
+                segment = segment->next;
+            }
+            reset_to_after_jump(last_segment, state);
         }
-        reset_to_after_jump(last_segment, state);
+
+
+        for (WhirlCodeSegment *segment = last_segment; segment != first_segment->prev; segment = segment->prev) {
+            if (segment->next == NULL) {
+                segment->total_code_len = segment->len;
+            }
+            else {
+                segment->total_code_len = segment->len + segment->next->total_code_len;
+            }
+        }
+
         first_segment = first_segment->prev;
     }
 }
 
+static WhirlCodeSegment *generate_jump_for_table(WhirlCodeSegment *last_segment, RingState state, int jump_amount, unsigned length) {
+    WhirlCodeSegment *segment = new_segment(NULL, last_segment);
+    set_mem(segment, &state, -jump_amount);
+    generate_op_command(segment, &state, OP_LOAD);
+    set_math_ring_clockwise(segment, &state);
+
+    if (state.op_dir != CLOCKWISE) {
+        emit_zero(segment, &state);
+        emit_one(segment, &state);
+    }
+
+    while (segment->len < length &&
+           (length - segment->len + state.cur_op_pos - 2) % NUM_CMDS_PER_RING != OP_IF)
+    {
+        emit_zero(segment, &state);
+        emit_one(segment, &state);
+        emit_one(segment, &state);
+        emit_zero(segment, &state);
+        emit_one(segment, &state);
+    }
+
+    if (segment->len >= length) {
+        return NULL;
+    }
+
+    while (segment->len < length - 2) {
+        emit_one(segment, &state);
+    }
+
+    emit_zero(segment, &state);
+    emit_zero(segment, &state);
+
+    return segment;
+}
+
+static WhirlCodeSegment *generate_jump_table(WhirlCodeSegment *first_segment) {
+    WhirlCodeSegment *table_start = new_segment(NULL, NULL);
+    int table_segment_size = 500;
+    bool made_table = false;
+
+    while (!made_table) {
+        RingState *state = &(RingState) {
+            .active_ring  = MATH_RING,
+            .cur_op_pos   = OP_IF,
+            .cur_math_pos = MATH_NOOP,
+            .op_dir       = CLOCKWISE,
+            .math_dir     = CLOCKWISE,
+            .last_is_zero = false,
+        };
+
+        set_mem(table_start, state, table_segment_size);
+        move_to_reg(table_start, state, PC_REG_NUM);
+        generate_math_command(table_start, state, MATH_LOAD);
+        move_back_from_reg(table_start, state, PC_REG_NUM);
+        generate_math_command(table_start, state, MATH_MULT);
+        generate_math_command(table_start, state, MATH_STORE);
+        generate_math_command(table_start, state, MATH_EQUAL);
+        generate_math_command(table_start, state, MATH_ADD);
+        generate_math_command(table_start, state, MATH_STORE);
+        generate_op_command(table_start, state, OP_LOAD);
+        generate_op_command(table_start, state, OP_PADD);
+
+        RingState saved_jump_state = *state;
+        int last_pc = -1;
+        int num_jumps = 0;
+
+        WhirlCodeSegment *last_table_segment = table_start;
+
+        bool table_failed = false;
+
+        for (WhirlCodeSegment *segment = first_segment; segment != NULL; segment = segment->next) {
+            if (segment->inst->pc != last_pc) {
+                num_jumps++;
+                int jump_amount = table_start->len + segment->total_code_len + table_segment_size * num_jumps - 1;
+                WhirlCodeSegment *new_segment = generate_jump_for_table(last_table_segment, saved_jump_state, jump_amount, table_segment_size);
+                if (new_segment == NULL) {
+                    table_failed = true;
+                    break;
+                }
+                last_table_segment = new_segment;
+                last_pc = segment->inst->pc;
+            }
+        }
+
+        if (table_failed) {
+            table_segment_size += 100;
+            table_start = new_segment(NULL, NULL);
+        }
+        else {
+            made_table = true;
+        }
+    }
+
+    return table_start;
+}
+
 void target_whirl(Module *module) {
     RingState *ring_state = &(RingState){
-        .active_ring = OPERATION_RING,
-        .cur_op_pos = OP_NOOP,
+        .active_ring  = OPERATION_RING,
+        .cur_op_pos   = OP_NOOP,
         .cur_math_pos = MATH_NOOP,
-        .op_dir = CLOCKWISE,
-        .math_dir = CLOCKWISE,
+        .op_dir       = CLOCKWISE,
+        .math_dir     = CLOCKWISE,
+        .last_is_zero = false
     };
 
     WhirlCodeSegment *head_segment = NULL;
     WhirlCodeSegment *cur_segment = NULL;
-
-    WhirlCodeSegment *data_init = generate_data_initialization(ring_state, module->data);
 
     // First thing: create a linked list of all the code segments
     for (Inst *inst = module->text; inst != NULL; inst = inst->next) {
@@ -688,10 +887,15 @@ void target_whirl(Module *module) {
         }
     }
 
+    WhirlCodeSegment *data_init = generate_data_initialization(ring_state, module->data);
+
     generate_code_segments(cur_segment, ring_state);
+    WhirlCodeSegment *jump_table = generate_jump_table(head_segment);
 
     data_init->next = head_segment;
     head_segment->prev = data_init;
+    cur_segment->next = jump_table;
+    jump_table->prev = cur_segment;
 
     output_segments(data_init);
     free_segments(head_segment);

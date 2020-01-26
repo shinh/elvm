@@ -77,7 +77,7 @@ bool op_ring::execute()
 
 #ifdef WHIRL_DEBUG
     if (pos != 0) {
-        printf("Executing operations cmd %d ", pos);
+        printf("Cmd (%d) Executing operations cmd %d ", (int) (prog_pos - program.begin()), pos);
     }
 #endif
 
@@ -206,7 +206,7 @@ bool math_ring::execute()
 
 #ifdef WHIRL_DEBUG
     if (pos != 0) {
-        printf("Executing math cmd %d ", pos);
+        printf("Cmd (%d) Executing math cmd %d ", (int) (prog_pos - program.begin()), pos);
     }
 #endif
 
@@ -321,6 +321,9 @@ int main( int argc, char** argv )
 
         if( *prog_pos )
         {
+#ifdef WHIRL_DEBUG
+            printf("1");
+#endif
             cur->rotate();
             execute = false;
         }
@@ -329,13 +332,20 @@ int main( int argc, char** argv )
             cur->switch_dir();
             if( execute )
             {
+#ifdef WHIRL_DEBUG
+                printf("0\n");
+#endif
                 if( !cur->execute() )
                     return 0;
                 (cur == &ops)? cur = &math: cur = &ops;                
                 execute = false;
             }
-            else
+            else {
+#ifdef WHIRL_DEBUG
+                printf("0");
+#endif
                 execute = true;
+            }
         }
         
         if( next_instruction )
