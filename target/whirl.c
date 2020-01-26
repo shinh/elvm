@@ -111,34 +111,23 @@ static WhirlCodeSegment *new_segment(Inst *inst, WhirlCodeSegment *prev) {
 }
 
 static void output_segments(const WhirlCodeSegment *segment) {
-    static const char* op_strs[] = {
-        "mov", "add", "sub", "load", "store", "putc", "getc", "exit",
-        "jeq", "jne", "jlt", "jgt", "jle", "jge", "jmp", "xxx",
-        "eq", "ne", "lt", "gt", "le", "ge", "dump"
-    };
-
     int cur_col = 0;
 
     while (segment != NULL) {
-        if (segment->inst != NULL) {
-            printf("%s: ", op_strs[segment->inst->op]);
-        }
-
         for (size_t i = 0; i < segment->len; i++) {
             putchar(segment->code[i]);    
 
             cur_col++;
-/*            if (cur_col == 50) {
+            if (cur_col == 50) {
                 putchar('\n');
                 cur_col = 0;
             }
-*/
         }
 
-        putchar('\n');
         segment = segment->next;
     }
 
+    putchar('\n');
 }
 
 static void free_segments(WhirlCodeSegment *head) {
