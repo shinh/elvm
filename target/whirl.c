@@ -75,6 +75,8 @@ typedef struct CodeSegment_ {
 
 #define INIT_CODE_ALLOC 32
 
+static const int UINT24_LIMIT = 1 << 24;
+
 // Memory layout:
 // TMP PC A B C D BP SP TMP TMP MEM0 TMP MEM1 TMP MEM2 ...
 /*
@@ -655,6 +657,24 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 generate_math_command(segment, state, MATH_STORE);
                 move_back_from_reg(segment, state, inst->dst.reg);
             }
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_LOAD);
+            set_mem(segment, state, UINT24_LIMIT);
+            generate_math_command(segment, state, MATH_LOAD);
+            generate_op_command(segment, state, OP_STORE);
+            generate_math_command(segment, state, MATH_GREATER);
+            generate_math_command(segment, state, MATH_NOT);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_LOAD);
+            set_mem(segment, state, UINT24_LIMIT);
+            generate_math_command(segment, state, MATH_LOAD);
+            generate_op_command(segment, state, OP_STORE);
+            generate_math_command(segment, state, MATH_NEG);
+            generate_math_command(segment, state, MATH_MULT);
+            move_to_reg(segment, state, inst->dst.reg);
+            generate_math_command(segment, state, MATH_ADD);
+            generate_math_command(segment, state, MATH_STORE);
+            move_back_from_reg(segment, state, inst->dst.reg);
             break;
 
         case SUB:
@@ -679,6 +699,19 @@ static void generate_segment(WhirlCodeSegment *segment, RingState *state) {
                 generate_math_command(segment, state, MATH_STORE);
                 move_back_from_reg(segment, state, inst->dst.reg);
             }
+            generate_op_command(segment, state, OP_ZERO);
+            generate_op_command(segment, state, OP_STORE);
+            generate_math_command(segment, state, MATH_LESS);
+            generate_math_command(segment, state, MATH_STORE);
+            generate_op_command(segment, state, OP_LOAD);
+            set_mem(segment, state, UINT24_LIMIT);
+            generate_math_command(segment, state, MATH_LOAD);
+            generate_op_command(segment, state, OP_STORE);
+            generate_math_command(segment, state, MATH_MULT);
+            move_to_reg(segment, state, inst->dst.reg);
+            generate_math_command(segment, state, MATH_ADD);
+            generate_math_command(segment, state, MATH_STORE);
+            move_back_from_reg(segment, state, inst->dst.reg);
             break;
 
         case GETC:
