@@ -208,8 +208,6 @@ static void emit_zero(WhirlCodeSegment *segment, RingState *state) {
     emit_instruction(segment, '0');
 }
 
-static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd);
-
 bool should_switch(int cur_pos, int target_pos, RingDirection dir) {
     int ones_required;
     if (dir == CLOCKWISE) {
@@ -223,6 +221,8 @@ bool should_switch(int cur_pos, int target_pos, RingDirection dir) {
     }
     return ones_required > (NUM_CMDS_PER_RING / 2);
 }
+
+static void generate_math_command(WhirlCodeSegment *segment, RingState *state, MathCmd cmd);
 
 static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpCmd cmd) {
     if (state->active_ring == MATH_RING) {
@@ -880,43 +880,60 @@ static void generate_code_segments(WhirlCodeSegment *last_segment, RingState *st
 }
 
 static WhirlCodeSegment *generate_jump_for_table(WhirlCodeSegment *last_segment, RingState state, int jump_amount, unsigned length) {
-    WhirlCodeSegment *segment = new_segment(NULL, last_segment);
-    set_mem(segment, &state, -jump_amount);
-    generate_op_command(segment, &state, OP_LOAD);
-    set_math_ring_clockwise(segment, &state);
+    RingState start_state = state;
+    WhirlCodeSegment *segment = NULL;
 
-    if (state.op_dir != CLOCKWISE) {
+    for (int i = 0; i < 200; i++) {
+        size_t actual_len = length - i;
+        int actual_jump = jump_amount - i;
+        state = start_state;
+
+        segment = new_segment(NULL, last_segment);
+        set_mem(segment, &state, -actual_jump);
+        generate_op_command(segment, &state, OP_LOAD);
+        set_math_ring_clockwise(segment, &state);
+
+        if (state.op_dir != CLOCKWISE) {
+            emit_zero(segment, &state);
+            emit_one(segment, &state);
+        }
+
+        while (segment->len < actual_len &&
+            (actual_len - segment->len + state.cur_op_pos - 2) % NUM_CMDS_PER_RING != OP_IF)
+        {
+            emit_zero(segment, &state);
+            emit_one(segment, &state);
+            emit_one(segment, &state);
+            emit_zero(segment, &state);
+            emit_one(segment, &state);
+        }
+
+        if (segment->len >= actual_len) {
+            free_segments(segment);
+            segment = NULL;
+            continue;
+        }
+
+        while (segment->len < actual_len - 2) {
+            emit_one(segment, &state);
+        }
+
         emit_zero(segment, &state);
-        emit_one(segment, &state);
-    }
-
-    while (segment->len < length &&
-           (length - segment->len + state.cur_op_pos - 2) % NUM_CMDS_PER_RING != OP_IF)
-    {
         emit_zero(segment, &state);
-        emit_one(segment, &state);
-        emit_one(segment, &state);
-        emit_zero(segment, &state);
-        emit_one(segment, &state);
-    }
 
-    if (segment->len >= length) {
-        return NULL;
-    }
+        for (int j = 0; j < i; j++) {
+            emit_zero(segment, &state);
+        }
 
-    while (segment->len < length - 2) {
-        emit_one(segment, &state);
+        return segment;
     }
-
-    emit_zero(segment, &state);
-    emit_zero(segment, &state);
 
     return segment;
 }
 
 static WhirlCodeSegment *generate_jump_table(WhirlCodeSegment *first_segment) {
     WhirlCodeSegment *table_start = new_segment(NULL, NULL);
-    int table_segment_size = 500;
+    int table_segment_size = 300;
     bool made_table = false;
 
     while (!made_table) {
@@ -988,7 +1005,6 @@ void target_whirl(Module *module) {
     WhirlCodeSegment *head_segment = NULL;
     WhirlCodeSegment *cur_segment = NULL;
 
-    // First thing: create a linked list of all the code segments
     for (Inst *inst = module->text; inst != NULL; inst = inst->next) {
         cur_segment = new_segment(inst, cur_segment);
 
