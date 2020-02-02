@@ -179,6 +179,13 @@ bool op_ring::execute()
             {
                 // read character
                 (*mem_pos) = getchar();
+
+                // The default behavior of the whirl interpreter for some reason
+                // is to only take the first ascii character per line. This does
+                // not work the way ELVM expects input to work, so this next line
+                // is commented out.
+
+                // while ( getchar() != '\n' )
             }
             else
                 printf( "%c", *mem_pos );
