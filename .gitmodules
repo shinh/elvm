@@ -6,4 +6,4 @@
 	url = https://github.com/koturn/Whitespace
 [submodule "tinycc"]
 	path = tinycc
-	url = http://repo.or.cz/tinycc.git
+	url = https://github.com/mirror/tinycc
