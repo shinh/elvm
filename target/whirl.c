@@ -253,7 +253,7 @@ static void generate_op_command(WhirlCodeSegment *segment, RingState *state, OpC
     if (state->active_ring == MATH_RING) {
         // If we're on the wrong ring, we need to execute a nop command to switch to
         // the operations ring
-        generate_math_command(segment, state, OP_NOOP);
+        generate_math_command(segment, state, MATH_NOOP);
     }
 
     if (should_switch(state->cur_op_pos, cmd, state->op_dir)) {
@@ -274,7 +274,7 @@ static void generate_math_command(WhirlCodeSegment *segment, RingState *state, M
     if (state->active_ring == OPERATION_RING) {
         // If we're on the wrong ring, we need to execute a nop command to switch to
         // the math ring
-        generate_op_command(segment, state, MATH_NOOP);
+        generate_op_command(segment, state, OP_NOOP);
     }
 
     if (should_switch(state->cur_math_pos, cmd, state->math_dir)) {
