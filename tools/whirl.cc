@@ -124,7 +124,7 @@ bool op_ring::execute()
         // Logic
         case 8:
             if( *mem_pos != 0 )
-                value = value && 1;
+                value = (value ? 1 : 0);
             else
                 value = 0;
             break;
