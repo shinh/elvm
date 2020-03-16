@@ -143,47 +143,44 @@ char* getenv(const char* name) {
   return NULL;
 }
 
+// taken from https://en.wikibooks.org/wiki/Algorithm_Implementation/Sorting/Quicksort#C
+static void swap(void *x, void *y, size_t l) {
+  char *a = x, *b = y, c;
+  while(l--) {
+    c = *a;
+    *a++ = *b;
+    *b++ = c;
+  }
+}
+
+static void qsort_helper(char *array, size_t size,
+                         int (*cmp)(const void*, const void*),
+                         int begin, int end) {
+  if (end > begin) {
+    void *pivot = array + begin;
+    int l = begin + size;
+    int r = end;
+    while(l < r) {
+      if (cmp(array+l,pivot) <= 0) {
+        l += size;
+      } else if ( cmp(array+r, pivot) > 0 )  {
+        r -= size;
+      } else if ( l < r ) {
+        swap(array+l, array+r, size);
+      }
+    }
+    l -= size;
+    swap(array+begin, array+l, size);
+    qsort_helper(array, size, cmp, begin, l);
+    qsort_helper(array, size, cmp, r, end);
+  }
+}
+
 void qsort(void* vbase, size_t nmemb, size_t size,
            int (*compar)(const void*, const void*)) {
-  if (nmemb <= 1)
-    return;
-  char* base = (char*)vbase;
-  char* pivot = base + (nmemb / 2) * size;
-  char* left = base;
-  char* right = base + (nmemb - 1) * size;
-#if 0
-  printf("nmemb=%d size=%d\n", nmemb, size);
-  for (int i = 0; i < nmemb; i++) {
-    printf("%d ", *((int*)base + i));
+  if (nmemb > 0) {
+    qsort_helper(vbase, size, compar, 0, (nmemb-1)*size);
   }
-  puts("");
-#endif
-  for (;;) {
-    //printf("left=%d right=%d", left-base, right-base);
-    while (compar(left, pivot) >= 32768)
-      left += size;
-    while ((compar(right, pivot) - 1) < 32768)
-      right -= size;
-    //printf(" => left=%d right=%d\n", left-base, right-base);
-    if (left >= right)
-      break;
-    for (size_t i = 0; i < size; i++) {
-      char tmp = left[i];
-      left[i] = right[i];
-      right[i] = tmp;
-    }
-    if (pivot == left)
-      pivot = right;
-    else if (pivot == right)
-      pivot = left;
-    left += size;
-    right -= size;
-  }
-  //left -= size;
-  right += size;
-  qsort(base, (size_t)(left - base) / size, size, compar);
-  qsort(right, (size_t)(base + nmemb * size - right) / size,
-        size, compar);
 }
 
 #endif  // ELVM_LIBC_STDLIB_H_
