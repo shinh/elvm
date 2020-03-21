@@ -24,6 +24,6 @@ typedef long time_t;
 #define UINT32_MAX	(((unsigned)INT32_MAX) * 2UL + 1UL)
 #define INT64_MAX	0x7fffffffffffffffLL
 #define INT64_MIN	(-INT64_MAX - 1LL)
-#define UINT64_MAX	(((unsigned)INT64_MAX) * 2ULL + 1ULL)
+#define UINT64_MAX	(((unsigned long long)INT64_MAX) * 2ULL + 1ULL)
 
 #endif  // ELVM_LIBC_STDINT_H_
