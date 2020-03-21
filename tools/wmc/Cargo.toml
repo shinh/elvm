@@ -1,0 +1,12 @@
+[package]
+name = "wmc"
+version = "0.1.0"
+authors = ["jsc <jsc+elvm@demigods.org>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+nom = "5"
+getopts = "0.2"
+itertools = "0.8"
