@@ -4,5 +4,6 @@ compiler:
   - clang
 
 script:
+  - make -j4
   - make -j4 rb elc-rb
   - tools/check_selfhost.sh x86
