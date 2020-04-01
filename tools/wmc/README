@@ -1,0 +1,13 @@
+This is a compiler that goes from the target `wm` to C. The compiler source is
+rust and under src/ while the runtime source is under src/crt (for C runtime).
+
+To compile, use rust's carg:
+	cargo build
+
+Then run:
+	wmc -src in.wm -o crt
+Where `in.wm` is the elvm output for the target `wm` and `crt` is the crt base
+directory (it will output Program.h in this directory).
+
+At this point you can run make in the base of `crt` to build the program.
+Invoke `./wm` to run the final program.

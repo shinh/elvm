@@ -75,6 +75,9 @@ out/tm: tools/tm.c
 out/whirl: tools/whirl.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
+out/wmc: tools/wmc/Cargo.toml
+	cargo +nightly -Z unstable-options build --manifest-path $< --out-dir $@ --target-dir $@/obj
+
 tinycc/tcc: tinycc/config.h
 	$(MAKE) -C tinycc tcc libtcc1.a
 
@@ -137,6 +140,7 @@ ELC_SRCS := \
 	vim.c \
 	wasm.c \
 	whirl.c \
+	wm.c \
 	ws.c \
 	x86.c \
 
@@ -507,6 +511,15 @@ include target.mk
 TARGET := whirl
 RUNNER := out/whirl
 include target.mk
+
+TARGET := wm
+RUNNER := tools/runwm.sh
+TOOL := cargo
+# Strip out 24-bit specific tests as well as tests that take more resources
+# than my computer could handle
+TEST_FILTER := out/24_cmp.c.eir.wm out/24_cmp2.c.eir.wm out/24_muldiv.c.eir.wm out/qsort.c.eir.wm out/lisp.c.eir.wm out/8cc.c.eir.wm out/elc.c.eir.wm out/dump_ir.c.eir.wm out/eli.c.eir.wm
+include target.mk
+$(OUT.eir.wm.out): out/wmc
 
 test: $(TEST_RESULTS)
 
