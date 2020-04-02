@@ -50,6 +50,7 @@ void target_unl(Module* module);
 void target_vim(Module* module);
 void target_wasm(Module* module);
 void target_whirl(Module* module);
+void target_wm(Module* module);
 void target_ws(Module* module);
 void target_x86(Module* module);
 
@@ -104,6 +105,10 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "vim")) return target_vim;
   if (!strcmp(ext, "wasm")) return target_wasm;
   if (!strcmp(ext, "whirl")) return target_whirl;
+  if (!strcmp(ext, "wm")) {
+    split_basic_block_by_mem();
+    return target_wm;
+  }
   if (!strcmp(ext, "ws")) return target_ws;
   if (!strcmp(ext, "x86")) return target_x86;
   error("unknown flag: %s", ext);
