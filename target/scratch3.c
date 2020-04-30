@@ -1700,7 +1700,9 @@ void target_scratch3(Module *module) {
   printf(
       "],\"sounds\":[],\"volume\":100,\"layerOrder\":0,\"tempo\":60,"
       "\"videoTransparency\":50,\"videoState\":\"on\",\"textToSpeechLanguage\":"
-      "null}],\"monitors\":[{\"id\":\"#l:stdout\",\"mode\":\"list\",\"opcode\":"
+      "null}],\"monitors\":[{\"id\":\"#l:stdout\",\"mode\":\"list\","
+      "\"opcode\":");
+  printf(
       "\"data_listcontents\",\"params\":{\"LIST\":\"stdout\"},\"spriteName\":"
       "null,\"value\":[],\"width\":480,\"height\":280,\"x\":0,\"y\":0,"
       "\"visible\":true}],\"extensions\":[],\"meta\":{\"semver\":\"3.0.0\"}}");
