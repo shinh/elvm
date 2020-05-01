@@ -132,6 +132,7 @@ ELC_SRCS := \
 	sqlite3.c \
 	scala.c \
 	scm_sr.c \
+	scratch3.c \
 	swift.c \
 	tex.c \
 	tf.c \
@@ -520,6 +521,15 @@ TOOL := cargo
 TEST_FILTER := out/24_cmp.c.eir.wm out/24_cmp2.c.eir.wm out/24_muldiv.c.eir.wm out/qsort.c.eir.wm out/lisp.c.eir.wm out/8cc.c.eir.wm out/elc.c.eir.wm out/dump_ir.c.eir.wm out/eli.c.eir.wm
 include target.mk
 $(OUT.eir.wm.out): out/wmc
+
+TARGET := scratch3
+RUNNER := tools/runscratch3.sh
+CAN_BUILD := $(if $(and $(shell which nodejs),$(shell which npm),$(shell (npm list -g ; cd tools && npm list) 2>/dev/null | grep 'scratch-vm')),1,0)
+TEST_FILTER := out/8cc.c.eir.scratch3 out/elc.c.eir.scratch3 out/dump_ir.c.eir.scratch3
+ifndef FULL
+TEST_FILTER += out/eli.c.eir.scratch3
+endif
+include target.mk
 
 test: $(TEST_RESULTS)
 

@@ -39,6 +39,7 @@ void target_rb(Module* module);
 void target_rs(Module* module);
 void target_scala(Module* module);
 void target_scm_sr(Module* module);
+void target_scratch3(Module* module);
 void target_sed(Module* module);
 void target_sh(Module* module);
 void target_sqlite3(Module* module);
@@ -94,6 +95,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "rs")) return target_rs;
   if (!strcmp(ext, "scala")) return target_scala;
   if (!strcmp(ext, "scm_sr")) return target_scm_sr;
+  if (!strcmp(ext, "scratch3")) return target_scratch3;
   if (!strcmp(ext, "sed")) return target_sed;
   if (!strcmp(ext, "sh")) return target_sh;
   if (!strcmp(ext, "sqlite3")) return target_sqlite3;

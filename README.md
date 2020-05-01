@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 40 backends:
+Currently, there are 41 backends:
 
 * Bash
 * Befunge
@@ -42,6 +42,7 @@ Currently, there are 40 backends:
 * Python
 * Ruby
 * Scheme syntax-rules (by [@zeptometer](https://github.com/zeptometer/))
+* Scratch3.0 (by [@algon-320](https://github.com/algon-320/))
 * SQLite3 (by [@youz](https://github.com/youz/))
 * Swift (by [@kwakasa](https://github.com/kwakasa/))
 * TeX (by [@hak7a3](https://github.com/hak7a3/))
@@ -283,6 +284,59 @@ work. You can test this backend by
     $ TF=1 make tf
 
 TODO: Reduce the size of the graph and run 8cc
+
+### Scratch 3.0
+
+[Scratch](https://scratch.mit.edu/) is a visual programming language.
+
+Internally, a Scratch program consists of a JSON that represent the program and some resources such as 
+images or sounds.
+They are zip-archived and you can import/export them from project page (Create new one from [here](https://scratch.mit.edu/projects/editor/)).
+
+You can use `tools/gen_scratch_sb3.sh` to generate complete project files from output of this backend,
+and `tools/run_scratch.js` to execute programs from command line (npm 'scratch-vm' package is required).
+
+You can try "fizzbuzz_fast" sample from [here](https://scratch.mit.edu/projects/383294522/).
+
+#### Example (for `test/basic.eir`)
+First, generate scratch project.
+```sh
+$ ./out/elc -scratch3 test/basic.eir > basic.scratch3
+$ ./tools/gen_scratch_sb3.sh basic.scratch3
+$ ls basic.scratch3.sb3
+basic.scratch3.sb3
+```
+
+##### Execute it from Web browser
+1. Visit [https://scratch.mit.edu/projects/editor](https://scratch.mit.edu/projects/editor).
+2. Click a menu item: "File".
+3. Click "Load from your computer".
+4. Select and upload the generated project file: `basic.scratch3.sb3`.
+5. Wait until the project is loaded. (It takes a long time for a hevy project.)
+6. Click the "Green Flag"
+
+From the Web editor, to input special characters (LF, EOF, etc.) you have to input them explicitly by following:
+|special character|representation|
+|-----------------|--------------|
+| LF              |`＼n`         |
+| EOF             |`＼0`         |
+| other character with codepoint XXX (decimal) |`＼dXXX`|
+
+Note that: the escape character is `＼` (U+FF3C) not `\`.
+
+For normal ASCII characters, you can just put them into the input field.
+
+##### Execute it from command line
+1. First install the npm package ["scratch-vm"](https://github.com/LLK/scratch-vm) under the `tools` directory :
+```sh
+$ cd tools
+$ npm install scratch-vm
+```
+2. Run it with `tools/run_scratch.js`:
+```
+$ echo -n '' | nodejs ./run_scratch.js ../basic.scratch3.sb3
+!!@X
+```
 
 ## Future works
 
