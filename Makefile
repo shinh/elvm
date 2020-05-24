@@ -139,6 +139,7 @@ ELC_SRCS := \
 	tm.c \
 	unl.c \
 	vim.c \
+	wasi.c \
 	wasm.c \
 	whirl.c \
 	wm.c \
@@ -276,6 +277,11 @@ include target.mk
 
 TARGET := asmjs
 RUNNER := nodejs
+include target.mk
+
+TARGET := wasi
+# Run with wat
+RUNNER := wasmtime
 include target.mk
 
 TARGET := wasm
