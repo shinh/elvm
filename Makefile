@@ -117,6 +117,7 @@ ELC_SRCS := \
 	js.c \
 	lua.c \
 	ll.c \
+	lol.c \
 	mcfunction.c \
 	oct.c \
 	php.c \
@@ -535,6 +536,10 @@ TEST_FILTER := out/8cc.c.eir.scratch3 out/elc.c.eir.scratch3 out/dump_ir.c.eir.s
 ifndef FULL
 TEST_FILTER += out/eli.c.eir.scratch3
 endif
+include target.mk
+
+TARGET := whirl
+RUNNER := out/whirl
 include target.mk
 
 test: $(TEST_RESULTS)
