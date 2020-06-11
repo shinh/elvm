@@ -542,6 +542,10 @@ TARGET := whirl
 RUNNER := out/whirl
 include target.mk
 
+TARGET := lol
+RUNNER := out/whirl
+include target.mk
+
 test: $(TEST_RESULTS)
 
 .SUFFIXES:

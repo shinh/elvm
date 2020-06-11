@@ -4,8 +4,10 @@
 static void init_state_lol(Data* data) {
   emit_line("HAI 1.4");
   emit_line("CAN HAS STDIO?");
+  emit_line("I HAS A running ITZ WIN");
+  emit_line("I HAS A stdin ITZ I IZ STDIO'Z OPEN YR \"STDIN\" AN YR \"r\" MKAY");
 
-  // Bitwise and //
+  // Bitwise &
   emit_line("HOW IZ I exp2 YR exp");
   emit_line("  I HAS A out ITZ 1");
   emit_line("  I HAS A i ITZ 0");
@@ -31,6 +33,44 @@ static void init_state_lol(Data* data) {
 
   emit_line("  IM OUTTA YR andloop");
   emit_line("  FOUND YR out");
+  emit_line("IF U SAY SO");
+
+  // number to char
+
+  emit_line("HOW IZ I num2char YR n");
+  inc_indent();
+  emit_line("n, WTF?");
+  inc_indent();
+  
+  for (int n = 0; n < 265; n++){
+    emit_line("OMG %d", n);
+    inc_indent();
+    emit_line("FOUND YR \":(%x)\"", n);
+    dec_indent();
+  }
+
+  dec_indent();
+  emit_line("OIC");
+  dec_indent();
+  emit_line("IF U SAY SO");
+
+  // char to number
+
+  emit_line("HOW IZ I char2num YR c");
+  inc_indent();
+  emit_line("c, WTF?");
+  inc_indent();
+  
+  for (int n = 0; n < 256; n++){
+    emit_line("OMG \":(%x)\"", n);
+    inc_indent();
+    emit_line("FOUND YR %d", n);
+    dec_indent();
+  }
+
+  dec_indent();
+  emit_line("OIC");
+  dec_indent();
   emit_line("IF U SAY SO");
 
   for (int i = 0; i < 7; i++) {
@@ -72,7 +112,6 @@ static char* lol_cmp_str(Inst* inst){
 static void lol_emit_func_prologue(int func_id) {
   emit_line("HOW IZ I func%d", func_id);
   inc_indent();
-  emit_line("");
 
   emit_line("IM IN YR loop UPPIN YR pc TIL BOTH OF BOTH SAEM %1$d AN SMALLER OF %1$d AN pc AN DIFFRINT pc AN BIGGR OF pc AN %2$d",
       func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
@@ -126,16 +165,27 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    emit_line("sys.stdout.write(chr(%s))", src_str(inst));
+    emit_line("VISIBLE I IZ num2char YR %s MKAY", src_str(inst));
     break;
 
   case GETC:
-    emit_line("_ = sys.stdin.read(1); %s = ord(_) if _ else 0",
+    emit_line("I HAS A _ ITZ I IZ STDIO'Z LUK YR stdin AN YR 1 MKAY");
+    emit_line("BOTH SAEM _ AN \":(1A)\", O RLY?");
+    inc_indent();
+    emit_line("YA RLY");
+    inc_indent();
+    emit_line("_ R 0");
+    dec_indent();
+    dec_indent();
+    emit_line("OIC");
+
+    emit_line("%s R I IZ char2num YR _ MKAY",
               reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
-    emit_line("sys.exit(0)");
+    emit_line("running R FAIL");
+    emit_line("GTFO");
     break;
 
   case DUMP:
@@ -183,11 +233,20 @@ void target_lol(Module* module) {
                                          lol_emit_inst);
 
   emit_line("");
-  emit_line("while True:");
+  emit_line("IM IN YR mainloop UPPIN YR temp WILE running");
   inc_indent();
-  emit_line("if False: pass");
+  emit_line("FAIL, O RLY?");
+  inc_indent();
+  emit_line("YA RLY");
   for (int i = 0; i < num_funcs; i++) {
-    emit_line("elif pc < %d: func%d()", (i + 1) * CHUNKED_FUNC_SIZE, i);
+    emit_line("MEBBE BOTH SAEM pc AN SMALLER OF pc AN %d", (i + 1) * CHUNKED_FUNC_SIZE);
+    inc_indent();
+    emit_line("I IZ func%d MKAY", i);
+    dec_indent();
   }
+  emit_line("OIC");
   dec_indent();
+  emit_line("IM OUTTA YR mainloop");
+  dec_indent();
+  emit_line("KTHXBYE");
 }
