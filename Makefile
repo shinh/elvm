@@ -543,7 +543,7 @@ RUNNER := out/whirl
 include target.mk
 
 TARGET := lol
-RUNNER := out/whirl
+RUNNER := tools/runlol.sh
 include target.mk
 
 test: $(TEST_RESULTS)
