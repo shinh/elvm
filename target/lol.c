@@ -3,9 +3,10 @@
 
 static void init_state_lol(Data* data) {
   emit_line("HAI 1.4");
-  emit_line("CAN HAS STDIO?");
+  emit_line("CAN HAS STRING?");
   emit_line("I HAS A running ITZ WIN");
-  emit_line("I HAS A stdin ITZ I IZ STDIO'Z OPEN YR \"STDIN\" AN YR \"r\" MKAY");
+  emit_line("I HAS A buffer ITZ A YARN");
+  emit_line("I HAS A bufferptr ITZ 0");
 
   // Bitwise &
   emit_line("HOW IZ I exp2 YR exp");
@@ -33,6 +34,55 @@ static void init_state_lol(Data* data) {
 
   emit_line("  IM OUTTA YR andloop");
   emit_line("  FOUND YR out");
+  emit_line("IF U SAY SO");
+
+
+  // Array functions
+  emit_line("I HAS A mem ITZ A BUKKIT");
+  emit_line("I HAS A slotsused ITZ A BUKKIT");
+  emit_line("I HAS A numslots ITZ 0");
+
+  emit_line("HOW IZ I indexUsed YR val");
+  emit_line("  IM IN YR loop UPPIN YR i TIL BOTH SAEM i AN numslots");
+  emit_line("    BOTH SAEM val AN slotsused'Z SRS \"s:{i}\", O RLY?");
+  emit_line("      YA RLY");
+  emit_line("        FOUND YR WIN");
+  emit_line("    OIC");
+  emit_line("  IM OUTTA YR loop");
+  emit_line("  FOUND YR FAIL");
+  emit_line("IF U SAY SO");
+
+  emit_line("HOW IZ I addUsed YR loc");
+  emit_line("  slotsused HAS A SRS \"s:{numslots}\" ITZ loc ");
+  emit_line("  numslots R SUM OF numslots AN 1");
+  emit_line("IF U SAY SO");
+
+  emit_line("HOW IZ I getMem YR loc");
+  emit_line("  DIFFRINT loc AN SMALLR OF loc AN 16777215, O RLY?");
+  emit_line("    YA RLY");
+  emit_line("      FOUND YR 0");
+  emit_line("  OIC");
+  emit_line("  I IZ indexUsed YR loc MKAY, O RLY?");
+  emit_line("    YA RLY");
+  emit_line("      FOUND YR mem'Z SRS \"m:{loc}\"");
+  emit_line("    NO WAI");
+  emit_line("      FOUND YR 0");
+  emit_line("  OIC");
+  emit_line("IF U SAY SO");
+
+
+  emit_line("HOW IZ I setMem YR loc AN YR val");
+  emit_line("  DIFFRINT loc AN SMALLR OF loc AN 16777215, O RLY?");
+  emit_line("    YA RLY");
+  emit_line("      GTFO");
+  emit_line("  OIC");
+  emit_line("  I IZ indexUsed YR loc MKAY, O RLY?");
+  emit_line("    YA RLY");
+  emit_line("      mem'Z SRS \"m:{loc}\" R val");
+  emit_line("    NO WAI");
+  emit_line("      I IZ addUsed YR loc MKAY");
+  emit_line("      mem HAS A SRS \"m:{loc}\" ITZ val");
+  emit_line("  OIC");
   emit_line("IF U SAY SO");
 
   // number to char
@@ -76,12 +126,13 @@ static void init_state_lol(Data* data) {
   for (int i = 0; i < 7; i++) {
     emit_line("I HAS A %s ITZ 0", reg_names[i]);
   }
-  emit_line("I HAS A mem ITZ A BUKKIT");
+
   for (int mp = 0; data; data = data->next, mp++) {
     if (data->v) {
-      emit_line("mem HAS A m%d ITZ %d", mp, data->v);
+      emit_line("I IZ setMem YR %d AN YR %d MKAY", mp, data->v);
     }
   }
+  
 }
 
 static char* lol_cmp_str(Inst* inst){
@@ -94,13 +145,13 @@ static char* lol_cmp_str(Inst* inst){
       return format("DIFFRINT %s AN %s", reg_names[inst->dst.reg], src_str(inst));
     case LE:
     case JLE:
-      return format("BOTH SAEM %1$s AN SMALLER OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
+      return format("BOTH SAEM %1$s AN SMALLR OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
     case GE:
     case JGE:
       return format("BOTH SAEM %1$s AN BIGGR OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
     case GT:
     case JGT:
-      return format("DIFFRINT %1$s AN SMALLER OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
+      return format("DIFFRINT %1$s AN SMALLR OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
     case LT:
     case JLT:
       return format("DIFFRINT %1$s AN BIGGR OF %1$s AN %2$s", reg_names[inst->dst.reg], src_str(inst));
@@ -113,16 +164,20 @@ static void lol_emit_func_prologue(int func_id) {
   emit_line("HOW IZ I func%d", func_id);
   inc_indent();
 
-  emit_line("IM IN YR loop UPPIN YR pc TIL BOTH OF BOTH SAEM %1$d AN SMALLER OF %1$d AN pc AN DIFFRINT pc AN BIGGR OF pc AN %2$d",
+  emit_line("IM IN YR loop UPPIN YR temp0 WILE BOTH OF BOTH SAEM %1$d AN SMALLR OF %1$d AN pc AN DIFFRINT pc AN BIGGR OF pc AN %2$d",
       func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
   emit_line("pc, WTF?");
+  inc_indent();
+  emit_line("OMG -1");
   inc_indent();
 }
 
 static void lol_emit_func_epilogue(void) {
   dec_indent();
+  dec_indent();
   emit_line("OIC");
+  emit_line("pc R SUM OF pc AN 1");
   dec_indent();
   emit_line("IM OUTTA YR loop");
   dec_indent();
@@ -143,44 +198,49 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s R IZ bitwise_and YR SUM OF %s AN %s AN YR %d MKAY",
+    emit_line("%s R I IZ bitwise_and YR SUM OF %s AN %s AN YR %s MKAY",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst),
-              UINT_MAX_STR);
+              reg_names[inst->dst.reg],
+              src_str(inst), UINT_MAX_STR);
     break;
 
   case SUB:
-    emit_line("%s R IZ bitwise_and YR DIFF OF %s AN %s AN YR %d MKAY",
+    emit_line("%s R I IZ bitwise_and YR DIFF OF %s AN %s AN YR %s MKAY",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst),
-              UINT_MAX_STR);
+              reg_names[inst->dst.reg],
+              src_str(inst), UINT_MAX_STR);
     break;
 
   case LOAD:
-    emit_line("%s R mem'Z m%s", reg_names[inst->dst.reg], src_str(inst));
+    emit_line("%s R I IZ getMem YR %s MKAY", reg_names[inst->dst.reg], src_str(inst));
     break;
 
   case STORE:
-    emit_line("mem'Z m%s R %s", src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("I IZ setMem YR %s AN YR %s MKAY", src_str(inst), reg_names[inst->dst.reg]);
     break;
 
   case PUTC:
-    emit_line("VISIBLE I IZ num2char YR %s MKAY", src_str(inst));
+    emit_line("VISIBLE I IZ num2char YR %s MKAY!", src_str(inst));
     break;
 
   case GETC:
-    emit_line("I HAS A _ ITZ I IZ STDIO'Z LUK YR stdin AN YR 1 MKAY");
-    emit_line("BOTH SAEM _ AN \":(1A)\", O RLY?");
+
+    emit_line("buffer R SMOOSH buffer AN temp MKAY");
+    emit_line("bufferptr R SUM OF bufferptr AN 1");
+    emit_line("BOTH SAEM bufferptr AN I IZ STRING'Z LEN YR buffer MKAY, O RLY?");
     inc_indent();
     emit_line("YA RLY");
     inc_indent();
-    emit_line("_ R 0");
+    emit_line("bufferptr R 0");
+    emit_line("GIMMEH buffer");
     dec_indent();
     dec_indent();
     emit_line("OIC");
 
-    emit_line("%s R I IZ char2num YR _ MKAY",
+    emit_line("%s R I IZ char2num YR I IZ STRING'Z AT YR buffer AN YR bufferptr MKAY MKAY",
               reg_names[inst->dst.reg]);
+
+
     break;
 
   case EXIT:
@@ -197,7 +257,7 @@ static void lol_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
-    emit_line("%s R MAEK %s A NUMR",
+    emit_line("%s R MAEK %s A NUMBR",
               reg_names[inst->dst.reg], lol_cmp_str(inst));
     break;
 
@@ -239,7 +299,7 @@ void target_lol(Module* module) {
   inc_indent();
   emit_line("YA RLY");
   for (int i = 0; i < num_funcs; i++) {
-    emit_line("MEBBE BOTH SAEM pc AN SMALLER OF pc AN %d", (i + 1) * CHUNKED_FUNC_SIZE);
+    emit_line("MEBBE BOTH SAEM pc AN SMALLR OF pc AN %d", (i + 1) * CHUNKED_FUNC_SIZE);
     inc_indent();
     emit_line("I IZ func%d MKAY", i);
     dec_indent();
