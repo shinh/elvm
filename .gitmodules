@@ -7,3 +7,6 @@
 [submodule "tinycc"]
 	path = tinycc
 	url = https://github.com/mirror/tinycc
+[submodule "lci"]
+	path = lci
+	url = https://github.com/justinmeza/lci
