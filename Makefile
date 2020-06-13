@@ -55,10 +55,13 @@ out/git_submodule.stamp: .git/index
 	git submodule update --init
 	touch $@
 
-$(8CC_SRCS) Whitespace/whitespace.c tinycc/configure: out/git_submodule.stamp
+$(8CC_SRCS) lci/install.py Whitespace/whitespace.c tinycc/configure: out/git_submodule.stamp
 
 Whitespace/whitespace.out: Whitespace/whitespace.c
 	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
+
+lci/lci: lci/install.py
+	cd lci && ./install.py
 
 out/befunge: tools/befunge.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -117,6 +120,7 @@ ELC_SRCS := \
 	js.c \
 	lua.c \
 	ll.c \
+	lol.c \
 	mcfunction.c \
 	oct.c \
 	php.c \
@@ -535,6 +539,10 @@ TEST_FILTER := out/8cc.c.eir.scratch3 out/elc.c.eir.scratch3 out/dump_ir.c.eir.s
 ifndef FULL
 TEST_FILTER += out/eli.c.eir.scratch3
 endif
+include target.mk
+
+TARGET := lol
+RUNNER := tools/runlol.sh
 include target.mk
 
 test: $(TEST_RESULTS)
