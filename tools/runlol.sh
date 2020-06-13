@@ -2,4 +2,6 @@
 
 set -e
 
-lci/lci $1
+cd lci
+lci $1
+cd ..
