@@ -137,7 +137,7 @@ typedef struct {
 
 static MCFGen mcf;
 
-static void mcf_char_to_string(char c, char* out) {
+static void mcf_char_to_string(signed char c, char* out) {
   if ((c >= 0 && c < 32) || c == 127)
     c = ' ';
 
@@ -507,10 +507,10 @@ static void mcf_emit_chr_function(int min, int max) {
   if (range == 2) {
     /* emit leaf nodes */
     char ch[3];
-    mcf_char_to_string((char) min, ch);
+    mcf_char_to_string((signed char) min, ch);
     emit_line(MCF_EIS "%s elvm_param matches %d run " MCF_DMS "%s:elvm chr set value \"%s\"",
               MCF_NAMESPACE, min, MCF_NAMESPACE, ch);
-    mcf_char_to_string((char) mid, ch);
+    mcf_char_to_string((signed char) mid, ch);
     emit_line(MCF_EIS "%s elvm_param matches %d run " MCF_DMS "%s:elvm chr set value \"%s\"",
               MCF_NAMESPACE, mid, MCF_NAMESPACE, ch);
   } else {
@@ -741,7 +741,7 @@ static void mcf_emit_inst(Inst* inst) {
         } else {
           if (MCF_STDOUT_CHARS) {
             char ch[3];
-            mcf_char_to_string((char) val, ch);
+            mcf_char_to_string((signed char) val, ch);
             emit_line(MCF_DMS "%s:elvm stdout append value \"%s\"", MCF_NAMESPACE, ch);
             if (MCF_STDOUT_CALLBACK) {
               emit_line(MCF_DMS "%s:elvm chr set value \"%s\"", MCF_NAMESPACE, ch);
