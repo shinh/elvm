@@ -7,6 +7,7 @@
 
 void target_arm(Module* module);
 void target_asmjs(Module* module);
+void target_awk(Module* module);
 void target_bef(Module* module);
 void target_bf(Module* module);
 void target_c(Module* module);
@@ -62,6 +63,7 @@ typedef void (*target_func_t)(Module*);
 static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "arm")) return target_arm;
   if (!strcmp(ext, "asmjs")) return target_asmjs;
+  if (!strcmp(ext, "awk")) return target_awk;
   if (!strcmp(ext, "bef")) return target_bef;
   if (!strcmp(ext, "bf")) {
     split_basic_block_by_mem();

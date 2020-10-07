@@ -100,6 +100,7 @@ ELC_SRCS := \
 	util.c \
 	asmjs.c \
 	arm.c \
+	awk.c \
 	bef.c \
 	bf.c \
 	c.c \
@@ -543,6 +544,10 @@ include target.mk
 
 TARGET := lol
 RUNNER := tools/runlol.sh
+include target.mk
+
+TARGET := awk
+RUNNER := awk -b -f
 include target.mk
 
 test: $(TEST_RESULTS)
