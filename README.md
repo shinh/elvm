@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 44 backends:
+Currently, there are 45 backends:
 
 * Awk (by [@dubek](https://github.com/dubek/))
 * Bash
@@ -47,6 +47,7 @@ Currently, there are 44 backends:
 * Scratch3.0 (by [@algon-320](https://github.com/algon-320/))
 * SQLite3 (by [@youz](https://github.com/youz/))
 * Swift (by [@kwakasa](https://github.com/kwakasa/))
+* Tcl (by [@dubek](https://github.com/dubek/))
 * TeX (by [@hak7a3](https://github.com/hak7a3/))
 * TensorFlow (WIP)
 * Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))

@@ -139,6 +139,7 @@ ELC_SRCS := \
 	scm_sr.c \
 	scratch3.c \
 	swift.c \
+	tcl.c \
 	tex.c \
 	tf.c \
 	tm.c \
@@ -548,6 +549,10 @@ include target.mk
 
 TARGET := awk
 RUNNER := awk -b -f
+include target.mk
+
+TARGET := tcl
+RUNNER := tclsh
 include target.mk
 
 test: $(TEST_RESULTS)
