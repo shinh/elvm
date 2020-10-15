@@ -24,6 +24,7 @@ void target_go(Module* module);
 void target_hell(Module* module);
 void target_hs(Module* module);
 void target_i(Module* module);
+void target_j(Module* module);
 void target_java(Module* module);
 void target_js(Module* module);
 void target_lua(Module* module);
@@ -84,6 +85,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "hell")) return target_hell;
   if (!strcmp(ext, "hs")) return target_hs;
   if (!strcmp(ext, "i")) return target_i;
+  if (!strcmp(ext, "j")) return target_j;
   if (!strcmp(ext, "java")) return target_java;
   if (!strcmp(ext, "js")) return target_js;
   if (!strcmp(ext, "lua")) return target_lua;
