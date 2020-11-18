@@ -117,6 +117,7 @@ ELC_SRCS := \
 	hell.c \
 	hs.c \
 	i.c \
+	j.c \
 	java.c \
 	js.c \
 	lua.c \
@@ -553,6 +554,11 @@ include target.mk
 
 TARGET := tcl
 RUNNER := tclsh
+include target.mk
+
+TARGET := j
+RUNNER := jconsole
+CAN_BUILD := $(shell jconsole -js "echo i.4" -js "exit 0" 2>&1 | perl -ne 'print /^0 1 2 3/ ? 1 : 0')
 include target.mk
 
 test: $(TEST_RESULTS)
