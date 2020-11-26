@@ -120,6 +120,7 @@ ELC_SRCS := \
 	j.c \
 	java.c \
 	js.c \
+	kx.c \
 	lua.c \
 	ll.c \
 	lol.c \
@@ -277,6 +278,10 @@ TARGET := tf
 RUNNER := python
 include target.mk
 endif
+
+TARGET := kx
+RUNNER := kinx
+include target.mk
 
 TARGET := js
 RUNNER := nodejs
