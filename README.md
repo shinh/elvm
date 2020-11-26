@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 46 backends:
+Currently, there are 47 backends:
 
 * Awk (by [@dubek](https://github.com/dubek/))
 * Bash
@@ -35,6 +35,7 @@ Currently, there are 46 backends:
 * J (by [@dubek](https://github.com/dubek/))
 * Java
 * JavaScript
+* Kinx (by [@Kray-G](https://github.com/Kray-G/))
 * LLVM IR (by [@retrage](https://github.com/retrage/))
 * LOLCODE (by [@gamerk](https://github.com/gamerk))
 * Lua (by [@retrage](https://github.com/retrage/))
