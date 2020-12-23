@@ -68,7 +68,7 @@ static void f90_emit_func_prologue(int func_id) {
 
   emit_line("");
   emit_line("do while (%d <= pc .and. pc < %d)",
-        func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
+            func_id * CHUNKED_FUNC_SIZE, (func_id + 1) * CHUNKED_FUNC_SIZE);
   inc_indent();
   emit_line("select case (pc)");
   inc_indent();
@@ -103,14 +103,14 @@ static void f90_emit_inst(Inst* inst) {
     
     case ADD:
       emit_line("%s = iand(%s + %s, " UINT_MAX_STR ")",
-            reg_names[inst->dst.reg],
-            reg_names[inst->dst.reg], src_str(inst));
+                reg_names[inst->dst.reg],
+                reg_names[inst->dst.reg], src_str(inst));
       break;
     
     case SUB:
       emit_line("%s = iand(%s - %s, " UINT_MAX_STR ")",
-            reg_names[inst->dst.reg],
-            reg_names[inst->dst.reg], src_str(inst));
+                reg_names[inst->dst.reg],
+                reg_names[inst->dst.reg], src_str(inst));
       break;
     
     case LOAD:
@@ -123,17 +123,17 @@ static void f90_emit_inst(Inst* inst) {
 
     case PUTC:
       emit_line("write(*, '(A)', advance='no') char(%s)",
-            src_str(inst),
-            inputLabel,
-            inputLabel + 1);
+                src_str(inst),
+                inputLabel,
+                inputLabel + 1);
       emit_line("");
       inputLabel += 2;
       break;
 
     case GETC:
       emit_line("read(*, '(A1)', eor=%d, end=%d, advance='no') chr",
-            inputLabel,
-            inputLabel + 1);
+                inputLabel,
+                inputLabel + 1);
       emit_line("%s = ichar(chr)", reg_names[inst->dst.reg]);
       emit_line("goto %d", inputLabel + 2);
       emit_line("%d %s = 10", inputLabel, reg_names[inst->dst.reg]);
