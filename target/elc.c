@@ -18,6 +18,7 @@ void target_cpp_template(Module* module);
 void target_cr(Module* module);
 void target_cs(Module* module);
 void target_el(Module* module);
+void target_f90(Module* module);
 void target_forth(Module* module);
 void target_fs(Module* module);
 void target_go(Module* module);
@@ -80,6 +81,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "cr")) return target_cr;
   if (!strcmp(ext, "cs")) return target_cs;
   if (!strcmp(ext, "el")) return target_el;
+  if (!strcmp(ext, "f90")) return target_f90;
   if (!strcmp(ext, "forth")) return target_forth;
   if (!strcmp(ext, "fs")) return target_fs;
   if (!strcmp(ext, "go")) return target_go;

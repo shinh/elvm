@@ -112,6 +112,7 @@ ELC_SRCS := \
 	cs.c \
 	el.c \
 	forth.c \
+	f90.c \
 	fs.c \
 	go.c \
 	hell.c \
@@ -281,6 +282,11 @@ endif
 
 TARGET := kx
 RUNNER := kinx
+include target.mk
+
+TARGET := f90
+RUNNER := tools/runfortran.sh
+TOOL := gfortran
 include target.mk
 
 TARGET := js

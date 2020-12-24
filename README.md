@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 47 backends:
+Currently, there are 48 backends:
 
 * Awk (by [@dubek](https://github.com/dubek/))
 * Bash
@@ -30,6 +30,7 @@ Currently, there are 47 backends:
 * Emacs Lisp
 * F# (by [@masaedw](https://github.com/masaedw/))
 * Forth (by [@dubek](https://github.com/dubek/))
+* Fortran (by [@samcoppini](https://github.com/samcoppini/))
 * Go (by [@shogo82148](https://github.com/shogo82148/))
 * HeLL (by [@esoteric-programmer](https://github.com/esoteric-programmer/))
 * J (by [@dubek](https://github.com/dubek/))
