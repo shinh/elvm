@@ -201,23 +201,20 @@ int putc(int c, FILE* fp) {
 }
 
 char* fgets(char* s, int size, FILE* fp) {
-  int i;
-  for (i = 0; i < size - 1;) {
+  if (size <= 0)
+    return NULL;
+
+  int i = 0;
+  while (i < size - 1) {
     int c = fgetc(fp);
-    if (c == EOF) {
+    if (c == EOF)
       break;
-    }
     s[i++] = c;
-    if (c == '\n') {
+    if (c == '\n')
       break;
-    }
   }
-  if (i) {
-    s[i] = 0;
-    return s;
-  } else {
-    return 0;
-  }
+  s[i] = 0;
+  return s;
 }
 
 #endif  // ELVM_LIBC_STDIO_H_
