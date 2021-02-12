@@ -207,8 +207,10 @@ char* fgets(char* s, int size, FILE* fp) {
   int i = 0;
   while (i < size - 1) {
     int c = fgetc(fp);
-    if (c == EOF)
-      break;
+    if (c == EOF) {
+      if (i) break;
+      return NULL;
+    }
     s[i++] = c;
     if (c == '\n')
       break;
