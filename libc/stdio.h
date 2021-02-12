@@ -163,17 +163,24 @@ int fputs(const char* s, FILE* fp) {
   print_str(s);
 }
 
-int fgets(char* s, int size, FILE* fp) {
-  for (int i = 0; i < size - 1; i++) {
+char* fgets(char* s, int size, FILE* fp) {
+  int i;
+  for (i = 0; i < size - 1;) {
     int c = getchar();
-    s[i] = c;
-    if (c == '\n' || c == EOF) {
-      s[i + 1] = 0;
-      return i;
+    if (c == EOF) {
+      break;
+    }
+    s[i++] = c;
+    if (c == '\n') {
+      break;
     }
   }
-  s[size - 1] = 0;
-  return size;
+  if (i) {
+    s[i] = 0;
+    return s;
+  } else {
+    return 0;
+  }
 }
 
 static int g_ungot = EOF;
