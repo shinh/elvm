@@ -137,15 +137,19 @@ static void ws_emit_src(Inst* inst, int off) {
   ws_emit_value(&inst->src, off);
 }
 
+static void ws_emit_normalize_uint() {
+  ws_emit(WS_PUSH); ws_emit_uint_mod_ws();
+  ws_emit(WS_ADD);
+  ws_emit(WS_PUSH); ws_emit_uint_mod_ws();
+  ws_emit(WS_MOD);
+}
+
 static void ws_emit_addsub(Inst* inst, WsOp op) {
   ws_emit_op(WS_PUSH, inst->dst.reg);
   ws_emit_retrieve(inst->dst.reg);
   ws_emit_src(inst, 0);
   ws_emit(op);
-  ws_emit(WS_PUSH); ws_emit_uint_mod_ws();
-  ws_emit(WS_ADD);
-  ws_emit(WS_PUSH); ws_emit_uint_mod_ws();
-  ws_emit(WS_MOD);
+  ws_emit_normalize_uint();
   ws_emit(WS_STORE);
 }
 
@@ -288,6 +292,11 @@ void target_ws(Module* module) {
       case GETC:
         ws_emit_op(WS_PUSH, inst->dst.reg);
         ws_emit(WS_GETC);
+
+        ws_emit_op(WS_PUSH, inst->dst.reg);
+        ws_emit_retrieve(inst->dst.reg);
+        ws_emit_normalize_uint();
+        ws_emit(WS_STORE);
         break;
 
       case EXIT:
