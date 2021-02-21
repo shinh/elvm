@@ -58,7 +58,7 @@ out/git_submodule.stamp: .git/index
 $(8CC_SRCS) lci/install.py Whitespace/whitespace.c tinycc/configure: out/git_submodule.stamp
 
 Whitespace/whitespace.out: Whitespace/whitespace.c
-	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
+	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=100000000' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224' 'STACK_SIZE:=16777224'
 
 lci/lci: lci/install.py
 	cd lci && python ./install.py || test -e lci
