@@ -40,6 +40,7 @@ void target_pietasm(Module* module);
 void target_pl(Module* module);
 void target_py(Module* module);
 void target_ps(Module* module);
+void target_qftasm(Module* module);
 void target_rb(Module* module);
 void target_rs(Module* module);
 void target_scala(Module* module);
@@ -103,6 +104,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "pl")) return target_pl;
   if (!strcmp(ext, "py")) return target_py;
   if (!strcmp(ext, "ps")) return target_ps;
+  if (!strcmp(ext, "qftasm")) return target_qftasm;
   if (!strcmp(ext, "rb")) return target_rb;
   if (!strcmp(ext, "rs")) return target_rs;
   if (!strcmp(ext, "scala")) return target_scala;
