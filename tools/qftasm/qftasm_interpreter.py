@@ -11,19 +11,17 @@ QFTASM_RAM_AS_STDOUT_BUFFER = True
 QFTASM_RAMSTDIN_BUF_STARTPOSITION = 7167
 QFTASM_RAMSTDOUT_BUF_STARTPOSITION = 8191
 
+debug_ramdump = False
+debug_plot_memdist = False   # Requires numpy and matplotlib when set to True
+use_stdio = True
+stdin_from_pipe = True
+
+#==================================================================================
 QFTASM_STDIO_OPEN = 1 << 8
 QFTASM_STDIO_CLOSED = 1 << 9
 QFTASM_STDIN = 1
 QFTASM_STDOUT = 2
 
-
-debug_ramdump = False
-use_stdio = True
-stdin_from_pipe = True
-simulate_exit = True
-
-
-#==================================================================================
 class Parser(object):
     def __init__(self):
         addressing_mode = Optional(Char("ABC")).setParseAction(
@@ -164,10 +162,6 @@ def interpret_file(filepath):
 
                     stdout_ready_flag = False
 
-        # 7 (Extended): Interpret infinite loops at the end of the program as the EXIT instruction
-        if simulate_exit and (prev_result_dst == 0 and prev_result_value == pc - 1 and pc == len(rom) - 2):
-            break
-
         n_steps += 1
 
     if QFTASM_RAM_AS_STDOUT_BUFFER:
@@ -184,10 +178,21 @@ def interpret_file(filepath):
                 n_nonzero_write_count_ram_maxindex = max(n_nonzero_write_count_ram_maxindex, i_index)
         print()
         print("ROM size: {}".format(len(rom_lines)))
-        print("Nonzero access count ram addresses: {}".format(n_nonzero_write_count_ram))
-        print("Nonzero access count ram max address: {}".format(n_nonzero_write_count_ram_maxindex))
+        print("n_steps: {}".format(n_steps))
+        print("Nonzero write count ram addresses: {}".format(n_nonzero_write_count_ram))
+        print("Nonzero write count ram max address: {}".format(n_nonzero_write_count_ram_maxindex))
 
         print(ram[:20])
+
+        # Requires numpy and matplotlib
+        if debug_plot_memdist:
+            import numpy as np
+            import matplotlib.pyplot as plt
+            a = np.array(ram[:n_nonzero_write_count_ram_maxindex+1])
+            plt.figure()
+            plt.plot(np.log(a[:,1]+1), "o-")
+            plt.show()
+            plt.savefig("./memdist.png")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-#include <calc.h>
+#include "calc.h"
 
 typedef enum {
     NUM, ADD, MUL

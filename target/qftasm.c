@@ -64,7 +64,7 @@ static void qftasm_emit_line(const char* fmt, ...) {
 
 static int qftasm_int24_to_int16(int x) {
   // Interpret x as a 24-bit signed integer.
-  // If it is negative, then reinterpret x as a 16-bit signed integer
+  // If it is negative, then reinterpret x as a 16-bit signed integer.
   if (x < 0) {
     x += (1 << 16);
   } else if (x > (1 << 23)) {
@@ -306,7 +306,8 @@ static void qftasm_emit_inst(Inst* inst) {
     break;
 
   case EXIT:
-    qftasm_emit_line("MNZ 1 {EXIT} 0; EXIT");
+    qftasm_emit_line("MNZ 1 65534 0; EXIT");
+    qftasm_emit_line("MNZ 0 0 0;");
     break;
 
   case DUMP:
@@ -419,8 +420,4 @@ void target_qftasm(Module* module) {
                          qftasm_emit_func_epilogue,
                          qftasm_emit_pc_change,
                          qftasm_emit_inst);
-
-  // Infinite loop to simulate EXIT
-  qftasm_emit_line("MNZ 1 {EXIT} 0; pc == EXIT:");
-  qftasm_emit_line("MNZ 0 0 0;");
 }

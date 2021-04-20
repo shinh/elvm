@@ -48,10 +48,24 @@ After elc compiles the *.eir assembly to *.qftasm, the code must be post-process
 
 When running the tests, `./tools/runqftasm.sh` automatically runs `./tools/qftasm/qftasm_pp.py` to perform the post-processing. However, when using the outputs of `./out/*.qftasm` , the post-processor `./tools/qftasm/qftasm_pp.py` must be run by hand in order to produce the final and actual QFTASM code.
 
-
 ### Porting to Conway's Game of Life
-For details for porting QFTASM to Conway's Game of Life, please refer to [the Stack Exchange post for QFT](https://codegolf.stackexchange.com/questions/11880/build-a-working-game-of-tetris-in-conways-game-of-life).
+For details for porting QFTASM to Conway's Game of Life, please refer to [the Stack Exchange post for QFT](https://codegolf.stackexchange.com/questions/11880/build-a-working-game-of-tetris-in-conways-game-of-life) and its [GitHub repository](https://github.com/QuestForTetris/QFT). The [QFT-devkit](https://github.com/woodrush/QFT-devkit) can also be used to easily port QFTASM code to Conway's Game of Life.
 
+### Testing
+The test system in ELVM is closed within the QFTASM layer. Tests can be run with `make test-qftasm`, similarly as in other backends.
+
+Some tests in `./tests` are left out at test time. This is mainly due to the fact that QFTASM is 16-bit, while ELVM is 24-bit. The list and the reasons of the filtered tests as of now are the following:
+
+- `$(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir)))` : Involves 24-bit code
+- `out/eof.c.eir.qftasm` : Involves 24-bit integers (must output 16777215 in the first line of the output)
+- `out/neg.c.eir.qftasm` : Program length is larger than 1 << 16
+- `out/8cc.c.eir.qftasm` : Program length is larger than 1 << 16
+- `out/elc.c.eir.qftasm` : Program length is larger than 1 << 16
+- `out/dump_ir.c.eir.qftasm` : Involves 24-bit integers
+- `out/eli.c.eir.qftasm` : Memory pointer overflow occurs during memory initialization
+
+
+## Technical Details
 
 ### Compilation Configurations
 In `./target/qftasm.c` and `./tools/qftasm/qftasm_interpreter.py`, there are five configuration parameters that can be used to alter the output code:
@@ -91,23 +105,20 @@ There is one more option, `#define QFTASM_SUPPRESS_MEMORY_INIT_OVERFLOW_ERROR`. 
 There are also several options for the interpreter `./tools/qftasm_interpreter.py`:
 
 ```python
-debug_ramdump = False
+debug_ramdump = True
+debug_plot_memdist = False   # Requires numpy and matplotlib when set to True
 use_stdio = True
 stdin_from_pipe = True
-simulate_exit = True
 ```
 
 The first option `debug_ramdump` outputs a ram dump after the program terminates. The ram dump shows each RAM value as well as the number of times the RAM value was written. For simplicity, the values up to the maximum address that has a nonzero write count is shown.
 
-The second option `use_stdio`, when set to `False`, disables all standard input and output features. This can be used to explicitly specify a standalone environment using initially cleared out RAM values and only with the ROM.
+The second option `debug_plot_memdist`, when set to `True`, outputs a plot of the memory usage distribution as the filename `memdist.png`. This can be used to debug memory overflow issues. Using this option requires additional installation of the `numpy` and `matplotlib` Python packages.
 
-The third option `stdin_from_pipe`, when set to `False`, allows the interpreter to wait and prompt when requiring stdin, rather than taking the entire stdin from the pipe which is the default behavior. This option can be used to simulate interactive programs which require altering the RAM during the program's runtime.
+The third option `use_stdio`, when set to `False`, disables all standard input and output features. This can be used to explicitly specify a standalone environment using initially cleared out RAM values and only with the ROM.
 
-The fourth option `simulate_exit`, when set to `True`, allows the interpreter to properly exit the program on the ELVM EXIT instruction. This option is required for running programs compiled by the ELVM QFTASM backend, or else the program will be stuck in an infinite loop when it encounters an ELVM EXIT instruction. For details on the implementation of the EXIT instruction, please see the "Implementation of the `EXIT` Instruction" section.
+The fourth option `stdin_from_pipe`, when set to `False`, allows the interpreter to wait and prompt when requiring stdin, rather than taking the entire stdin from the pipe which is the default behavior. This option can be used to simulate interactive programs which require altering the RAM during the program's runtime.
 
-
-
-## Technical Details
 
 ### Standard Input and Output
 
@@ -123,12 +134,12 @@ The second mode is perhaps more suitable for an interactive use case. In this mo
 - `PUTC` : By default, the stdout register (at address `2`) holds the value `QFTASM_STDIO_CLOSED` (`== (1 << 9)`) from the beginning (the header part) of the program. When a `PUTC` instruction appears, the stdout value is written in the stdout register, and then the `QFTASM_STDIO_CLOSED` value becomes overwritten in the next QFTASM instruction. The interpreter observes for the changes in these values to interpret the stdout buffer.
 - `GETC` : The output happens in four steps. By default, the stdin register (at address `1`) holds the value `QFTASM_STDIO_CLOSED` from the beginning (the header part) of the program. When a `GETC` instuction appears, the program first overwrites the stdin register to the value `QFTASM_STDIO_OPEN` (`== (1 << 8)`) , followed by a no-op instruction `MNZ 0 0 0` . The interpreter detects these changes of values, and is expected to write the memory value during the no-op. The no-op insruction is required due to the fact that the QFT architecture writes the resulting values of the *previous instruction* in every given program counter, rather than the instruction at the program counter. This is described in detail in the aforementioned Stack Exchange post. Therefore, the update to `QFTASM_STDIO_OPEN` actually occurs when the no-op instruction is being loaded, thus the need of the no-op. After the no-op instruction, the compiled program stores the value in the stdin register to the register specified by the `GETC` instruction, and overwrites the stdin register to `QFTASM_STDIO_CLOSED` .
 
-The current backend admits access to native QFTASM RAM addresses in the C frontend. Therefore, a custom stdio handler can also be implemented in the C layer. This is illustrated in `./tools/qftasm/calc.c` , and is also described in the following section.
+The current backend admits access to native QFTASM RAM addresses in the C frontend. Therefore, a custom stdio handler can also be implemented in the C layer. This is illustrated in `./tools/qftasm/samples/calc.c` , and is also described in the following section.
 
 
 ### Access to Native QFTASM RAM Addresses
 
-`./tools/qftasm/calc.c` uses the following definitions to access RAM using native QFT addresses:
+`./tools/qftasm/samples/calc.c` uses the following definitions to access RAM using native QFT addresses:
 
 ```c
 #define QFTASM_MEM_OFFSET 95
@@ -140,20 +151,9 @@ The current backend admits access to native QFTASM RAM addresses in the C fronte
 
 The value `QFTASM_MEM_OFFSET` is taken from the compiler configurations with the same identifier. Since the QFT architecture has a unified memory mapping scheme for both registers and memory, the ELVM backend uses the ELI address values as a virtual address with an offset `QFTASM_MEM_OFFSET` in the QFT memory address space. The `QFTASM_NATIVE_ADDR(x)` macro shown above cancels away this offset which allows access to raw QFT address values. In this example, a pointer to the register holding the current pointer of the stdin value is given as the macro `STDIN_BUF_POINTER_REG`, and the corresponding character is given as the macro `curchar()`. Such access to native QFT memory addresses can be doen naturally in the C layer as shown in this example.
 
-### Implementation of the `EXIT` Instruction
-QFTASM does not have a native `EXIT` instruction as in ELVM. Therefore, to emulate `EXIT` instructions, the ELVM backend appends an infinite loop at the end of the program, and let `EXIT` instructions to jump to this infinite loop.
-
-In the interpreter `./tools/qftasm/qftasm_interpreter.py`, this infinite loop must be explicitly handled to allow the program to exit on the `EXIT` instruction. The interpreter detects an infinite loop at the end of the program (more precisely, an infinite loop at the second last instruction, since QFT always requires a no-op after a jump instruction) and interprets it as the `EXIT` instruction.
-
 
 ### Sample Code
-`./tools/qftasm/calc.c` is a sample program written for showing various features of the ELVM QFTASM backend. In the header, it uses 8cc-specific manual definitions of some functions such as `malloc`. This inhibits compilation by gcc, so it is left out from the `tests` directory. When compiled with the compilation configurations shown later, this program becomes 1002 QFTASM instructions long and uses 128 slots of QFTASM RAM at runtime, therefore allowing execution on a 10-bit-ROM, 7-bit-RAM QFT Architecture such as [Tetris.mc](https://github.com/QuestForTetris/QFT/blob/master/Tetris.mc) published in the QFT GitHub repository (https://github.com/QuestForTetris/QFT).
-
-The code uses many features from C and the ELVM backend design, such as:
-
-- Use of structs and unions
-- Function pointers
-- Access to native QFT RAM addresses
+`./tools/qftasm/samples/calc.c` is a sample program written for showing various features of the ELVM QFTASM backend. In the header, it uses 8cc-specific manual definitions of some functions such as `malloc`. This inhibits compilation by gcc, so it is left out from the `tests` directory. When compiled with the compilation configurations shown later, this program becomes 1001 QFTASM instructions long and uses 128 bytes of QFTASM RAM at runtime, therefore allowing execution on a 10-bit-ROM, 7-bit-RAM QFT Architecture such as [Tetris.mc](https://github.com/QuestForTetris/QFT/blob/master/Tetris.mc) published in the QFT GitHub repository (https://github.com/QuestForTetris/QFT).
 
 Since the current 8cc implementation merges unused header functions into the final output, including large headers such as `stdio.h` inflate the size of the final output QFTASM code. Therefore, to solve this problem, some usually header-related functions such as `malloc` are either manually included or implemented at the header of the program. Otherwise, the program consists of regular C code.
 
@@ -174,10 +174,10 @@ Also, please change the sixth line of `calc.h` to the following in alignment to 
 #define QFTASM_MEM_OFFSET 95
 ```
 
-When compiling `calc.c`, the option `-Itools/qftasm` must be set to let the compiler be aware of the path for `calc.h`, as follows:
+When compiling `calc.c`, the option `-Itools/qftasm/samples` must be set to let the compiler be aware of the path for `calc.h`, as follows:
 
 ```sh
-out/8cc -S -Itools/qftasm -I. -Ilibc -Iout -o tmp.eir ./tools/qftasm/calc.c
+out/8cc -S -Itools/qftasm/samples -I. -Ilibc -Iout -o tmp.eir ./tools/qftasm/samples/calc.c
 ```
 
 This program is a calculator program capable of calculating arithmetic expressions consisting of addition, multiplication and parentheses. It can take short (due to the limited RAM size) arithmetic expressions without whitespace, such as:
@@ -193,17 +193,3 @@ This program is a calculator program capable of calculating arithmetic expressio
 and so on. Due to the limited RAM size, long or complex expressions can lead to runtime errors due to memory overflow. Otherwise, this program can interpret any arithmetic expressions of the aforementioned form.
 
 The output of the program is placed on address `127` as a single ascii-encoded character. Therefore, proper output is limited to a single-decimal-digit number, although greater values can be inferred from the ascii output.
-
-
-## Miscellaneous
-
-### Filtered Tests
-Some tests in `./tests` are left out at test time. This is mainly due to the fact that QFTASM is 16-bit, while ELVM is 24-bit. The list and the reasons of the filtered tests as of now are the following:
-
-- `$(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir)))` : Involves 24-bit code
-- `out/eof.c.eir.qftasm` : Involves 24-bit integers (must output 16777215 in the first line of the output)
-- `out/neg.c.eir.qftasm` : Program length is larger than 1 << 16
-- `out/8cc.c.eir.qftasm` : Program length is larger than 1 << 16
-- `out/elc.c.eir.qftasm` : Program length is larger than 1 << 16
-- `out/dump_ir.c.eir.qftasm` : Involves 24-bit integers
-- `out/eli.c.eir.qftasm` : Memory pointer overflow occurs during memory initialization
