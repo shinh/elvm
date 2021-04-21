@@ -334,6 +334,10 @@ Note that: the escape character is `＼` (U+FF3C) not `\`.
 
 For normal ASCII characters, you can just put them into the input field.
 
+### Conway's Life of Game
+
+See [tools/qftasm/README.md](tools/qftasm/README.md) for its details.
+
 ##### Execute it from command line
 1. First install the npm package ["scratch-vm"](https://github.com/LLK/scratch-vm) under the `tools` directory :
 ```sh
