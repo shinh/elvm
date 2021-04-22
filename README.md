@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 48 backends:
+Currently, there are 49 backends:
 
 * Awk (by [@dubek](https://github.com/dubek/))
 * Bash
@@ -26,6 +26,7 @@ Currently, there are 48 backends:
 * C-INTERCAL
 * CMake (by [@ooxi](https://github.com/ooxi/))
 * CommonLisp (by [@youz](https://github.com/youz/))
+* Conway's Game of Life (via QFTASM) (by [@woodrush](https://github.com/woodrush/))
 * Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
 * Emacs Lisp
 * F# (by [@masaedw](https://github.com/masaedw/))
@@ -344,6 +345,10 @@ $ npm install scratch-vm
 $ echo -n '' | nodejs ./run_scratch.js ../basic.scratch3.sb3
 !!@X
 ```
+
+### Conway's Life of Game
+
+See [tools/qftasm/README.md](tools/qftasm/README.md) for its details.
 
 ## Future works
 
