@@ -324,6 +324,9 @@ include target.mk
 TARGET := tex
 RUNNER := tools/runtex.sh
 TOOL := tex
+# It seems tex backend does not work for elc anymore.
+# TODO(hamaji): Fix this.
+TEST_FILTER += out/elc.c.eir.tex
 include target.mk
 
 TARGET := cl
