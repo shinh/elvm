@@ -15,125 +15,129 @@ static const char* tex_src_str(Inst* inst) {
   return tex_value_str(&inst->src);
 }
 
-static const char* tex_cmp_op_str(Inst* inst) {
-  int op = normalize_cond(inst->op, 0);
-  switch (op) {
-    case JEQ:
-      return "=";
-    case JLE:
-    case JLT:
-      return "<";
-    case JGE:
-    case JGT:
-      return ">";
-    default:
-      error("oops");
-  }
-}
 
 static void tex_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    emit_line("\\edef\\@reg@%s{%s}%%", reg_names[inst->dst.reg], tex_src_str(inst));
+    emit_line("\\@op@mov\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg], tex_src_str(inst));
     break;
 
   case ADD:
-    emit_line("\\count0=\\@reg@%s\\relax", reg_names[inst->dst.reg]);
-    emit_line("\\advance\\count0by%s\\relax", tex_src_str(inst));
-    emit_line("\\ifnum\\count0>%d\\advance\\count0by-%s\\fi", UINT_MAX, "16777216");
-    emit_line("\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
+    emit_line("\\@op@add\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg], tex_src_str(inst));
     break;
 
   case SUB:
-    emit_line("\\count0=\\@reg@%s\\relax", reg_names[inst->dst.reg]);
-    emit_line("\\advance\\count0by-%s\\relax", tex_src_str(inst));
-    emit_line("\\ifnum\\count0<0\\advance\\count0by%s\\fi", "16777216");
-    emit_line("\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
+    emit_line("\\@op@sub\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg], tex_src_str(inst));
     break;
 
   case LOAD:
-    emit_line("\\def\\@reg@%s{0}%%", reg_names[inst->dst.reg]);
-    emit_line("\\expandafter\\ifx\\csname @mem@%s\\endcsname\\relax\\else\\edef\\@reg@%s{\\csname @mem@%s\\endcsname}\\fi",
-              tex_src_str(inst), reg_names[inst->dst.reg], tex_src_str(inst));
+    emit_line("\\@op@load\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg], tex_src_str(inst));
     break;
 
   case STORE:
-    emit_line("\\expandafter\\let\\csname @mem@%s\\endcsname\\@reg@%s",
-              tex_src_str(inst), reg_names[inst->dst.reg]);
+    emit_line("\\@op@store\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg], tex_src_str(inst));
     break;
 
   case PUTC:
-    // a output char c is represented by C where C is the code of c.
-    emit_line("\\immediate\\write\\@out{%s}%%", tex_src_str(inst));
+    emit_line("\\@op@putc{%s}%%", tex_src_str(inst));
     break;
 
   case GETC:
-    // input is also...
-    emit_line("\\read-1to\\@temp\\count0=\\@temp\\edef\\@reg@%s{\\the\\count0}%%", reg_names[inst->dst.reg]);
+    emit_line("\\@op@getc\\@reg@%s", reg_names[inst->dst.reg]);
     break;
 
   case EXIT:
-    emit_line("\\let\\@@next\\relax");
+    emit_line("\\@op@exit");
     break;
 
   case DUMP:
     break;
 
   case EQ:
+    emit_line("\\@op@eq\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst));
+    break;
+
   case LT:
+    emit_line("\\@op@lt\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst));
+    break;
+
   case GT:
-    emit_line("\\ifnum\\@reg@%s%s%s\\edef\\@reg@%s{1}\\else\\edef\\@reg@%s{0}\\fi%%",
+    emit_line("\\@op@gt\\@reg@%s{%s}%%",
               reg_names[inst->dst.reg],
-              tex_cmp_op_str(inst),
-              tex_src_str(inst),
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg]);
+              tex_src_str(inst));
     break;
+
   case NE:
-    emit_line("\\ifnum\\@reg@%s=%s\\edef\\@reg@%s{0}\\else\\edef\\@reg@%s{1}\\fi%%",
-              reg_names[inst->dst.reg], tex_src_str(inst),
-              reg_names[inst->dst.reg], reg_names[inst->dst.reg]);
+    emit_line("\\@op@ne\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst));
     break;
+
   case LE:
+    emit_line("\\@op@le\\@reg@%s{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst));
+    break;
+
   case GE:
-    emit_line("\\ifnum\\@reg@%s=%s\\edef\\@reg@%s{1}\\else"
-              "\\ifnum\\@reg@%s%s%s\\edef\\@reg@%s{1}\\else\\edef\\@reg@%s{0}\\fi\\fi%%",
-              reg_names[inst->dst.reg], tex_src_str(inst),
+    emit_line("\\@op@ge\\@reg@%s{%s}%%",
               reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], tex_cmp_op_str(inst), tex_src_str(inst),
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg]);
+              tex_src_str(inst));
     break;
 
   case JEQ:
+    emit_line("\\@op@jeq\\@reg@%s{%s}{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
+    break;
+
   case JLT:
+    emit_line("\\@op@jlt\\@reg@%s{%s}{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
+    break;
+
   case JGT:
-    emit_line("\\count0=%s\\relax\\advance\\count0by-1\\relax", tex_value_str(&inst->jmp));
-    emit_line("\\ifnum\\@reg@%s%s%s\\edef\\@reg@pc{\\the\\count0}\\fi",
+    emit_line("\\@op@jgt\\@reg@%s{%s}{%s}%%",
               reg_names[inst->dst.reg],
-              tex_cmp_op_str(inst),
-              tex_src_str(inst));
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
     break;
+
   case JNE:
-    emit_line("\\count0=%s\\relax\\advance\\count0by-1\\relax", tex_value_str(&inst->jmp));
-    emit_line("\\ifnum\\@reg@%s=%s\\else\\edef\\@reg@pc{\\the\\count0}\\fi",
+    emit_line("\\@op@jne\\@reg@%s{%s}{%s}%%",
               reg_names[inst->dst.reg],
-              tex_src_str(inst));
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
     break;
+
   case JLE:
-  case JGE:
-    emit_line("\\count0=%s\\relax\\advance\\count0by-1\\relax", tex_value_str(&inst->jmp));
-    emit_line("\\ifnum\\@reg@%s=%s\\edef\\@reg@pc{\\the\\count0}\\fi",
+    emit_line("\\@op@jle\\@reg@%s{%s}{%s}%%",
               reg_names[inst->dst.reg],
-              tex_src_str(inst));
-    emit_line("\\ifnum\\@reg@%s%s%s\\edef\\@reg@pc{\\the\\count0}\\fi",
-              reg_names[inst->dst.reg],
-              tex_cmp_op_str(inst),
-              tex_src_str(inst));
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
     break;
+
+  case JGE:
+    emit_line("\\@op@jge\\@reg@%s{%s}{%s}%%",
+              reg_names[inst->dst.reg],
+              tex_src_str(inst),
+              tex_value_str(&inst->jmp));
+    break;
+
   case JMP:
-    emit_line("\\count0=%s\\relax\\advance\\count0by-1\\relax", tex_value_str(&inst->jmp));
-    emit_line("\\edef\\@reg@pc{\\the\\count0}%%");
+    emit_line("\\@op@jmp{%s}%%", tex_value_str(&inst->jmp));
     break;
 
   default:
@@ -158,6 +162,59 @@ static void tex_init_state(Data* data) {
 
 void target_tex(Module* module) {
   emit_line("\\catcode`\\@=11\\relax");
+
+  // Define macros for EIR's operations
+  emit_line("\\def\\@op@mov#1#2{\\edef#1{#2}}");
+  emit_line("\\def\\@op@add#1#2{"
+            "\\count0=#1\\relax\\advance\\count0by#2\\relax"
+            "\\ifnum\\count0>%d\\advance\\count0by-%s\\fi"
+            "\\edef#1{\\the\\count0}}",
+            UINT_MAX,
+            "16777216");
+  emit_line("\\def\\@op@sub#1#2{"
+            "\\count0=#1\\relax\\advance\\count0by-#2\\relax"
+            "\\ifnum\\count0<0\\advance\\count0by%s\\fi"
+            "\\edef#1{\\the\\count0}}", "16777216");
+  emit_line("\\def\\@op@load#1#2{"
+            "\\edef#1{"
+            "\\expandafter\\ifx\\csname @mem@#2\\endcsname\\relax0"
+            "\\else\\csname @mem@#2\\endcsname\\fi}}");
+  emit_line("\\def\\@op@store#1#2{"
+            "\\expandafter\\let\\csname @mem@#2\\endcsname#1}");
+  emit_line("\\def\\@op@putc#1{\\immediate\\write\\@out{#1}}");
+  emit_line("\\def\\@op@getc#1{"
+            "\\read-1to\\@temp\\count0=\\@temp\\edef#1{\\the\\count0}}");
+  emit_line("\\def\\@op@exit{\\let\\@@next\\relax}");
+  emit_line("\\def\\@op@eq#1#2{\\ifnum#1=#2\\edef#1{1}\\else\\edef#1{0}\\fi}");
+  emit_line("\\def\\@op@lt#1#2{\\ifnum#1<#2\\edef#1{1}\\else\\edef#1{0}\\fi}");
+  emit_line("\\def\\@op@gt#1#2{\\ifnum#1>#2\\edef#1{1}\\else\\edef#1{0}\\fi}");
+  emit_line("\\def\\@op@ne#1#2{\\ifnum#1=#2\\edef#1{0}\\else\\edef#1{1}\\fi}");
+  emit_line("\\def\\@op@le#1#2{"
+            "\\ifnum#1=#2\\edef#1{1}"
+            "\\else\\ifnum#1<#2\\edef#1{1}"
+            "\\else\\edef#1{0}\\fi\\fi}");
+  emit_line("\\def\\@op@ge#1#2{"
+            "\\ifnum#1=#2\\edef#1{1}"
+            "\\else\\ifnum#1>#2\\edef#1{1}"
+            "\\else\\edef#1{0}\\fi\\fi}");
+  emit_line("\\def\\@op@jmp@common#1{"
+            "\\count0=#1\\relax\\advance\\count0by-1\\relax"
+            "\\edef\\@reg@pc{\\the\\count0}}");
+  emit_line("\\def\\@op@jeq#1#2#3{"
+            "\\ifnum#1=#2\\relax\\@op@jmp@common{#3}\\fi}");
+  emit_line("\\def\\@op@jlt#1#2#3{"
+            "\\ifnum#1<#2\\relax\\@op@jmp@common{#3}\\fi}");
+  emit_line("\\def\\@op@jgt#1#2#3{"
+            "\\ifnum#1>#2\\relax\\@op@jmp@common{#3}\\fi}");
+  emit_line("\\def\\@op@jne#1#2#3{"
+            "\\ifnum#1=#2\\else\\relax\\@op@jmp@common{#3}\\fi}");
+  emit_line("\\def\\@op@jle#1#2#3{"
+            "\\ifnum#1=#2\\relax\\@op@jmp@common{#3}"
+            "\\else\\ifnum#1<#2\\relax\\@op@jmp@common{#3}\\fi\\fi}");
+  emit_line("\\def\\@op@jge#1#2#3{"
+            "\\ifnum#1=#2\\relax\\@op@jmp@common{#3}"
+            "\\else\\ifnum#1>#2\\relax\\@op@jmp@common{#3}\\fi\\fi}");
+  emit_line("\\let\\@op@jmp\\@op@jmp@common");
 
   // Initialize register and memory.
   tex_init_state(module->data);
