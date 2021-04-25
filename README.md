@@ -13,58 +13,58 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 49 backends:
+Currently, there are 50 backends:
 
-* Awk (by [@dubek](https://github.com/dubek/))
-* Bash
-* Befunge
-* Brainfuck
-* C
-* C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
-* C++ Template Metaprogramming (compile-time) (by [@kw-udon](https://github.com/kw-udon/)) (WIP)
-* C# (by [@masaedw](https://github.com/masaedw/))
-* C-INTERCAL
-* CMake (by [@ooxi](https://github.com/ooxi/))
-* CommonLisp (by [@youz](https://github.com/youz/))
-* Conway's Game of Life (via QFTASM) (by [@woodrush](https://github.com/woodrush/))
-* Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
-* Emacs Lisp
-* F# (by [@masaedw](https://github.com/masaedw/))
-* Forth (by [@dubek](https://github.com/dubek/))
-* Fortran (by [@samcoppini](https://github.com/samcoppini/))
-* Go (by [@shogo82148](https://github.com/shogo82148/))
-* HeLL (by [@esoteric-programmer](https://github.com/esoteric-programmer/))
-* J (by [@dubek](https://github.com/dubek/))
-* Java
-* JavaScript
-* Kinx (by [@Kray-G](https://github.com/Kray-G/))
-* LLVM IR (by [@retrage](https://github.com/retrage/))
-* LOLCODE (by [@gamerk](https://github.com/gamerk))
-* Lua (by [@retrage](https://github.com/retrage/))
-* Octave (by [@inaniwa3](https://github.com/inaniwa3/))
-* Perl5 (by [@mackee](https://github.com/mackee/))
-* PHP (by [@zonuexe](https://github.com/zonuexe/))
-* Piet
-* Python
-* Ruby
-* Scheme syntax-rules (by [@zeptometer](https://github.com/zeptometer/))
-* Scratch3.0 (by [@algon-320](https://github.com/algon-320/))
-* SQLite3 (by [@youz](https://github.com/youz/))
-* Swift (by [@kwakasa](https://github.com/kwakasa/))
-* Tcl (by [@dubek](https://github.com/dubek/))
-* TeX (by [@hak7a3](https://github.com/hak7a3/))
-* TensorFlow (WIP)
-* Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
-* Unlambda (by [@irori](https://github.com/irori/))
-* Vim script (by [@rhysd](https://github.com/rhysd/))
-* WebAssembly (by [@dubek](https://github.com/dubek/))
-* WebAssembly System Interface (by [@sanemat](https://github.com/sanemat/))
-* Whirl by ([@samcoppini](https://github.com/samcoppini/))
-* W-Machine by ([@jcande](https://github.com/jcande/))
-* Whitespace
-* arm-linux (by [@irori](https://github.com/irori/))
-* i386-linux
-* sed
+1. Awk (by [@dubek](https://github.com/dubek/))
+1. Bash
+1. Befunge
+1. Brainfuck
+1. C
+1. C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
+1. C++ Template Metaprogramming (compile-time) (by [@kw-udon](https://github.com/kw-udon/)) (WIP)
+1. C# (by [@masaedw](https://github.com/masaedw/))
+1. C-INTERCAL
+1. CMake (by [@ooxi](https://github.com/ooxi/))
+1. CommonLisp (by [@youz](https://github.com/youz/))
+1. Conway's Game of Life (via QFTASM) (by [@woodrush](https://github.com/woodrush/))
+1. Crystal (compile-time) (by [@MakeNowJust](https://github.com/MakeNowJust/))
+1. Emacs Lisp
+1. F# (by [@masaedw](https://github.com/masaedw/))
+1. Forth (by [@dubek](https://github.com/dubek/))
+1. Fortran (by [@samcoppini](https://github.com/samcoppini/))
+1. Go (by [@shogo82148](https://github.com/shogo82148/))
+1. HeLL (by [@esoteric-programmer](https://github.com/esoteric-programmer/))
+1. J (by [@dubek](https://github.com/dubek/))
+1. Java
+1. JavaScript
+1. Kinx (by [@Kray-G](https://github.com/Kray-G/))
+1. LLVM IR (by [@retrage](https://github.com/retrage/))
+1. LOLCODE (by [@gamerk](https://github.com/gamerk))
+1. Lua (by [@retrage](https://github.com/retrage/))
+1. Octave (by [@inaniwa3](https://github.com/inaniwa3/))
+1. Perl5 (by [@mackee](https://github.com/mackee/))
+1. PHP (by [@zonuexe](https://github.com/zonuexe/))
+1. Piet
+1. Python
+1. Ruby
+1. Scheme syntax-rules (by [@zeptometer](https://github.com/zeptometer/))
+1. Scratch3.0 (by [@algon-320](https://github.com/algon-320/))
+1. SQLite3 (by [@youz](https://github.com/youz/))
+1. Swift (by [@kwakasa](https://github.com/kwakasa/))
+1. Tcl (by [@dubek](https://github.com/dubek/))
+1. TeX (by [@hak7a3](https://github.com/hak7a3/))
+1. TensorFlow (WIP)
+1. Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
+1. Unlambda (by [@irori](https://github.com/irori/))
+1. Vim script (by [@rhysd](https://github.com/rhysd/))
+1. WebAssembly (by [@dubek](https://github.com/dubek/))
+1. WebAssembly System Interface (by [@sanemat](https://github.com/sanemat/))
+1. Whirl by ([@samcoppini](https://github.com/samcoppini/))
+1. W-Machine by ([@jcande](https://github.com/jcande/))
+1. Whitespace
+1. arm-linux (by [@irori](https://github.com/irori/))
+1. i386-linux
+1. sed
 
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such
