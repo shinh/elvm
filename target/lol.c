@@ -92,7 +92,7 @@ static void init_state_lol(Data* data) {
   emit_line("n, WTF?");
   inc_indent();
   
-  for (int n = 0; n < 265; n++){
+  for (int n = 0; n < 256; n++){
     emit_line("OMG %d", n);
     inc_indent();
     emit_line("FOUND YR \":(%x)\"", n);
