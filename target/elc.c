@@ -44,6 +44,7 @@ void target_scratch3(Module* module);
 void target_sed(Module* module);
 void target_sh(Module* module);
 void target_sqlite3(Module* module);
+void target_subleq(Module* module);
 void target_swift(Module* module);
 void target_tex(Module* module);
 void target_tf(Module* module);
@@ -102,6 +103,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "sed")) return target_sed;
   if (!strcmp(ext, "sh")) return target_sh;
   if (!strcmp(ext, "sqlite3")) return target_sqlite3;
+  if (!strcmp(ext, "subleq")) return target_subleq;
   if (!strcmp(ext, "swift")) return target_swift;
   if (!strcmp(ext, "tex")) return target_tex;
   if (!strcmp(ext, "tf")) return target_tf;
