@@ -71,6 +71,26 @@ void emit_line(const char* fmt, ...) {
     putchar('\n');
 }
 
+void emit_str(const char* fmt, ...) {
+  if (fmt[0]) {
+    if (g_emit_started){
+      g_emit_cnt += g_indent;
+      for (int i = 0; i < g_indent; i++)
+        putchar(' ');
+      va_list ap;
+      va_start(ap, fmt);
+      g_emit_cnt += vprintf(fmt, ap);
+      va_end(ap);
+    } else {
+      g_emit_cnt += g_indent;
+      va_list ap;
+      va_start(ap, fmt);
+      g_emit_cnt += vsnprintf(NULL, 0, fmt, ap);
+      va_end(ap);
+    }
+  }
+}
+
 static const char* DEFAULT_REG_NAMES[7] = {
   "a", "b", "c", "d", "bp", "sp", "pc"
 };
