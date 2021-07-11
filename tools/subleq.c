@@ -3,8 +3,13 @@
 #include <stdint.h>
 #include <string.h>
 
-//#define TRACE
+// #define TRACE
 typedef int32_t subleq_word;
+
+typedef struct {
+  char* type;
+  char* value;
+} MagicComment;
 
 int run_subleq_bytes(subleq_word *code, subleq_word length){
   subleq_word pc = 0;
@@ -23,7 +28,7 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
       fprintf(stderr, "Value of b = %d is outside of range %d (at loc %d)\n", b, length, pc);
       return 1;
     } else if (c >= length - 2){
-      printf("%d %d %d (%d)\n", a, b, c, length - c);
+      printf("%d %d %d\n", a, b, c);
       fprintf(stderr, "Value of c = %d is outside of range %d (at loc %d)\n", c, length, pc);
       return 1;
     }
@@ -40,7 +45,7 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
         code[b] = 0;
       }
     } else if (b == -1){
-      putchar(code[a] & 255);
+      putchar(code[a]);
     } else if (c <= -1 && code[b] - code[a] <= 0){
       return 0;
     } else {
@@ -52,12 +57,6 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
       }
     }
 
-    #ifdef TRACE
-    printf("After:   loc: %d (%d), [%d] = %d, [%d] = %d, goto %d\n", pc, code[pc + 3], a, code[a], b, code[b], c);
-    printf("After:   A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
-              code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
-    #endif
-
     pc += 3;
 
   }
@@ -66,44 +65,94 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
 
 }
 
+void skip_whitespace(FILE* fp){
+  char c = getc(fp);
+  while (c == ' ' || c == '\n' || c == '\r' || c == '\t'){
+    c = getc(fp);
+  }
+  ungetc(c, fp);
+}
+
+void skip_to_newline(FILE* fp){
+  while (getc(fp) != '\n' && !feof(fp)) continue;
+}
+
+MagicComment* parse_magic_comment(FILE* fp){
+  getc(fp); // Discard first '{'
+
+  MagicComment* mc = (MagicComment*)malloc(sizeof(MagicComment));
+  // mc->type = (char*)calloc(21, sizeof(char));
+  // mc->value = (char*)calloc(21, sizeof(char));
+
+  char* buf = (char*)calloc(43, sizeof(char));
+  fgets(buf, 42, fp);
+  buf[strcspn(buf, "\n")] = 0;
+  buf[strcspn(buf, "}")] = 0;
+
+  mc->type = strtok(buf, ":");
+  mc->value = strtok(NULL, ":");
+
+  return mc;
+}
+
 int assemble_run_subleq(FILE* fp){
+  #ifdef TRACE
+  printf("Converting to int32[]...\n");
+  #endif
+  
   subleq_word *code = (subleq_word*)calloc(30, sizeof(subleq_word));
   subleq_word current_size = 30;
   subleq_word loc = 0;
 
-  char c = getc(fp);
+  char c = ' ';
   while (c != EOF){
 
-    while (c == ' ' || c == '\n' || c == '\r' || c == '\t'){
-      c = getc(fp);
-    }
+    skip_whitespace(fp);
 
+    c = getc(fp);
     if (c == EOF){
       break;
     }
 
-    if (('0' > c || c > '9') && c != '-' && c != '#' 
-          && c != ' ' && c != '\n' && c != '\r' && c != '\t'){
-      fprintf(stderr, "Invalid character %c (%d)", c, c);
-      return 1;
-    } else if (c == '#'){
-      c = getc(fp);
-      while(c != '\n' && c != EOF){
+    switch (c){
+      case '#':
         c = getc(fp);
-      }
-
-      c = getc(fp);
-      continue;
+        ungetc(c, fp);
+        if (c == '{'){
+          MagicComment* mc = parse_magic_comment(fp);
+          if (strcmp("loc_skip", mc->type) == 0) {
+            int amnt = atoi(mc->value);
+            loc += amnt - 1;
+            fseek(fp, amnt * 2 - 1, SEEK_CUR);
+          } else {
+            fprintf(stderr, "Invalid magic comment {%s:%s}\n", mc->type, mc->value);
+            return 1;
+          }
+        } else {
+          skip_to_newline(fp);
+        }
+        break;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+      case '-':
+        ungetc(c, fp);
+        fscanf(fp, "%d", &code[loc++]);
+        break;
+      default:
+        fprintf(stderr, "Invalid character %c (char code %d)", c, c);
+        return 1;
     }
 
-    ungetc(c, fp);
-
-    subleq_word i = 0;
-    fscanf(fp, "%d", &i);
-    code[loc++] = i;
-
-    if (loc >= current_size){
-      code = (subleq_word*)realloc(code, current_size * 2 * sizeof(subleq_word));
+    while (loc >= current_size){
+      code = (subleq_word*)realloc(code, (current_size * 2) * sizeof(subleq_word));
       current_size *= 2;
       if (code == NULL){
         fprintf(stderr, "Couldn't allocate enough memory");
@@ -111,10 +160,13 @@ int assemble_run_subleq(FILE* fp){
       }
     }
 
-    c = getc(fp);
   }
 
   code = (subleq_word*)realloc(code, loc * sizeof(subleq_word));
+  
+  #ifdef TRACE
+  printf("Done.\n");
+  #endif
 
   return run_subleq_bytes(code, loc);
 
