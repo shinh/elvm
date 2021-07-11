@@ -1,6 +1,7 @@
 [submodule "8cc"]
 	path = 8cc
-	url = https://github.com/shinh/8cc/
+	url = https://github.com/shinh/8cc
+	branch = eir
 [submodule "Whitespace"]
 	path = Whitespace
 	url = https://github.com/koturn/Whitespace
