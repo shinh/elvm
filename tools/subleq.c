@@ -45,7 +45,7 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
         code[b] = 0;
       }
     } else if (b == -1){
-      putchar(code[a]);
+      putchar(code[a] & 255);
     } else if (c <= -1 && code[b] - code[a] <= 0){
       return 0;
     } else {
