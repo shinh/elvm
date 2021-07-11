@@ -163,19 +163,6 @@ int fputs(const char* s, FILE* fp) {
   print_str(s);
 }
 
-int fgets(char* s, int size, FILE* fp) {
-  for (int i = 0; i < size - 1; i++) {
-    int c = getchar();
-    s[i] = c;
-    if (c == '\n' || c == EOF) {
-      s[i + 1] = 0;
-      return i;
-    }
-  }
-  s[size - 1] = 0;
-  return size;
-}
-
 static int g_ungot = EOF;
 static int eof_seen;
 
@@ -211,6 +198,25 @@ int fputc(int c, FILE* fp) {
 
 int putc(int c, FILE* fp) {
   return putchar(c);
+}
+
+char* fgets(char* s, int size, FILE* fp) {
+  if (size <= 0)
+    return NULL;
+
+  int i = 0;
+  while (i < size - 1) {
+    int c = fgetc(fp);
+    if (c == EOF) {
+      if (i) break;
+      return NULL;
+    }
+    s[i++] = c;
+    if (c == '\n')
+      break;
+  }
+  s[i] = 0;
+  return s;
 }
 
 #endif  // ELVM_LIBC_STDIO_H_

@@ -58,10 +58,10 @@ out/git_submodule.stamp: .git/index
 $(8CC_SRCS) lci/install.py Whitespace/whitespace.c tinycc/configure: out/git_submodule.stamp
 
 Whitespace/whitespace.out: Whitespace/whitespace.c
-	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=16777216' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224'
+	$(MAKE) -C Whitespace 'MAX_SOURCE_SIZE:=100000000' 'MAX_BYTECODE_SIZE:=16777216' 'MAX_N_LABEL:=1048576' 'HEAP_SIZE:=16777224' 'STACK_SIZE:=16777224'
 
 lci/lci: lci/install.py
-	cd lci && ./install.py
+	cd lci && python ./install.py || test -e lci
 
 out/befunge: tools/befunge.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -103,6 +103,7 @@ ELC_SRCS := \
 	util.c \
 	asmjs.c \
 	arm.c \
+	awk.c \
 	bef.c \
 	bf.c \
 	c.c \
@@ -114,13 +115,16 @@ ELC_SRCS := \
 	cs.c \
 	el.c \
 	forth.c \
+	f90.c \
 	fs.c \
 	go.c \
 	hell.c \
 	hs.c \
 	i.c \
+	j.c \
 	java.c \
 	js.c \
+	kx.c \
 	lua.c \
 	ll.c \
 	lol.c \
@@ -132,6 +136,7 @@ ELC_SRCS := \
 	pl.c \
 	py.c \
 	ps.c \
+	qftasm.c \
 	rb.c \
 	rs.c \
 	sed.c \
@@ -142,6 +147,7 @@ ELC_SRCS := \
 	scratch3.c \
 	subleq.c \
 	swift.c \
+	tcl.c \
 	tex.c \
 	tf.c \
 	tm.c \
@@ -278,6 +284,15 @@ TARGET := tf
 RUNNER := python
 include target.mk
 endif
+
+TARGET := kx
+RUNNER := kinx
+include target.mk
+
+TARGET := f90
+RUNNER := tools/runfortran.sh
+TOOL := gfortran
+include target.mk
 
 TARGET := js
 RUNNER := nodejs
@@ -551,6 +566,26 @@ include target.mk
 
 TARGET := lol
 RUNNER := tools/runlol.sh
+include target.mk
+
+TARGET := awk
+RUNNER := awk -b -f
+include target.mk
+
+TARGET := tcl
+RUNNER := tclsh
+include target.mk
+
+TARGET := j
+RUNNER := jconsole
+CAN_BUILD := $(shell DISPLAY=fail jconsole -js "echo i.4" -js "exit 0" 2>&1 | perl -ne 'print /^0 1 2 3/ ? 1 : 0')
+include target.mk
+
+TARGET := qftasm
+RUNNER := tools/runqftasm.sh
+TOOL := python
+# Since the QFTASM backend is 16-bit, 24-bit-related programs are filtered out.
+TEST_FILTER := $(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir))) out/eof.c.eir.qftasm out/neg.c.eir.qftasm out/8cc.c.eir.qftasm out/elc.c.eir.qftasm out/dump_ir.c.eir.qftasm out/eli.c.eir.qftasm
 include target.mk
 
 test: $(TEST_RESULTS)

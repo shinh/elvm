@@ -3,4 +3,6 @@
 
 #include <stdint.h>
 
+#define PRIu64 "l"
+
 #endif  // ELVM_LIBC_INTTYPES_H_

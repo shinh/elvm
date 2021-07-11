@@ -8,35 +8,6 @@ static void init_state_lol(Data* data) {
   emit_line("I HAS A buffer ITZ A YARN");
   emit_line("I HAS A bufferptr ITZ 0");
 
-  // // Bitwise &
-  // emit_line("HOW IZ I exp2 YR exp");
-  // emit_line("  I HAS A out ITZ 1");
-  // emit_line("  I HAS A i ITZ 0");
-  // emit_line("  IM IN YR exploop UPPIN YR i TIL BOTH SAEM i AN exp");
-  // emit_line("    out R PRODUKT OF 2 AN out");
-  // emit_line("  IM OUTTA YR exploop");
-  // emit_line("  FOUND YR out");
-  // emit_line("IF U SAY SO");
-
-  // emit_line("HOW IZ I bitwise_and YR a AN YR b");
-  // emit_line("  I HAS A cpya ITZ a");
-  // emit_line("  I HAS A cpyb ITZ b");
-  // emit_line("  I HAS A out ITZ 0");
-  // emit_line("  I HAS A biton ITZ 0");
-  // emit_line("  IM IN YR andloop UPPIN YR biton TIL BOTH SAEM cpyb AN 0");
-  // emit_line("    BOTH OF BOTH SAEM MOD OF cpyb AN 2 AN MOD OF cpya AN 2 AN BOTH SAEM MOD OF cpyb AN 2 AN 1, O RLY?");
-  // emit_line("      YA RLY");
-  // emit_line("        out R SUM OF out AN I IZ exp2 YR biton MKAY");
-  // emit_line("    OIC");
-
-  // emit_line("    cpya R QUOSHUNT OF cpya AN 2");
-  // emit_line("    cpyb R QUOSHUNT OF cpyb AN 2");
-
-  // emit_line("  IM OUTTA YR andloop");
-  // emit_line("  FOUND YR out");
-  // emit_line("IF U SAY SO");
-
-
   // Array functions
   emit_line("I HAS A mem ITZ A BUKKIT");
   emit_line("I HAS A slotsused ITZ A BUKKIT");
@@ -92,7 +63,7 @@ static void init_state_lol(Data* data) {
   emit_line("n, WTF?");
   inc_indent();
   
-  for (int n = 0; n < 265; n++){
+  for (int n = 0; n < 256; n++){
     emit_line("OMG %d", n);
     inc_indent();
     emit_line("FOUND YR \":(%x)\"", n);
@@ -205,7 +176,7 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case SUB:
-    emit_line("%s R MOD OF SUM OF %s AN %s AN %s",
+    emit_line("%s R MOD OF DIFF OF %s AN %s AN %s",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
               src_str(inst), UINT_MAX_STR);

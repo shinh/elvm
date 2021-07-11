@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -1458,7 +1459,7 @@ GenLabelStatic(
     //
     if (snprintf(Buffer,
                  Size,
-                 "%s_%0*lx",
+                 "%s_%0*" PRIu64 "x",
                  Note,
                  Width,
                  Value) < 0)
