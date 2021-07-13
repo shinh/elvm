@@ -502,6 +502,7 @@ include target.mk
 
 TARGET := subleq
 RUNNER := out/subleq
+TEST_FILTER := out/8cc.c.eir.subleq
 include target.mk
 
 TARGET := ps

@@ -182,11 +182,12 @@ static void init_state_subleq(Data* data) {
     }
 
   }
-  emit_line("");
 
   subleq.word_on += data_length + 1;
   subleq.jump_table_start = subleq.word_on - subleq.pc_cnt;
   for (size_t addr = 0; addr < subleq.pc_cnt; addr++){
+    if (addr % SUBLEQ_MAX_WORDS_LINE == 0)
+      emit_line("");
     emit_str("%d ", subleq.pc2addr[addr]);
   }
   emit_line("");
@@ -197,7 +198,7 @@ static void subleq_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
     {
-      // emit_line("# Doing move");
+      emit_line("# Doing move");
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
       subleq_emit_zero(SUBLEQ_REG(inst->dst.reg));
@@ -207,7 +208,7 @@ static void subleq_emit_inst(Inst* inst) {
 
   case ADD:
     {
-      // emit_line("# Doing add");
+      emit_line("# Doing add");
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
       subleq_emit_add(src_loc, SUBLEQ_REG(inst->dst.reg));
@@ -217,7 +218,7 @@ static void subleq_emit_inst(Inst* inst) {
 
   case SUB:
     {
-      // emit_line("# Doing sub");
+      emit_line("# Doing sub");
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
       subleq_emit_sub(src_loc, SUBLEQ_REG(inst->dst.reg));
@@ -226,13 +227,12 @@ static void subleq_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    // dst = mem[src]
     if (inst->src.type == IMM){
-      // emit_line("# Doing load imm");
+      emit_line("# Doing load imm");
       subleq_emit_zero(SUBLEQ_REG(inst->dst.reg));
       subleq_emit_add(SUBLEQ_MEM(inst->src.imm), SUBLEQ_REG(inst->dst.reg));
     } else if (inst->src.type == REG){
-      // emit_line("# Doing load reg");
+      emit_line("# Doing load reg");
       subleq_emit_add(SUBLEQ_REG(inst->src.reg), 1);
       subleq_emit_add(SUBLEQ_MEM_START_CONST, 1);
       subleq_emit_load_dblptr(1, SUBLEQ_REG(inst->dst.reg));
@@ -242,11 +242,11 @@ static void subleq_emit_inst(Inst* inst) {
 
   case STORE:
     if (inst->src.type == IMM){
-      // emit_line("# Doing store imm");
+      emit_line("# Doing store imm");
       subleq_emit_zero(SUBLEQ_MEM(inst->src.imm));
       subleq_emit_add(SUBLEQ_REG(inst->dst.reg), SUBLEQ_MEM(inst->src.imm));
     } else if (inst->src.type == REG){
-      // emit_line("# Doing store reg dest: %s src: %s", reg_names[inst->src.reg], reg_names[inst->dst.reg]);
+      emit_line("# Doing store reg dest: %s src: %s", reg_names[inst->src.reg], reg_names[inst->dst.reg]);
       subleq_emit_add(SUBLEQ_REG(inst->src.reg), 1);
       subleq_emit_add(SUBLEQ_MEM_START_CONST, 1);
       subleq_emit_store_dblptr(SUBLEQ_REG(inst->dst.reg), 1);
@@ -256,16 +256,19 @@ static void subleq_emit_inst(Inst* inst) {
 
   case PUTC:
     {
+      emit_line("# Putting char");
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
-      // emit_line("# Putting char");
       subleq_emit_instr(src_loc, -1, subleq.word_on + 3);
     }
     break;
 
   case GETC:
-    // emit_line("# Getting char");
+    emit_line("# Getting char");
     subleq_emit_instr(-1, SUBLEQ_REG(inst->dst.reg), subleq.word_on + 3);
+    subleq_emit_cmp(SUBLEQ_REG(inst->dst.reg), SUBLEQ_NEG_ONE_CONST, 6, 3, 3);
+    subleq_emit_sub(SUBLEQ_ONE_CONST, SUBLEQ_REG(inst->dst.reg));
+    subleq_emit_zero(0);
     break;
 
   case EXIT:
@@ -283,7 +286,7 @@ static void subleq_emit_inst(Inst* inst) {
   case LE:
   case GE:
     {
-      // emit_line("# Doing comparison");
+      emit_line("# Doing comparison");
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
 
@@ -309,7 +312,7 @@ static void subleq_emit_inst(Inst* inst) {
   case JLE:
   case JGE:
     {
-      // emit_line("# Doing cond jump to pc %d", inst->jmp.type == REG ? -1 : inst->jmp.imm);
+      emit_line("# Doing cond jump to pc %d", inst->jmp.type == REG ? -1 : inst->jmp.imm);
       int32_t src_loc = (inst->src.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->src.reg) : subleq_emit_imm(inst->src.imm);
       int32_t jmp_loc = (inst->jmp.type == REG) ? (int32_t)SUBLEQ_REG(
@@ -329,9 +332,11 @@ static void subleq_emit_inst(Inst* inst) {
     }
     break;
 
+    
+
   case JMP:
     {
-      // emit_line("# Doing jump");
+      emit_line("# Doing jump");
       int32_t jmp_loc = (inst->jmp.type == REG) ? (int32_t)SUBLEQ_REG(
         inst->jmp.reg) : subleq_emit_imm(inst->jmp.imm);
       
@@ -343,6 +348,7 @@ static void subleq_emit_inst(Inst* inst) {
   default:
     error("oops");
   }
+
 }
 
 void target_subleq(Module* module) {
@@ -378,7 +384,13 @@ void target_subleq(Module* module) {
 
   init_state_subleq(module->data);
 
+  prev_pc = -1;
   for (Inst* inst = module->text; inst; inst = inst->next) {
+    if (prev_pc != inst->pc) {
+      emit_line("\n# PC = %d", inst->pc);
+    }
+    prev_pc = inst->pc;
+    emit_line("");
     subleq_emit_inst(inst);
   }
 

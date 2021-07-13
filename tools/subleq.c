@@ -18,6 +18,25 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
     subleq_word a = code[pc];
     subleq_word b = code[pc + 1];
     subleq_word c = code[pc + 2];
+
+    // if (b == 23){
+    //     printf("Bad write: %d (%d %d %d)\n", pc, a, b, c);
+    //     printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
+    //             code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
+    //     return 1;
+    // }
+
+    // if (b > 14 && b < 30 ){
+    //   printf("Bad write: %d (%d %d %d)\n", pc, a, b, c);
+    //   printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
+    //           code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
+    // }
+
+    // if (b == 5 && code[b] - code[a] == 7){
+    //   printf("Bad C: %d (%d %d %d)\n", pc, a, b, c);
+    //   printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
+    //           code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
+    // }
     
     if (a < -1 || a >= length){
       printf("%d %d %d\n", a, b, c);
@@ -34,18 +53,17 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
     }
 
     #ifdef TRACE
-    printf("loc: %d (%d), [%d] = %d, [%d] = %d, goto %d\n", pc, code[pc + 3], a, code[a], b, code[b], c);
-    printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
-              code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
+    if (pc > 17994564 - 100 && pc < 17994564){
+      printf("loc: %d (%d), [%d] = %d, [%d] = %d, goto %d\n", pc, code[pc + 3], a, code[a], b, code[b], c);
+      printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
+                code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
+    }
     #endif
 
     if (a == -1){
-      code[b] = (subleq_word)getchar();
-      if (code[b] == EOF){
-        code[b] = 0;
-      }
+      code[b] = getchar();
     } else if (b == -1){
-      putchar(code[a] & 255);
+      putchar((char)(code[a] & 255));
     } else if (c <= -1 && code[b] - code[a] <= 0){
       return 0;
     } else {
@@ -81,8 +99,6 @@ MagicComment* parse_magic_comment(FILE* fp){
   getc(fp); // Discard first '{'
 
   MagicComment* mc = (MagicComment*)malloc(sizeof(MagicComment));
-  // mc->type = (char*)calloc(21, sizeof(char));
-  // mc->value = (char*)calloc(21, sizeof(char));
 
   char* buf = (char*)calloc(43, sizeof(char));
   fgets(buf, 42, fp);
@@ -147,7 +163,7 @@ int assemble_run_subleq(FILE* fp){
         fscanf(fp, "%d", &code[loc++]);
         break;
       default:
-        fprintf(stderr, "Invalid character %c (char code %d)", c, c);
+        fprintf(stderr, "Invalid character %c (char code %d) at pos %ld", c, c, ftell(fp));
         return 1;
     }
 
