@@ -29,7 +29,7 @@ ELC := out/elc
 	8cc/set.c \
 	8cc/vector.c
 
-BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/cmake_putc_helper out/whirl
+BINS := $(8CC) $(ELI) $(ELC) out/dump_ir out/befunge out/bfopt out/cmake_putc_helper out/subleq out/whirl
 LIB_IR_SRCS := ir/ir.c ir/table.c
 LIB_IR := $(LIB_IR_SRCS:ir/%.c=out/%.o)
 
@@ -70,6 +70,9 @@ out/bfopt: tools/bfopt.cc
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 out/cmake_putc_helper: tools/cmake_putc_helper.c
+	$(CC) $(CFLAGS) $< -o $@
+
+out/subleq: tools/subleq.c
 	$(CC) $(CFLAGS) $< -o $@
 
 out/tm: tools/tm.c
@@ -142,6 +145,7 @@ ELC_SRCS := \
 	scala.c \
 	scm_sr.c \
 	scratch3.c \
+	subleq.c \
 	swift.c \
 	tcl.c \
 	tex.c \
@@ -494,6 +498,11 @@ endif
 TARGET := sqlite3
 RUNNER := tools/runsqlite3.sh
 TOOL := sqlite3
+include target.mk
+
+TARGET := subleq
+RUNNER := out/subleq
+TEST_FILTER := out/8cc.c.eir.subleq
 include target.mk
 
 TARGET := ps
