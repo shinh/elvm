@@ -18,25 +18,6 @@ int run_subleq_bytes(subleq_word *code, subleq_word length){
     subleq_word a = code[pc];
     subleq_word b = code[pc + 1];
     subleq_word c = code[pc + 2];
-
-    // if (b == 23){
-    //     printf("Bad write: %d (%d %d %d)\n", pc, a, b, c);
-    //     printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
-    //             code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
-    //     return 1;
-    // }
-
-    // if (b > 14 && b < 30 ){
-    //   printf("Bad write: %d (%d %d %d)\n", pc, a, b, c);
-    //   printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
-    //           code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
-    // }
-
-    // if (b == 5 && code[b] - code[a] == 7){
-    //   printf("Bad C: %d (%d %d %d)\n", pc, a, b, c);
-    //   printf("A: %d  B: %d  C:%d  D:%d  SP:%d  BP:%d  PC:%d\n",
-    //           code[3], code[4], code[5], code[6], code[7], code[8], code[9]);
-    // }
     
     if (a < -1 || a >= length){
       printf("%d %d %d\n", a, b, c);
