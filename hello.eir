@@ -1,0 +1,283 @@
+	.text
+main:
+	#{push:main}
+	mov D, SP
+	add D, -1
+	store BP, D
+	mov SP, D
+	mov BP, SP
+	sub SP, 2
+	.file 1 "hello.c"
+	.loc 1 12 0
+	# }
+	.loc 1 5 0
+	#    for (; *p; p++)
+	mov A, 0
+	mov B, SP
+.data
+	.L3:
+	.string "fib result is \n"
+.text
+	mov A, .L3
+	mov B, BP
+	add B, 16777215
+	store A, B
+	.loc 1 6 0
+	#     putchar(*p);
+	.L0:
+	.loc 1 5 0
+	#    for (; *p; p++)
+	mov B, BP
+	add B, 16777215
+	load A, B
+	mov B, A
+	load A, B
+	jeq .L4, A, 0
+	jmp .L5
+	.L4:
+	.loc 1 6 0
+	#     putchar(*p);
+	jmp .L2
+	.L5:
+	.loc 1 5 0
+	#    for (; *p; p++)
+	mov B, BP
+	add B, 16777215
+	load A, B
+	mov B, A
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	putc A
+	add SP, 1
+	.loc 1 6 0
+	#     putchar(*p);
+	.L1:
+	.loc 1 5 0
+	#    for (; *p; p++)
+	mov B, BP
+	add B, 16777215
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	add A, 1
+	mov B, BP
+	add B, 16777215
+	store A, B
+	load A, SP
+	add SP, 1
+	.loc 1 6 0
+	#     putchar(*p);
+	jmp .L0
+	.L2:
+	.loc 1 9 0
+	# 
+	mov A, 0
+	mov B, SP
+	mov A, 1
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	mov A, .L6
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	jmp fb
+	.L6:
+	mov A, B
+	add SP, 1
+	mov B, BP
+	add B, 16777214
+	store A, B
+	.loc 1 11 0
+	#   return 0;
+	.loc 1 9 0
+	# 
+	mov B, BP
+	add B, 16777214
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	putc A
+	add SP, 1
+	.loc 1 12 0
+	# }
+	mov A, 0
+	mov B, A
+	#{pop:main}
+	exit
+	#{pop:main}
+	exit
+	.text
+fb:
+	#{push:fb}
+	mov D, SP
+	add D, -1
+	store BP, D
+	mov SP, D
+	mov BP, SP
+	.loc 1 22 0
+	# }
+	.loc 1 19 0
+	#     }
+	.loc 1 16 0
+	#         return '1';
+	.loc 1 12 0
+	# }
+	mov B, BP
+	add B, 2
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 16 0
+	#         return '1';
+	mov A, 0
+	mov B, A
+	load A, SP
+	add SP, 1
+	eq A, B
+	jeq .L7, A, 0
+	.loc 1 17 0
+	#     } else if (n == 1) {
+	mov A, 49
+	mov B, A
+	#{pop:fb}
+	mov SP, BP
+	load A, SP
+	add SP, 1
+	mov BP, A
+	load A, SP
+	add SP, 1
+	jmp A
+	jmp .L8
+	.L7:
+	.loc 1 19 0
+	#     }
+	.loc 1 17 0
+	#     } else if (n == 1) {
+	.loc 1 12 0
+	# }
+	mov B, BP
+	add B, 2
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 17 0
+	#     } else if (n == 1) {
+	mov A, 1
+	mov B, A
+	load A, SP
+	add SP, 1
+	eq A, B
+	jeq .L9, A, 0
+	.loc 1 19 0
+	#     }
+	mov A, 49
+	mov B, A
+	#{pop:fb}
+	mov SP, BP
+	load A, SP
+	add SP, 1
+	mov BP, A
+	load A, SP
+	add SP, 1
+	jmp A
+	.L9:
+	.L8:
+	.loc 1 22 0
+	# }
+	.loc 1 12 0
+	# }
+	mov B, BP
+	add B, 2
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 22 0
+	# }
+	mov A, 1
+	mov B, A
+	load A, SP
+	add SP, 1
+	sub A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	mov A, .L10
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	jmp fb
+	.L10:
+	mov A, B
+	add SP, 1
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 12 0
+	# }
+	mov B, BP
+	add B, 2
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 22 0
+	# }
+	mov A, 2
+	mov B, A
+	load A, SP
+	add SP, 1
+	sub A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	mov A, .L11
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	jmp fb
+	.L11:
+	mov A, B
+	add SP, 1
+	mov B, A
+	load A, SP
+	add SP, 1
+	add A, B
+	mov B, A
+	#{pop:fb}
+	mov SP, BP
+	load A, SP
+	add SP, 1
+	mov BP, A
+	load A, SP
+	add SP, 1
+	jmp A
+	#{pop:fb}
+	mov SP, BP
+	load A, SP
+	add SP, 1
+	mov BP, A
+	load A, SP
+	add SP, 1
+	jmp A

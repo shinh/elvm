@@ -21,10 +21,12 @@ static void go_emit_inst(Inst* inst) {
               reg_names[inst->dst.reg], src_str(inst));
     break;
 
+  // MEMO: addrの値をregisterにload
   case LOAD:
     emit_line("%s = mem[%s]", reg_names[inst->dst.reg], src_str(inst));
     break;
 
+  // MEMO: レジスタの値をaddrにstore
   case STORE:
     emit_line("mem[%s] = %s", src_str(inst), reg_names[inst->dst.reg]);
     break;

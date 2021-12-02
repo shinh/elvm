@@ -184,11 +184,11 @@ OUT.eir := $(DSTS)
 $(DSTS): out/%.eir: test/%.eir
 	cp $< $@.tmp && mv $@.tmp $@
 
-SRCS := $(wildcard test/*.eir.rb)
-DSTS := $(SRCS:test/%.eir.rb=out/%.eir)
-OUT.eir += $(DSTS)
-$(DSTS): out/%.eir: test/%.eir.rb
-	ruby $< > $@.tmp && mv $@.tmp $@
+# SRCS := $(wildcard test/*.eir.rb)
+# DSTS := $(SRCS:test/%.eir.rb=out/%.eir)
+# OUT.eir += $(DSTS)
+# $(DSTS): out/%.eir: test/%.eir.rb
+# 	ruby $< > $@.tmp && mv $@.tmp $@
 
 SRCS := $(wildcard test/*.c)
 DSTS := $(SRCS:test/%.c=out/%.c)
@@ -267,9 +267,9 @@ build: $(TEST_RESULTS)
 
 # Targets
 
-TARGET := rb
-RUNNER := ruby
-include target.mk
+# TARGET := rb
+# RUNNER := ruby
+# include target.mk
 
 TARGET := py
 RUNNER := python
