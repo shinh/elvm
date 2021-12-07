@@ -6,12 +6,12 @@ main:
 	store BP, D
 	mov SP, D
 	mov BP, SP
-	sub SP, 1
+	sub SP, 2
 	.file 1 "hello.c"
-	.loc 1 5 0
+	.loc 1 6 0
 	# }
 	.loc 1 4 0
-	#   return 42;
+	#   int b = 33;
 	mov A, 0
 	mov B, SP
 	mov B, BP
@@ -19,9 +19,37 @@ main:
 	mov A, 4
 	store A, B
 	.loc 1 5 0
+	#   return a + b;
+	mov A, 0
+	mov B, SP
+	mov B, BP
+	add B, 16777214
+	mov A, 33
+	store A, B
+	.loc 1 6 0
 	# }
-	mov A, 42
+	.loc 1 4 0
+	#   int b = 33;
+	mov B, BP
+	add B, 16777215
+	load A, B
+	mov D, SP
+	add D, -1
+	store A, D
+	mov SP, D
+	.loc 1 5 0
+
+
+	mov B, BP
+	add B, 16777214
+	load A, B
 	mov B, A
+	load A, SP
+	add SP, 1
+	add A, B
+	mov B, A
+
+
 	#{pop:main}
 	exit
 	#{pop:main}
