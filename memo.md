@@ -15,4 +15,5 @@
 
 12/8
 * 今日の目標: Goを例にとってelvm irの理解(https://github.com/shinh/elvm/commits?author=shogo82148)
-  * 
+* なんかeirが吐くコードがよくわかんないから、8ccから読んでいくアプローチ人してみる
+  * 記事調べても、バックエンド実装してみた系敷かないし。。。

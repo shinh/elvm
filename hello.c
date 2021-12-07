@@ -1,7 +1,6 @@
-// int putchar(int x);
-
 int main() {
-  int a = 4;
-  int b = 33;
-  return a + b;
+  const char* p = "Hello, world!\n";
+  for (; *p; p++)
+    putchar(*p);
+  return 0;
 }
