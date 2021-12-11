@@ -12,11 +12,11 @@ int main() {
 	.text
 main:
 	#{push:main}
-	mov D, SP
-	add D, -1
-	store BP, D
-	mov SP, D
-	mov BP, SP
+	mov D, SP       # D = SP = 0
+	add D, -1       # D = 16777215 (0 - 1でoverflowが起こる)
+	store BP, D     # BP = D = 16777215
+	mov SP, D       # SP = D = 16777215
+	mov BP, SP      # BP = SP = 16777215
 	.file 1 "hello.c"
 	.loc 1 4 0
 	# }
@@ -30,10 +30,10 @@ main:
 ```
 
 * memo:
-  * #は多分コメント
   * pop:mainから始まるのが2つあるけど、1つ消しても動いた
   * Bがrax的なものかな？(関数抜ける時に値をおいておく場所)
   * なんか、BP = SP になってる気しかしない。。。
+    * -> 引数やlocal変数がない場合はbp = spでいいのかもしれない
 
 ### case2
 * in
@@ -54,19 +54,19 @@ main:
 	store BP, D
 	mov SP, D
 	mov BP, SP
-	sub SP, 1
+	sub SP, 1		>> 多分ここまでがprologue
 	.file 1 "hello.c"
-	.loc 1 5 0
+	.loc 1 3 0
 	# }
-	.loc 1 4 0
+	.loc 1 2 0
 	#   return 42;
 	mov A, 0
 	mov B, SP
-	mov B, BP
-	add B, 16777215
+	mov B, BP		>> ここから8cc/gen.c のemit_save_literal()の処理
+	add B, 16777215 >> nodeにある、offsetの情報から、offsetを足してるだけ(これが変数Bのアドレスに相当している)
 	mov A, 4
-	store A, B
-	.loc 1 5 0
+	store A, B		>> (offsetから算出したBに)Aを代入
+	.loc 1 3 0
 	# }
 	mov A, 42
 	mov B, A
@@ -74,15 +74,17 @@ main:
 	exit
 	#{pop:main}
 	exit
-
 ```
 * memo:
   * .loc xxxx....ってやつ、デバッグ情報だわ。。
-  * 16,777,215って数値、UINT_MAX_STRらしい(2^24 - 1)
-    * elvmだと24bitが1wordって書いてあったな。
-    * bit演算とかする際に、2^n - 1がいろんな場面で使えるみたい
-  * add B, 16777215は何を意味するのだろう..
+  * 16,777,215 = (2^24 - 1)
+  * A + 16777215 = A - 1 に相当
   * store命令のdstにはaddress(or regiseter)がきて、そのアドレスの中に値をいれるって認識でいいのか？
+  * declareのcodegenの流れが気になる。。
+    * offsetはどのように計算してるんだろう.
+      * -> 8cc/gen.c のemit_save_literal()を読むと少し分かった
+        * そもそも8ccではcodegenの段階で変数のoffsetとがが全て分かってる状態。
+        * codegenの時は、そのoffsetを単純に足してるだけ
 
 ### case3
 * in
@@ -102,8 +104,7 @@ main:
 	add D, -1
 	store BP, D
 	mov SP, D
-	mov BP, SP # (ここまでで　SP == BP)
-	# MEMO: ここまではroutineっぽい
+	mov BP, SP # (ここまでで　SP == BP)		>> ここまではroutineっぽい
 	sub SP, 2 #ここがlocal変数依存. spからword数をひく. (SP != BP)
 	.file 1 "hello.c"
 	.loc 1 6 0
@@ -135,7 +136,8 @@ main:
   * 	.file 1 "hello.c" とかも、多分debug情報かな. 
   * a, bどっちも同じようなルーチンで保存してるけど、これ後に宣言した方が先に宣言したものを上書きしてない？
     * return a + b;をして確認してみる
-  * a
+  * sub sp, 2のところは、gen.cのemit_func_prologue()で実現されてそうだった.
+  * 基本的には、case2と同じことを２回繰り返してるだけに見える
 
 ### case4
 * in 
@@ -215,9 +217,9 @@ main:
 ```
 int main() {
   int a = 4;
-  a += 1;
+  a = 3;
   int b = 33;
-  return a + b;
+  return 21;
 }
 ```
 
@@ -233,69 +235,33 @@ main:
 	mov BP, SP
 	sub SP, 2
 	.file 1 "hello.c"
-	.loc 1 7 0
+	.loc 1 5 0
 	# }
-	.loc 1 4 0
-	#   a += 1;
+	.loc 1 2 0
+	#   a = 3;
 	mov A, 0
 	mov B, SP
 	mov B, BP
 	add B, 16777215
 	mov A, 4
 	store A, B
-
-
-	.loc 1 4 0
-	#   a += 1;
-	mov B, BP
-	add B, 16777215
-	load A, B
-	mov D, SP
-	add D, -1
-	store A, D
-	mov SP, D
-
-	######################
-
-	.loc 1 5 0
+	.loc 1 3 0
 	#   int b = 33;
-	mov A, 1
-	mov B, A
-	load A, SP
-	add SP, 1
-	add A, B
+	mov A, 3
 	mov B, BP
 	add B, 16777215
 	store A, B
-
-	######################
-
-	.loc 1 6 0
+	.loc 1 4 0
+	#   return 21;
 	mov A, 0
 	mov B, SP
 	mov B, BP
 	add B, 16777214
 	mov A, 33
 	store A, B
-
-	
-	.loc 1 7 0
-	mov B, BP
-	add B, 16777215
-	load A, B
-	mov D, SP
-	add D, -1
-	store A, D
-	mov SP, D
-	.loc 1 6 0
-	#   return a + b;
-	mov B, BP
-	add B, 16777214
-	load A, B
-	mov B, A
-	load A, SP
-	add SP, 1
-	add A, B
+	.loc 1 5 0
+	# }
+	mov A, 21
 	mov B, A
 	#{pop:main}
 	exit
@@ -413,4 +379,5 @@ func main() {
 ```
 
 * memo
+  * これも、aというシンボルのoffsetは、codegenの時には分かってるから、assignの時もそのoffsetを使い回すだけでよく、処理内容としては非常にシンプル.
   * 

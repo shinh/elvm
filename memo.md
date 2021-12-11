@@ -5,7 +5,7 @@
 * 手順諸々
   * 各種バックエンド用のコードを生成する
     * 1. C -> eirへコンパイル
-      * `./out/8cc -S -I. -Ilibc -o hello.eir hello.c`
+      * `./out/8cc -S -fdump-ast -I. -Ilibc -o hello.eir hello.c`
     * 2. eir -> バックエンド言語
       * `./out/elc -(Targets) hello.eir > hello.targets`
         * target名はMakefileに記載されてる.
@@ -17,3 +17,7 @@
 * 今日の目標: Goを例にとってelvm irの理解(https://github.com/shinh/elvm/commits?author=shogo82148)
 * なんかeirが吐くコードがよくわかんないから、8ccから読んでいくアプローチ人してみる
   * 記事調べても、バックエンド実装してみた系敷かないし。。。
+
+12/11
+* 8ccのcodegenの部分を読んでみる
+  * d
