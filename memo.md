@@ -21,3 +21,10 @@
 12/11
 * 8ccのcodegenの部分を読んでみる
   * d
+
+12/12
+* 実はCのincludeが分かってない説
+  * libcを自前で実装してるみたいだが、putcharはどこからincludeされるのか、よくわからなかった
+  * あ、putcがオレオレCPU命令なのか
+    * emit_func_call()関数を参照
+  * 多分、putc(printする系全部)に依存してるlibcの関数を再実装したんだと思う。
