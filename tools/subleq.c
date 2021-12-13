@@ -82,7 +82,7 @@ MagicComment* parse_magic_comment(FILE* fp){
   MagicComment* mc = (MagicComment*)malloc(sizeof(MagicComment));
 
   char* buf = (char*)calloc(43, sizeof(char));
-  fgets(buf, 42, fp);
+  if (!fgets(buf, 42, fp)) return 0;
   buf[strcspn(buf, "\n")] = 0;
   buf[strcspn(buf, "}")] = 0;
 
@@ -117,7 +117,7 @@ int assemble_run_subleq(FILE* fp){
         ungetc(c, fp);
         if (c == '{'){
           MagicComment* mc = parse_magic_comment(fp);
-          if (strcmp("loc_skip", mc->type) == 0) {
+          if (!mc || strcmp("loc_skip", mc->type) == 0) {
             int amnt = atoi(mc->value);
             loc += amnt - 1;
             fseek(fp, amnt * 2 - 1, SEEK_CUR);
@@ -141,9 +141,10 @@ int assemble_run_subleq(FILE* fp){
       case '9':
       case '-':
         ungetc(c, fp);
-        fscanf(fp, "%d", &code[loc++]);
+        if (fscanf(fp, "%d", &code[loc++]) != 1) goto err;
         break;
       default:
+      err:
         fprintf(stderr, "Invalid character %c (char code %d) at pos %ld", c, c, ftell(fp));
         return 1;
     }
