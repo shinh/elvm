@@ -10,6 +10,7 @@ void target_asmjs(Module* module);
 void target_awk(Module* module);
 void target_bef(Module* module);
 void target_bf(Module* module);
+void target_blc(Module* module);
 void target_c(Module* module);
 void target_cl(Module* module);
 void target_cmake(Module* module);
@@ -75,6 +76,7 @@ static target_func_t get_target_func(const char* ext) {
     split_basic_block_by_mem();
     return target_bf;
   }
+  if (!strcmp(ext, "blc")) return target_blc;
   if (!strcmp(ext, "c")) return target_c;
   if (!strcmp(ext, "cl")) return target_cl;
   if (!strcmp(ext, "cmake")) return target_cmake;

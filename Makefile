@@ -106,6 +106,7 @@ ELC_SRCS := \
 	awk.c \
 	bef.c \
 	bf.c \
+	blc.c \
 	c.c \
 	cl.c \
 	cmake.c \
@@ -587,6 +588,13 @@ RUNNER := tools/runqftasm.sh
 TOOL := python
 # Since the QFTASM backend is 16-bit, 24-bit-related programs are filtered out.
 TEST_FILTER := $(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir))) out/eof.c.eir.qftasm out/neg.c.eir.qftasm out/8cc.c.eir.qftasm out/elc.c.eir.qftasm out/dump_ir.c.eir.qftasm out/eli.c.eir.qftasm
+include target.mk
+
+TARGET := blc
+RUNNER := tools/runblc.sh
+ifndef FULL
+TEST_FILTER := out/elc.c.eir.blc out/eli.c.eir.blc out/dump_ir.c.eir.blc
+endif
 include target.mk
 
 test: $(TEST_RESULTS)
