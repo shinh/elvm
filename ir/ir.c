@@ -242,17 +242,17 @@ static Op get_op(Parser* p, const char* buf) {
   } else if (!strcmp(buf, "ge")) {
     return GE;
   } else if (!strcmp(buf, ".text")) {
-    return TEXT;
+    return (Op)TEXT;
   } else if (!strcmp(buf, ".data")) {
-    return DATA;
+    return (Op)DATA;
   } else if (!strcmp(buf, ".long")) {
-    return LONG;
+    return (Op)LONG;
   } else if (!strcmp(buf, ".string")) {
-    return STRING;
+    return (Op)STRING;
   } else if (!strcmp(buf, ".file")) {
-    return FILENAME;
+    return (Op)FILENAME;
   } else if (!strcmp(buf, ".loc")) {
-    return LOC;
+    return (Op)LOC;
   }
   return OP_UNSET;
 }
@@ -332,7 +332,7 @@ static void parse_line(Parser* p, int c) {
         p->symtab = table_add(p->symtab, strdup(buf), (void*)value);
       } else {
         DataPrivate* d = add_data(p);
-        d->val.type = LABEL;
+        d->val.type = (ValueType)LABEL;
         d->val.tmp = strdup(buf);
       }
       return;
@@ -411,7 +411,7 @@ static void parse_line(Parser* p, int c) {
       add_imm_data(p, args[0].imm);
     } else if (args[0].type == (ValueType)REF) {
       DataPrivate* d = add_data(p);
-      d->val.type = REF;
+      d->val.type = (ValueType)REF;
       d->val.tmp = args[0].tmp;
     } else {
       ir_error(p, "number expected");
