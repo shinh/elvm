@@ -153,6 +153,7 @@ ELC_SRCS := \
 	tex.c \
 	tf.c \
 	tm.c \
+	ulamb.c \
 	unl.c \
 	vim.c \
 	wasi.c \
@@ -603,6 +604,13 @@ TARGET := blc
 RUNNER := tools/runblc.sh
 ifndef FULL
 TEST_FILTER := out/elc.c.eir.blc out/eli.c.eir.blc out/dump_ir.c.eir.blc
+endif
+include target.mk
+
+TARGET := ulamb
+RUNNER := tools/runulamb.sh
+ifndef FULL
+TEST_FILTER := out/8cc.c.eir.ulamb out/elc.c.eir.ulamb out/eli.c.eir.ulamb out/dump_ir.c.eir.ulamb
 endif
 include target.mk
 
