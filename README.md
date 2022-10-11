@@ -18,6 +18,7 @@ Currently, there are 51 backends:
 1. Awk (by [@dubek](https://github.com/dubek/))
 1. Bash
 1. Befunge
+1. Binary Lambda Calculus (by [@woodrush](https://github.com/woodrush/))
 1. Brainfuck
 1. C
 1. C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
@@ -38,6 +39,7 @@ Currently, there are 51 backends:
 1. Java
 1. JavaScript
 1. Kinx (by [@Kray-G](https://github.com/Kray-G/))
+1. Lazy K (by [@woodrush](https://github.com/woodrush/))
 1. LLVM IR (by [@retrage](https://github.com/retrage/))
 1. LOLCODE (by [@gamerk](https://github.com/gamerk))
 1. Lua (by [@retrage](https://github.com/retrage/))
@@ -57,6 +59,7 @@ Currently, there are 51 backends:
 1. TensorFlow (WIP)
 1. Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
 1. Unlambda (by [@irori](https://github.com/irori/))
+1. Universal Lambda (by [@woodrush](https://github.com/woodrush/))
 1. Vim script (by [@rhysd](https://github.com/rhysd/))
 1. WebAssembly (by [@dubek](https://github.com/dubek/))
 1. WebAssembly System Interface (by [@sanemat](https://github.com/sanemat/))
@@ -347,9 +350,50 @@ $ echo -n '' | nodejs ./run_scratch.js ../basic.scratch3.sb3
 !!@X
 ```
 
-### Conway's Life of Game
+### Conway's Game of Life
 
+This backend was contributed by [@woodrush](https://github.com/woodrush/) based on [QFTASM](https://github.com/QuestForTetris/QFT).
 See [tools/qftasm/README.md](tools/qftasm/README.md) for its details.
+Further implementation details are described in the [Lisp in Life](https://github.com/woodrush/lisp-in-life) project.
+
+### Binary Lambda Calculus
+This backend was contributed by [@woodrush](https://github.com/woodrush/).
+Implementation details are described in the [LambdaVM](https://github.com/woodrush/lambdavm) and [lambda-8cc](https://github.com/woodrush/lambda-8cc) repositories.
+
+The output of this backend is an untyped lambda calculus term written in [binary lambda calculus](https://tromp.github.io/cl/Binary_lambda_calculus.html) notation.
+The output program runs on the [IOCCC](https://www.ioccc.org/) 2012 ["Most Functional"](https://www.ioccc.org/2012/tromp/hint.html) interpreter written by [@tromp](https://github.com/tromp).
+The program runs on the byte-oriented mode which is the default mode.
+
+This backend outputs a sequence of 0/1s written in ASCII.
+This bit stream must be packed into a byte stream before passing it to the interpreter,
+which can be done using tools/packbits.c. Please see tools/runblc.sh for usage details.
+
+This backend is tested with the interpreter [uni](https://github.com/melvinzhang/binary-lambda-calculus),
+a fast implementation of the "Most Functional" interpreter written in C++ by [@melvinzhang](https://github.com/melvinzhang).
+This interpreter significantly speeds up the running time of large programs such as 8cc.c.
+tools/runblc.sh automatically clones and builds uni via tools/runblc.sh when the tests are run.
+
+### Lazy K
+The [Lazy K](https://tromp.github.io/cl/lazy-k.html) backend was contributed by [@woodrush](https://github.com/woodrush/).
+Implementation details are described in the [LambdaVM](https://github.com/woodrush/lambdavm) and [lambda-8cc](https://github.com/woodrush/lambda-8cc) repositories.
+
+This backend is tested with the Lazy K interpreter [lazyk](https://github.com/irori/lazyk) written by [@irori](https://github.com/irori).
+Interactive programs require the `-u` option which disables standard output buffering, used as `lazyk -u [input file]`.
+The interpreter is automatically cloned and built via tools/runlazy.sh when the tests are run.
+
+### Universal Lambda
+The [Universal Lambda](http://www.golfscript.com/lam/) backend was contributed by [@woodrush](https://github.com/woodrush/).
+Implementation details are described in the [LambdaVM](https://github.com/woodrush/lambdavm) repository.
+
+This backend is tested with the Lazy K interpreter [clamb](https://github.com/irori/clamb) written by [@irori](https://github.com/irori).
+Interactive programs require the `-u` option which disables standard output buffering, used as `clamb -u [input file]`.
+The interpreter is automatically cloned and built via tools/runulamb.sh when the tests are run.
+
+The output of this backend is an untyped lambda calculus term written in [binary lambda calculus](https://tromp.github.io/cl/Binary_lambda_calculus.html) notation.
+The output program is written as a sequence of 0/1s in ASCII.
+The bit stream must be packed into a byte stream before passing it to the interpreter.
+This can be done using tools/packbits.c. Please see tools/runulamb.sh for usage details.
+
 
 ## Future works
 
