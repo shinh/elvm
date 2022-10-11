@@ -403,11 +403,11 @@ The interpreter is automatically cloned and built via tools/runlazy.sh when the 
 The [Universal Lambda](http://www.golfscript.com/lam/) backend was contributed by [@woodrush](https://github.com/woodrush/).
 Implementation details are described in the [LambdaVM](https://github.com/woodrush/lambdavm) repository.
 
-This backend is tested with the Lazy K interpreter [clamb](https://github.com/irori/clamb) written by [@irori](https://github.com/irori).
+This backend is tested with the Universal Lambda interpreter [clamb](https://github.com/irori/clamb) written by [@irori](https://github.com/irori).
 Interactive programs require the `-u` option which disables standard output buffering, used as `clamb -u [input file]`.
 The interpreter is automatically cloned and built via tools/runulamb.sh when the tests are run.
 
-The output of this backend is an untyped lambda calculus term written in [binary lambda calculus](https://tromp.github.io/cl/Binary_lambda_calculus.html) notation.
+The output of this backend is an untyped lambda calculus term written in the [binary lambda calculus](https://tromp.github.io/cl/Binary_lambda_calculus.html) notation.
 The output program is written as a sequence of 0/1s in ASCII.
 The bit stream must be packed into a byte stream before passing it to the interpreter.
 This can be done using tools/packbits.c. Please see tools/runulamb.sh for usage details.
