@@ -153,6 +153,7 @@ ELC_SRCS := \
 	tex.c \
 	tf.c \
 	tm.c \
+	ulamb.c \
 	unl.c \
 	vim.c \
 	wasi.c \
@@ -591,7 +592,7 @@ TOOL := python
 TEST_FILTER := $(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir))) out/eof.c.eir.qftasm out/neg.c.eir.qftasm out/8cc.c.eir.qftasm out/elc.c.eir.qftasm out/dump_ir.c.eir.qftasm out/eli.c.eir.qftasm
 include target.mk
 
-  TARGET := lazy
+TARGET := lazy
 RUNNER := tools/runlazy.sh
 ifndef FULL
 TEST_FILTER := out/8cc.c.eir.lazy out/elc.c.eir.lazy out/eli.c.eir.lazy out/dump_ir.c.eir.lazy \
@@ -603,6 +604,13 @@ TARGET := blc
 RUNNER := tools/runblc.sh
 ifndef FULL
 TEST_FILTER := out/elc.c.eir.blc out/eli.c.eir.blc out/dump_ir.c.eir.blc
+endif
+include target.mk
+
+TARGET := ulamb
+RUNNER := tools/runulamb.sh
+ifndef FULL
+TEST_FILTER := out/8cc.c.eir.ulamb out/elc.c.eir.ulamb out/eli.c.eir.ulamb out/dump_ir.c.eir.ulamb
 endif
 include target.mk
 
