@@ -50,22 +50,22 @@ Currently, there are 51 backends:
 1. Scheme syntax-rules (by [@zeptometer](https://github.com/zeptometer/))
 1. Scratch3.0 (by [@algon-320](https://github.com/algon-320/))
 1. SQLite3 (by [@youz](https://github.com/youz/))
-2. SUBLEQ (by [@gamerk](https://github.com/gamerk))
-3. Swift (by [@kwakasa](https://github.com/kwakasa/))
-4. Tcl (by [@dubek](https://github.com/dubek/))
-5. TeX (by [@hak7a3](https://github.com/hak7a3/))
-6. TensorFlow (WIP)
-7. Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
-8. Unlambda (by [@irori](https://github.com/irori/))
-9. Vim script (by [@rhysd](https://github.com/rhysd/))
-10. WebAssembly (by [@dubek](https://github.com/dubek/))
-11. WebAssembly System Interface (by [@sanemat](https://github.com/sanemat/))
-12. Whirl by ([@samcoppini](https://github.com/samcoppini/))
-13. W-Machine by ([@jcande](https://github.com/jcande/))
-14. Whitespace
-15. arm-linux (by [@irori](https://github.com/irori/))
-16. i386-linux
-17. sed
+1. SUBLEQ (by [@gamerk](https://github.com/gamerk))
+1. Swift (by [@kwakasa](https://github.com/kwakasa/))
+1. Tcl (by [@dubek](https://github.com/dubek/))
+1. TeX (by [@hak7a3](https://github.com/hak7a3/))
+1. TensorFlow (WIP)
+1. Turing machine (by [@ND-CSE-30151](https://github.com/ND-CSE-30151/))
+1. Unlambda (by [@irori](https://github.com/irori/))
+1. Vim script (by [@rhysd](https://github.com/rhysd/))
+1. WebAssembly (by [@dubek](https://github.com/dubek/))
+1. WebAssembly System Interface (by [@sanemat](https://github.com/sanemat/))
+1. Whirl by ([@samcoppini](https://github.com/samcoppini/))
+1. W-Machine by ([@jcande](https://github.com/jcande/))
+1. Whitespace
+1. arm-linux (by [@irori](https://github.com/irori/))
+1. i386-linux
+1. sed
 
 The above list contains languages which are known to be difficult to
 program in, but with ELVM, you can create programs in such
