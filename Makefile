@@ -126,6 +126,7 @@ ELC_SRCS := \
 	java.c \
 	js.c \
 	kx.c \
+	lam.c \
 	lazy.c \
 	lua.c \
 	ll.c \
@@ -611,6 +612,13 @@ TARGET := ulamb
 RUNNER := tools/runulamb.sh
 ifndef FULL
 TEST_FILTER := out/8cc.c.eir.ulamb out/elc.c.eir.ulamb out/eli.c.eir.ulamb out/dump_ir.c.eir.ulamb
+endif
+include target.mk
+
+TARGET := lam
+RUNNER := tools/runlam.sh
+ifndef FULL
+TEST_FILTER := out/elc.c.eir.lam out/eli.c.eir.lam out/dump_ir.c.eir.lam
 endif
 include target.mk
 

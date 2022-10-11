@@ -30,6 +30,7 @@ void target_j(Module* module);
 void target_java(Module* module);
 void target_js(Module* module);
 void target_kx(Module* module);
+void target_lam(Module* module);
 void target_lazy(Module* module);
 void target_lua(Module* module);
 void target_ll(Module* module);
@@ -98,6 +99,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "java")) return target_java;
   if (!strcmp(ext, "js")) return target_js;
   if (!strcmp(ext, "kx")) return target_kx;
+  if (!strcmp(ext, "lam")) return target_lam;
   if (!strcmp(ext, "lazy")) return target_lazy;
   if (!strcmp(ext, "lua")) return target_lua;
   if (!strcmp(ext, "ll")) return target_ll;
