@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 55 backends:
+Currently, there are 56 backends:
 
 1. Awk (by [@dubek](https://github.com/dubek/))
 1. Bash
@@ -34,6 +34,7 @@ Currently, there are 55 backends:
 1. Forth (by [@dubek](https://github.com/dubek/))
 1. Fortran (by [@samcoppini](https://github.com/samcoppini/))
 1. Go (by [@shogo82148](https://github.com/shogo82148/))
+1. Grass (by [@woodrush](https://github.com/woodrush/))
 1. HeLL (by [@esoteric-programmer](https://github.com/esoteric-programmer/))
 1. J (by [@dubek](https://github.com/dubek/))
 1. Java
@@ -411,6 +412,13 @@ The output of this backend is an untyped lambda calculus term written in the [bi
 The output program is written as a sequence of 0/1s in ASCII.
 The bit stream must be packed into a byte stream before passing it to the interpreter.
 This can be done using tools/packbits.c. Please see tools/runulamb.sh for usage details.
+
+### Grass
+The [Grass](http://www.blue.sky.or.jp/grass/) backend was contributed by [@woodrush](https://github.com/woodrush/).
+Implementation details are described in the [GrassVM](https://github.com/woodrush/grassvm) and [LambdaVM](https://github.com/woodrush/lambdavm) repositories.
+
+This backend is tested with the Grass interpreter [grass.ml](https://gist.github.com/woodrush/3d85a6569ef3c85b63bfaf9211881af6), originally written by [@ytomino](https://github.com/ytomino) and modified by [@youz](https://github.com/youz) and [@woodrush](https://github.com/woodrush).
+The modifications are described in the [GrassVM](https://github.com/woodrush/grassvm) repository.
 
 
 ## Future works
