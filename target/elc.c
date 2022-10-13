@@ -61,6 +61,7 @@ void target_tm(Module* module);
 void target_ulamb(Module* module);
 void target_unl(Module* module);
 void target_vim(Module* module);
+void target_w(Module* module);
 void target_wasi(Module* module);
 void target_wasm(Module* module);
 void target_whirl(Module* module);
@@ -130,6 +131,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "ulamb")) return target_ulamb;
   if (!strcmp(ext, "unl")) return target_unl;
   if (!strcmp(ext, "vim")) return target_vim;
+  if (!strcmp(ext, "w")) return target_w;
   if (!strcmp(ext, "wasi")) return target_wasi;
   if (!strcmp(ext, "wasm")) return target_wasm;
   if (!strcmp(ext, "whirl")) return target_whirl;
