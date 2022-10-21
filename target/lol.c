@@ -169,17 +169,17 @@ static void lol_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s R MOD OF SUM OF %s AN %s AN %s",
+    emit_line("%s R MOD OF SUM OF %s AN %s AN %d",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
-              src_str(inst), UINT_MAX_STR);
+              src_str(inst), UINT_MAX + 1);
     break;
 
   case SUB:
-    emit_line("%s R MOD OF DIFF OF %s AN %s AN %s",
+    emit_line("%s R MOD OF DIFF OF %s AN %s AN %d",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg],
-              src_str(inst), UINT_MAX_STR);
+              src_str(inst), UINT_MAX + 1);
     break;
 
   case LOAD:
