@@ -24,6 +24,7 @@ void target_f90(Module* module);
 void target_forth(Module* module);
 void target_fs(Module* module);
 void target_go(Module* module);
+void target_gomplate(Module* module);
 void target_hell(Module* module);
 void target_hs(Module* module);
 void target_i(Module* module);
@@ -95,6 +96,7 @@ static target_func_t get_target_func(const char* ext) {
   if (!strcmp(ext, "forth")) return target_forth;
   if (!strcmp(ext, "fs")) return target_fs;
   if (!strcmp(ext, "go")) return target_go;
+  if (!strcmp(ext, "gomplate")) return target_gomplate;
   if (!strcmp(ext, "hell")) return target_hell;
   if (!strcmp(ext, "hs")) return target_hs;
   if (!strcmp(ext, "i")) return target_i;
