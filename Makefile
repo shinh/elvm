@@ -101,6 +101,7 @@ $(COBJS): out/%.o: ir/%.c
 ELC_SRCS := \
 	elc.c \
 	util.c \
+	aheui.c \
 	asmjs.c \
 	arm.c \
 	awk.c \
@@ -426,6 +427,11 @@ RUNNER := tools/runws.sh
 TEST_FILTER := out/eli.c.eir.ws
 include target.mk
 $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out tinycc/tcc
+
+TARGET := aheui
+RUNNER := rpaheui-c
+TEST_FILTER := out/elc.c.eir.aheui
+include target.mk
 
 TARGET := bef
 RUNNER := out/befunge
