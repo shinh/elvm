@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 57 backends:
+Currently, there are 60 backends:
 
 1. Aheui
 1. Awk (by [@dubek](https://github.com/dubek/))
