@@ -101,6 +101,7 @@ $(COBJS): out/%.o: ir/%.c
 ELC_SRCS := \
 	elc.c \
 	util.c \
+	acc.c \
 	aheui.c \
 	asmjs.c \
 	arm.c \
@@ -432,6 +433,12 @@ $(OUT.eir.ws.out): tools/runws.sh Whitespace/whitespace.out tinycc/tcc
 TARGET := aheui
 RUNNER := rpaheui-c
 TEST_FILTER := out/elc.c.eir.aheui
+include target.mk
+
+TARGET := acc
+RUNNER := tools/runacc.sh
+# Acc interpreter struggles when more than a few kilobytes of memory is used
+TEST_FILTER := $(addsuffix .acc,$(filter out/%.c.eir,$(OUT.eir))) out/04getc.eir.acc
 include target.mk
 
 TARGET := bef

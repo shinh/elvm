@@ -5,6 +5,7 @@
 #include <ir/ir.h>
 #include <target/util.h>
 
+void target_acc(Module* module);
 void target_aheui(Module* module);
 void target_arm(Module* module);
 void target_asmjs(Module* module);
@@ -74,6 +75,7 @@ void target_x86(Module* module);
 typedef void (*target_func_t)(Module*);
 
 static target_func_t get_target_func(const char* ext) {
+  if (!strcmp(ext, "acc")) return target_acc;
   if (!strcmp(ext, "aheui")) return target_aheui;
   if (!strcmp(ext, "arm")) return target_arm;
   if (!strcmp(ext, "asmjs")) return target_asmjs;
