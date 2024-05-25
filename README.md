@@ -15,6 +15,7 @@ language.
 
 Currently, there are 60 backends:
 
+1. *Acc!!*
 1. Aheui
 1. Awk (by [@dubek](https://github.com/dubek/))
 1. Bash
