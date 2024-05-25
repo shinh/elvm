@@ -437,8 +437,7 @@ include target.mk
 
 TARGET := acc
 RUNNER := tools/runacc.sh
-# Acc interpreter struggles when more than a few kilobytes of memory is used
-TEST_FILTER := $(addsuffix .acc,$(filter out/%.c.eir,$(OUT.eir))) out/04getc.eir.acc
+TEST_FILTER := out/04getc.eir.acc out/switch_case.c.eir.acc out/switch_op.c.eir.acc out/switch_range.c.eir.acc out/24_cmp.c.eir.acc out/24_cmp2.c.eir.acc out/24_muldiv.c.eir.acc out/bitops.c.eir.acc out/copy_struct.c.eir.acc out/computed_goto.c.eir.acc out/eof.c.eir.acc out/fgets.c.eir.acc out/fizzbuzz.c.eir.acc out/fizzbuzz_fast.c.eir.acc out/global_struct_ref.c.eir.acc out/lisp.c.eir.acc out/muldiv.c.eir.acc out/printf.c.eir.acc out/print_int.c.eir.acc out/qsort.c.eir.acc out/8cc.c.eir.acc out/elc.c.eir.acc out/dump_ir.c.eir.acc out/eli.c.eir.acc out/bool.c.eir.acc out/field_addr.c.eir.acc.out.time
 include target.mk
 
 TARGET := bef
