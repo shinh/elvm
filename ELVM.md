@@ -78,5 +78,14 @@ DUMP
 The syntax of the text format is borrowed from GNU assembler. Please
 check its manual if you are not familiar with it. [Pseudo
 ops](https://sourceware.org/binutils/docs/as/Pseudo-Ops.html#Pseudo-Ops)
-are especially important. Currently, .text, .data, .long, and .string
-are used. And others may be ignored or cause an error.
+are especially important. Currently, .text, .data, .long, .string,
+.loc, and .file are used. And others may be ignored or cause an error.
+
+Essentially, instructions are instruction names from above, but
+lowercased.
+
+Spelled-out labels are supported, [example of these can be found in regjmp.eir test](./test/05regjmp.eir).
+
+Example of pseudo-ops: [.text/.data](./test/08data.eir). Note in particular that .long expects decimal constants and not hexadecimal.
+
+Comments start with `#` and stretch until the end of the line.
