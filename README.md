@@ -13,7 +13,7 @@ Unlike LLVM bitcode, EIR is designed to be extremely simple, so
 there's more chance we can write a translator from EIR to an esoteric
 language.
 
-Currently, there are 60 backends:
+Currently, there are 61 backends:
 
 1. *Acc!!*
 1. Aheui
@@ -25,6 +25,7 @@ Currently, there are 60 backends:
 1. C++14 constexpr (compile-time) (by [@kw-udon](https://github.com/kw-udon/))
 1. C++ Template Metaprogramming (compile-time) (by [@kw-udon](https://github.com/kw-udon/)) (WIP)
 1. C# (by [@masaedw](https://github.com/masaedw/))
+1. Chicken (MiniChicken) (by [@none-None1](https://github.com/none-None1/))
 1. C-INTERCAL
 1. CMake (by [@ooxi](https://github.com/ooxi/))
 1. CommonLisp (by [@youz](https://github.com/youz/))
@@ -438,6 +439,12 @@ more (very slowly) with `FULL=1 make gnufind`.
 The scratch directory's parent can be overridden with `GF_TMPDIR` (or
 `TMPDIR`); by default an in-memory filesystem (`/dev/shm`) is preferred when
 available and `/tmp` otherwise.
+
+### Chicken
+* 24 bits.
+* Output always starts with a line feed (as it's hard to generate empty strings in Chicken).
+* Input characters are given in the format of three octals (e.g.: `101102` for `AB`) as Chicken has no alphabet.
+* Actually generates [MiniChicken](https://esolangs.org/wiki/MiniChicken) code. You can translate the result to standard [Chicken](https://esolangs.org/wiki/Chicken) if you want.
 
 ## Future works
 

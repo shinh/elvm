@@ -110,6 +110,7 @@ ELC_SRCS := \
 	bf.c \
 	blc.c \
 	c.c \
+	chn.c \
 	cl.c \
 	cmake.c \
 	cpp.c \
