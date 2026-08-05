@@ -12,6 +12,9 @@
 * Instructions are not stored in memory. Every instruction in a basic
   block has the same pc (program counter) value, and a branch to a pc
   goes to the first instruction with that pc.
+* Instructions that can act on multiple registers, can act on the same
+  register, whenever sensible. So `load A, A` loads the data from
+  `A`-pointer memory segment into `A`.
 
 ## Ops
 
