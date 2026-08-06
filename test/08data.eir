@@ -5,8 +5,17 @@
  add B, 1
  load A, B
  putc A
+ mov B, x
+ load A, B
+ putc A
+ add B, 1
+ load A, B
+ putc A
  exit
 
 .data
  val:
  .string "hi"
+ x:
+ .long 104
+ .long 105

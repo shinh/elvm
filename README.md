@@ -112,7 +112,7 @@ backends. The above demo runs ELVM toolchain on JavaScript (thus slow).
 
 * Harvard architecture, not Neumann (allowing self-modifying code is hard)
 * 6 registers: A, B, C, D, SP, and BP
-* Ops: mov, add, sub, load, store, setcc, jcc, putc, getc, and exit
+* Ops: mov, add, sub, load, store, putc, getc, exit, dump, (un)conditional jumps, comparisons
 * Psuedo ops: .text, .data, .long, and .string
 * mul/div/mod are implemented by __builtin_*
 * No bit operations
